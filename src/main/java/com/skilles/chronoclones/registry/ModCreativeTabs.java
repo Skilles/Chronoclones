@@ -21,6 +21,7 @@ public final class ModCreativeTabs {
                     .displayItems((parameters, output) -> {
                         output.accept(ModItems.CHRONO_ANCHOR.get());
                         output.accept(ModItems.CHRONO_RECORDER.get());
+                        output.accept(ModItems.CHRONO_SHARD.get());
                         output.accept(ModItems.CHRONO_SPLITTER.get());
                         output.accept(ModItems.CHRONO_ACCELERATOR.get());
                         output.accept(ModItems.CHRONO_FOCUS.get());

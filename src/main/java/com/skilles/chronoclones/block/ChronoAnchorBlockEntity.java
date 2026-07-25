@@ -153,6 +153,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return upgrades;
     }
 
+    /** The imprinting player — the identity behind every event this anchor causes. */
+    public @Nullable UUID getOwnerId() {
+        return ownerId;
+    }
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
     public @Nullable Recording getRecording() {
         return recording;
     }

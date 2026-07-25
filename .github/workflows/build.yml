@@ -23,3 +23,9 @@ jobs:
 
       - name: Build with Gradle
         run: ./gradlew build
+
+      # Game tests need a real server, so they are a separate task from the JUnit suite that
+      # `build` runs. The attribution tests in particular can only be checked here — the question
+      # is what a third-party protection mod observes on the event bus.
+      - name: Run game tests
+        run: ./gradlew runGameTestServer

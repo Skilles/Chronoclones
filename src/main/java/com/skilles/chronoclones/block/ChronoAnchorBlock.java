@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.block;
 
 import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.item.ChronoShardItem;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.registry.ModItems;
@@ -107,13 +108,21 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {
-        // Only a recorder actually carrying a recording is an imprint attempt. An idle recorder in
-        // hand should still open the GUI rather than refusing, so it defers as well. The component
-        // is network-synchronised, so this decision matches on both sides.
-        Recording recording = ChronoRecorderItem.recordingOf(stack);
-        if (!stack.is(ModItems.CHRONO_RECORDER.get()) || recording == null) {
+        boolean isRecorder = stack.is(ModItems.CHRONO_RECORDER.get());
+        boolean isShard = stack.is(ModItems.CHRONO_SHARD.get());
+
+        // Only an item actually carrying — or able to receive — a routine is an interaction. Idle
+        // recorders and everything else defer so the GUI still opens. The recording component is
+        // network-synchronised, so client and server reach the same decision.
+        if (!isRecorder && !isShard) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
+        Recording carried = isRecorder ? ChronoRecorderItem.recordingOf(stack) : ChronoShardItem.recordingOf(stack);
+        boolean blankShard = isShard && carried == null;
+        if (carried == null && !blankShard) {
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
+        }
+
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
@@ -122,14 +131,53 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
-        anchor.imprint(recording, serverPlayer);
-        ChronoRecorderItem.clear(stack);
+        if (blankShard) {
+            return inscribeShard(anchor, stack, serverPlayer, level, pos);
+        }
+
+        anchor.imprint(carried, serverPlayer);
+        // A recorder hands its recording over; a shard keeps it, so one shard can seed many anchors.
+        if (isRecorder) {
+            ChronoRecorderItem.clear(stack);
+        }
 
         serverPlayer.sendOverlayMessage(Component.translatable(
                 "message.chronoclones.anchor.imprinted",
-                Component.literal(recording.authorName()).withStyle(ChatFormatting.WHITE),
-                recording.actions().size()).withStyle(ChatFormatting.AQUA));
+                Component.literal(carried.authorName()).withStyle(ChatFormatting.WHITE),
+                carried.actions().size()).withStyle(ChatFormatting.AQUA));
         level.playSound(null, pos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 0.8f, 1.2f);
+
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Copies an anchor's routine onto a blank shard, consuming one blank.
+     *
+     * <p>The copy carries the original author, not the anchor owner — passing a routine along must
+     * not relabel who wrote it.
+     */
+    private static InteractionResult inscribeShard(ChronoAnchorBlockEntity anchor, ItemStack blanks,
+                                                   ServerPlayer player, Level level, BlockPos pos) {
+        Recording recording = anchor.getRecording();
+        if (recording == null) {
+            player.sendOverlayMessage(Component
+                    .translatable("message.chronoclones.shard.nothing_to_copy")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+
+        ItemStack inscribed = ChronoShardItem.inscribe(blanks, recording);
+        blanks.shrink(1);
+
+        if (!player.getInventory().add(inscribed)) {
+            player.drop(inscribed, false);
+        }
+
+        player.sendOverlayMessage(Component.translatable(
+                "message.chronoclones.shard.inscribed",
+                Component.literal(recording.authorName()).withStyle(ChatFormatting.WHITE))
+                .withStyle(ChatFormatting.AQUA));
+        level.playSound(null, pos, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.BLOCKS, 0.8f, 1.4f);
 
         return InteractionResult.SUCCESS;
     }

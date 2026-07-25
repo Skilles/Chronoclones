@@ -3,6 +3,7 @@ package com.skilles.chronoclones.registry;
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.CreativeChargeCellItem;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.item.ChronoShardItem;
 
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -19,6 +20,12 @@ public final class ModItems {
             "chrono_recorder",
             ChronoRecorderItem::new,
             (Item.Properties props) -> props.stacksTo(1).rarity(Rarity.UNCOMMON));
+
+    /** Transfer medium: blank until inscribed, then imprintable onto any number of anchors. */
+    public static final DeferredItem<ChronoShardItem> CHRONO_SHARD = ITEMS.registerItem(
+            "chrono_shard",
+            ChronoShardItem::new,
+            (Item.Properties props) -> props.stacksTo(16).rarity(Rarity.UNCOMMON));
 
     // Upgrades. Items in slots rather than block tiers, so five independent axes do not
     // become a combinatorial crafting tree.
