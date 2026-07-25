@@ -1,7 +1,9 @@
 package com.skilles.chronoclones.client;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.menu.client.ChronoAnchorScreen;
+import com.skilles.chronoclones.network.ChronoclonesNetwork;
 import com.skilles.chronoclones.registry.ModEntities;
 import com.skilles.chronoclones.registry.ModMenus;
 
@@ -21,6 +23,9 @@ public class ChronoclonesClient {
 
     public ChronoclonesClient(ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
+        // Installed from here so the common network class never names a client type — see
+        // ChronoclonesNetwork for why that matters on 26.x.
+        ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
     }
 
     @SubscribeEvent
