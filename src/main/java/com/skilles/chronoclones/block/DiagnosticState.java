@@ -87,4 +87,24 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
     public static DiagnosticState of(FailureReason reason, @Nullable BlockPos localPos, int tick) {
         return new DiagnosticState(reason, localPos == null ? BlockPos.ZERO : localPos, tick);
     }
+
+    /**
+     * Whether a halted anchor may resume, given the conditions that caused the halt.
+     *
+     * <p>A halt has to be able to clear itself once the player fixes the cause. Both halting
+     * reasons describe a resource state, not damage: charge comes back when fuel is added, and
+     * space comes back when the inventory is emptied. Requiring a re-imprint to clear either would
+     * make the halt a trap rather than a pause.
+     *
+     * <p>Pure so the recovery rule can be asserted without a running level.
+     */
+    public static boolean canResume(FailureReason reason, boolean hasCharge, boolean hasInventoryRoom) {
+        return switch (reason) {
+            case NO_CHARGE -> hasCharge;
+            case INVENTORY_FULL -> hasInventoryRoom;
+            // Everything else either does not halt, or is not something the anchor can detect
+            // resolving on its own.
+            default -> !reason.halts();
+        };
+    }
 }

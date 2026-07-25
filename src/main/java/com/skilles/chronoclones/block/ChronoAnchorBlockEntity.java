@@ -223,15 +223,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
 
-        if (lastFailure.halts()) {
-            // A halting failure freezes the anchor until the player intervenes. Ghosts fade so the
-            // stopped state is visible from across the base rather than only in the GUI.
-            discardGhosts();
-            setActive(false);
-            return;
-        }
-
-        // Derived every tick so pulling an upgrade out takes effect immediately.
+        // Upgrades and refuelling run BEFORE the halt check, and unconditionally.
+        //
+        // Both halting reasons describe a resource the player can restore — charge, or inventory
+        // space — so an anchor that stops refuelling while halted can never recover from the very
+        // condition that halted it. Putting these after the halt check deadlocked a no-charge
+        // anchor permanently: fuel sat in the slot untouched until the anchor was re-imprinted,
+        // which reset the failure by accident rather than by design.
         UpgradeState current = UpgradeState.from(upgradeSlots);
         if (current.cloneCount() != upgrades.cloneCount()) {
             upgrades = current;
@@ -241,6 +239,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
 
         consumeFuel();
+
+        if (lastFailure.halts()) {
+            if (!DiagnosticState.canResume(lastFailure.reason(), !charge.isEmpty(), hasInventoryRoom())) {
+                // Still stuck. Ghosts stay faded so the stopped state reads from across the base
+                // rather than only in the GUI.
+                discardGhosts();
+                setActive(false);
+                return;
+            }
+            // The cause cleared, so pick up where the routine left off.
+            lastFailure = DiagnosticState.NONE;
+            setChanged();
+        }
 
         if (runtimes.isEmpty()) {
             rebuildRuntimes();
@@ -334,6 +345,17 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 setChanged();
             }
         }
+    }
+
+    /** True if any storage slot could accept something, used to clear an INVENTORY_FULL halt. */
+    private boolean hasInventoryRoom() {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            if (inventory.getResource(slot).isEmpty()
+                    || inventory.getAmountAsInt(slot) < inventory.getCapacityAsInt(slot, inventory.getResource(slot))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
