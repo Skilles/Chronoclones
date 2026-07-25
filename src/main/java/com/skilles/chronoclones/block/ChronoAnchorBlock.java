@@ -1,11 +1,21 @@
 package com.skilles.chronoclones.block;
 
+import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+import com.skilles.chronoclones.registry.ModItems;
 import com.mojang.serialization.MapCodec;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
@@ -81,6 +91,46 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
             player.openMenu(anchor, pos);
         }
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Right-clicking with a recorder in HOLDING state imprints it.
+     *
+     * <p>Ownership transfers to the imprinting player, not the recording's author — see
+     * {@link ChronoAnchorBlockEntity} for why that distinction is security-critical.
+     */
+    @Override
+    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                          Player player, InteractionHand hand, BlockHitResult hit) {
+        if (!stack.is(ModItems.CHRONO_RECORDER.get())) {
+            return InteractionResult.PASS;
+        }
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(player instanceof ServerPlayer serverPlayer)
+                || !(level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor)) {
+            return InteractionResult.PASS;
+        }
+
+        Recording recording = ChronoRecorderItem.recordingOf(stack);
+        if (recording == null) {
+            serverPlayer.sendOverlayMessage(Component
+                    .translatable("message.chronoclones.anchor.nothing_to_imprint")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+
+        anchor.imprint(recording, serverPlayer);
+        ChronoRecorderItem.clear(stack);
+
+        serverPlayer.sendOverlayMessage(Component.translatable(
+                "message.chronoclones.anchor.imprinted",
+                Component.literal(recording.authorName()).withStyle(ChatFormatting.WHITE),
+                recording.actions().size()).withStyle(ChatFormatting.AQUA));
+        level.playSound(null, pos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 0.8f, 1.2f);
+
         return InteractionResult.SUCCESS;
     }
 }

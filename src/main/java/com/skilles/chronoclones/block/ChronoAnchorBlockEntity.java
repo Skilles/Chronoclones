@@ -1,16 +1,27 @@
 package com.skilles.chronoclones.block;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
-import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
+import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.recording.RecordingCodecs;
+import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
-import com.skilles.chronoclones.replay.MotionPath;
+import com.skilles.chronoclones.replay.ActionExecutor;
+import com.skilles.chronoclones.replay.CloneRuntime;
+import com.skilles.chronoclones.replay.MotionTrack;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -28,35 +39,17 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import org.jspecify.annotations.Nullable;
 
 /**
- * DAY 1 SPIKE. This is not the real replay engine — it drives one ghost around a hardcoded
- * waypoint loop to answer the single question the design hangs on: does lerped motion accumulate
- * positional drift over many loops?
+ * The Chrono Anchor: holds an imprinted recording and replays it on a loop.
  *
- * <p>The answer is designed to be "no, structurally": {@link #posFor(int)} is a pure function of an
- * integer playhead. Nothing is ever added to a previous position. {@link #playhead} is the only
- * mutable motion state and it is an int that resets exactly to 0.
+ * <p><b>Owner and author are different fields and are never conflated</b>. The owner
+ * is whoever imprinted this anchor and is the identity behind every block break, damage source and
+ * permission check. The author travels with the {@link Recording} and only decides whose skin the
+ * ghost wears. Getting this backwards is a griefing vector, so the owner is stored here — on the
+ * block — and the recording carries no owner field at all.
  */
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
     public static final int INVENTORY_SLOTS = 18;
-
-    /** Spike route, in anchor-local space. Replaced by the real motion track on Day 2. */
-    private static final List<Vec3> WAYPOINTS = List.of(
-            new Vec3(0.5, 0.0, 1.5),
-            new Vec3(3.5, 0.0, 1.5),
-            new Vec3(3.5, 0.0, 4.5),
-            new Vec3(0.5, 1.0, 4.5),
-            new Vec3(-2.5, 1.0, 4.5),
-            new Vec3(-2.5, 0.0, 1.5));
-
-    /** Ticks spent travelling between consecutive waypoints. */
-    private static final int TICKS_PER_LEG = 20;
-
-    /** Pure function of the playhead — see {@link MotionPath} and {@code MotionPathTest}. */
-    private static final MotionPath PATH = new MotionPath(WAYPOINTS, TICKS_PER_LEG);
-    private static final int LENGTH_TICKS = PATH.lengthTicks();
-
-    private static final int SPIKE_TARGET_LOOPS = 10;
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
         @Override
@@ -65,18 +58,27 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     };
 
-    private int playhead;
-    private int loopsCompleted;
-    private boolean spikeReported;
-    private @Nullable ChronoCloneEntity ghost;
+    private @Nullable Recording recording;
+    private @Nullable MotionTrack motionTrack;
+
+    private @Nullable UUID ownerId;
+    private String ownerName = "";
+
+    private final List<CloneRuntime> runtimes = new ArrayList<>();
+    private int cloneCount = 1;
+    private boolean enabled = true;
+    private DiagnosticState lastFailure = DiagnosticState.NONE;
 
     private final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
             return switch (index) {
-                case 0 -> playhead;
-                case 1 -> LENGTH_TICKS;
-                case 2 -> loopsCompleted;
+                case 0 -> runtimes.isEmpty() ? 0 : runtimes.get(0).playhead();
+                case 1 -> recording == null ? 0 : recording.lengthTicks();
+                case 2 -> recording == null ? 0 : recording.actions().size();
+                case 3 -> lastFailure.reason().ordinal();
+                case 4 -> enabled ? 1 : 0;
+                case 5 -> runtimes.size();
                 default -> 0;
             };
         }
@@ -86,7 +88,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return 3;
+            return 6;
         }
     };
 
@@ -106,92 +108,189 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return data;
     }
 
-    // ------------------------------------------------------------------ spike
+    public @Nullable Recording getRecording() {
+        return recording;
+    }
+
+    public DiagnosticState getLastFailure() {
+        return lastFailure;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    // ------------------------------------------------------------------ imprint
 
     /**
-     * Position as a pure function of the playhead. Never {@code pos += delta}.
+     * Imprints a recording, taking ownership for the imprinting player.
      *
-     * <p>Called with the same int, this returns the same Vec3 forever — which is what makes drift
-     * structurally impossible rather than merely unlikely.
+     * <p>The owner comes from {@code imprinter} and the author stays inside {@code recording}. They
+     * are set from two different sources here on purpose — see the class docs.
      */
-    private Vec3 posFor(int tick) {
-        Vec3 local = PATH.positionAt(tick);
-        return new Vec3(
-                worldPosition.getX() + local.x,
-                worldPosition.getY() + local.y,
-                worldPosition.getZ() + local.z);
+    public void imprint(Recording recording, ServerPlayer imprinter) {
+        this.recording = recording;
+        this.motionTrack = new MotionTrack(recording.motion());
+        this.ownerId = imprinter.getUUID();
+        this.ownerName = imprinter.getGameProfile().name();
+        this.lastFailure = DiagnosticState.NONE;
+
+        rebuildRuntimes();
+        setChanged();
     }
 
-    private float yawFor(int tick) {
-        return PATH.yawAt(tick);
+    public void clearRecording() {
+        discardGhosts();
+        runtimes.clear();
+        recording = null;
+        motionTrack = null;
+        lastFailure = DiagnosticState.NONE;
+        setActive(false);
+        setChanged();
     }
+
+    private void rebuildRuntimes() {
+        discardGhosts();
+        runtimes.clear();
+        if (recording == null) {
+            return;
+        }
+        for (int i = 0; i < cloneCount; i++) {
+            runtimes.add(new CloneRuntime(
+                    CloneRuntime.phaseOffsetFor(i, cloneCount, recording.lengthTicks())));
+        }
+    }
+
+    // ------------------------------------------------------------------ replay
 
     public void serverTick() {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
         }
 
-        if (ghost == null || ghost.isRemoved()) {
-            ghost = ChronoCloneEntity.create(serverLevel);
-            Vec3 start = posFor(0);
-            ghost.driveTo(start, yawFor(0), 0.0f);
-            serverLevel.addFreshEntity(ghost);
-            if (!getBlockState().getValue(ChronoAnchorBlock.ACTIVE)) {
-                serverLevel.setBlockAndUpdate(worldPosition,
-                        getBlockState().setValue(ChronoAnchorBlock.ACTIVE, true));
+        if (!enabled || recording == null || motionTrack == null || ownerId == null) {
+            if (!runtimes.isEmpty()) {
+                discardGhosts();
+                runtimes.clear();
+                setActive(false);
+            }
+            return;
+        }
+
+        if (lastFailure.halts()) {
+            // A halting failure freezes the anchor until the player intervenes. Ghosts fade so the
+            // stopped state is visible from across the base rather than only in the GUI.
+            discardGhosts();
+            setActive(false);
+            return;
+        }
+
+        if (runtimes.isEmpty()) {
+            rebuildRuntimes();
+        }
+        setActive(true);
+
+        Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
+        int length = Math.max(recording.lengthTicks(), 1);
+
+        for (CloneRuntime runtime : runtimes) {
+            runtime.advance(1);
+            if (runtime.playhead() >= length) {
+                runtime.loop(length);
+            }
+
+            syncGhost(serverLevel, runtime, facing);
+            runDueActions(serverLevel, runtime);
+
+            if (lastFailure.halts()) {
+                return;
             }
         }
+    }
 
-        playhead++;
-        if (playhead >= LENGTH_TICKS) {
-            playhead = 0;
-            loopsCompleted++;
-            reportDrift();
+    private void runDueActions(ServerLevel serverLevel, CloneRuntime runtime) {
+        if (recording == null || ownerId == null) {
+            return;
         }
+        List<TimedAction> actions = recording.actions();
+        Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
 
-        ghost.driveTo(posFor(playhead), yawFor(playhead), 0.0f);
+        while (runtime.actionCursor() < actions.size()
+                && actions.get(runtime.actionCursor()).tick() <= runtime.playhead()) {
+
+            TimedAction timed = actions.get(runtime.actionCursor());
+            runtime.consumeAction();
+
+            // Break-only for now. Place, attack and use arrive with the fidelity upgrade.
+            if (!(timed.action() instanceof ChronoAction.BreakBlock breakAction)) {
+                continue;
+            }
+
+            ActionExecutor.Result result = ActionExecutor.executeBreak(
+                    serverLevel, breakAction, worldPosition, facing, ownerId, ownerName, inventory);
+
+            if (!result.succeeded()) {
+                recordFailure(serverLevel, result.reason(), result.localPos(), runtime.playhead(), facing);
+                if (result.reason().halts()) {
+                    return;
+                }
+            } else if (lastFailure.isFailure()) {
+                // A success clears a previous non-halting complaint, so the GUI reflects now
+                // rather than the last thing that ever went wrong.
+                lastFailure = DiagnosticState.NONE;
+                setChanged();
+            }
+        }
     }
 
     /**
-     * The actual spike measurement: at every loop boundary, compare where the ghost physically is
-     * against where tick 0 says it should be. If these ever diverge, the design is in trouble and
-     * we need to know on Day 1.
+     * Records why an action was skipped and marks the spot in-world.
+     *
+     * <p>The particle is the point: a routine that quietly stops doing one of its steps is the most
+     * confusing failure this mod can produce, so it gets a visible marker at the exact block.
      */
-    private void reportDrift() {
-        if (ghost == null) {
+    private void recordFailure(ServerLevel serverLevel, FailureReason reason, BlockPos localPos,
+                               int tick, Direction facing) {
+        lastFailure = DiagnosticState.of(reason, localPos, tick);
+        setChanged();
+
+        BlockPos worldPos = com.skilles.chronoclones.recording.LocalSpace.toWorld(localPos, worldPosition, facing);
+        serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.SMOKE,
+                worldPos.getX() + 0.5, worldPos.getY() + 0.5, worldPos.getZ() + 0.5,
+                6, 0.2, 0.2, 0.2, 0.01);
+    }
+
+    private void syncGhost(ServerLevel serverLevel, CloneRuntime runtime, Direction facing) {
+        if (motionTrack == null || motionTrack.isEmpty()) {
             return;
         }
-        Vec3 expected = posFor(0);
-        Vec3 actual = ghost.position();
-        double drift = actual.distanceTo(expected);
+        ChronoCloneEntity ghost = runtime.ghost();
+        if (ghost == null || ghost.isRemoved()) {
+            ghost = ChronoCloneEntity.create(serverLevel);
+            runtime.setGhost(ghost);
+            serverLevel.addFreshEntity(ghost);
+        }
 
-        Chronoclones.LOGGER.info("[drift-spike] loop {} complete — drift {} (expected {}, actual {})",
-                loopsCompleted, String.format("%.9f", drift), expected, actual);
+        Vec3 pos = motionTrack.worldPositionAt(runtime.playhead(), worldPosition, facing);
+        float yaw = motionTrack.worldYawAt(runtime.playhead(), facing);
+        ghost.driveTo(pos, yaw, motionTrack.pitchAt(runtime.playhead()));
+    }
 
-        if (loopsCompleted >= SPIKE_TARGET_LOOPS && !spikeReported) {
-            spikeReported = true;
-            if (drift < 1.0e-3) {
-                Chronoclones.LOGGER.info("[drift-spike] PASS — {} loops, final drift {} < 1e-3",
-                        loopsCompleted, String.format("%.9f", drift));
-            } else {
-                Chronoclones.LOGGER.error("[drift-spike] FAIL — {} loops, drift {} >= 1e-3",
-                        loopsCompleted, String.format("%.9f", drift));
-            }
+    private void discardGhosts() {
+        runtimes.forEach(CloneRuntime::discardGhost);
+    }
+
+    private void setActive(boolean active) {
+        BlockState state = getBlockState();
+        if (level != null && state.getValue(ChronoAnchorBlock.ACTIVE) != active) {
+            level.setBlockAndUpdate(worldPosition, state.setValue(ChronoAnchorBlock.ACTIVE, active));
         }
     }
 
     @Override
     public void setRemoved() {
         super.setRemoved();
-        discardGhost();
-    }
-
-    /** Ghosts never outlive their anchor. */
-    private void discardGhost() {
-        if (ghost != null) {
-            ghost.discard();
-            ghost = null;
-        }
+        discardGhosts();
     }
 
     // ------------------------------------------------------------- persistence
@@ -200,13 +299,36 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         inventory.serialize(output.child("inventory"));
-        // playhead is deliberately NOT saved: no catch-up on chunk load.
+
+        if (recording != null) {
+            output.store("recording", RecordingCodecs.RECORDING, recording);
+        }
+        if (ownerId != null) {
+            output.store("owner_id", UUIDUtil.CODEC, ownerId);
+            output.putString("owner_name", ownerName);
+        }
+        output.putBoolean("enabled", enabled);
+        output.putInt("chrono_count", cloneCount);
+        output.store("last_failure", DiagnosticState.CODEC, lastFailure);
+        // Playheads are deliberately NOT saved: no catch-up on chunk load.
     }
 
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         input.child("inventory").ifPresent(inventory::deserialize);
+
+        recording = input.read("recording", RecordingCodecs.RECORDING).orElse(null);
+        motionTrack = recording == null ? null : new MotionTrack(recording.motion());
+
+        ownerId = input.read("owner_id", UUIDUtil.CODEC).orElse(null);
+        ownerName = input.getStringOr("owner_name", "");
+        enabled = input.getBooleanOr("enabled", true);
+        cloneCount = Math.max(1, input.getIntOr("chrono_count", 1));
+        lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
+
+        // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.
+        runtimes.clear();
     }
 
     // ------------------------------------------------------------------- menu

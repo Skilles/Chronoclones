@@ -14,6 +14,20 @@
   "message.chronoclones.recorder.holding": "Right-click an Chrono Anchor to imprint this recording.",
   "message.chronoclones.recorder.out_of_range": "Out of range — that action was not recorded.",
 
+  "message.chronoclones.anchor.imprinted": "Imprinted %s's routine — %s actions.",
+  "message.chronoclones.anchor.nothing_to_imprint": "This recorder has no recording.",
+
+  "diagnostic.chronoclones.none": "Running",
+  "diagnostic.chronoclones.no_block": "Nothing to break at %s",
+  "diagnostic.chronoclones.wrong_block": "Unexpected block at %s",
+  "diagnostic.chronoclones.blacklisted": "Cannot break that block at %s",
+  "diagnostic.chronoclones.protected": "Not permitted to break at %s",
+  "diagnostic.chronoclones.out_of_range": "Out of range at %s",
+  "diagnostic.chronoclones.unloaded": "Chunk not loaded at %s",
+  "diagnostic.chronoclones.inventory_full": "Inventory full — halted at %s",
+  "diagnostic.chronoclones.no_charge": "Out of charge",
+  "diagnostic.chronoclones.not_permitted": "Action not unlocked at %s",
+
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",
   "tooltip.chronoclones.recording.author": "Author: %s",
