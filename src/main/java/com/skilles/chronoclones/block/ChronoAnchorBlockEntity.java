@@ -504,6 +504,25 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         Vec3 pos = motionTrack.worldPositionAt(runtime.playhead(), worldPosition, facing);
         float yaw = motionTrack.worldYawAt(runtime.playhead(), facing);
         ghost.driveTo(pos, yaw, motionTrack.pitchAt(runtime.playhead()));
+        ghost.setHeldItem(upcomingHeldItem(runtime));
+    }
+
+    /**
+     * What the ghost should be holding right now: whatever the action it is walking towards needs.
+     *
+     * <p>Read from the action cursor rather than the last action performed, so the clone picks up the
+     * pickaxe on the way to the block instead of a tick after breaking it.
+     */
+    private ItemStack upcomingHeldItem(CloneRuntime runtime) {
+        if (recording == null) {
+            return ItemStack.EMPTY;
+        }
+        List<TimedAction> actions = recording.actions();
+        int cursor = runtime.actionCursor();
+        if (cursor >= actions.size()) {
+            return ItemStack.EMPTY;
+        }
+        return actions.get(cursor).action().heldTemplate();
     }
 
     private void discardGhosts() {

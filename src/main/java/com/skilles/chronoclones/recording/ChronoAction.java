@@ -32,6 +32,21 @@ public sealed interface ChronoAction {
         return type().chargeCost();
     }
 
+    /**
+     * What the player was visibly holding when they did this, for the ghost to hold too.
+     *
+     * <p>Cosmetic. The item that actually gets consumed or swung comes from the anchor's inventory
+     * at execute time — this is only what the clone appears to be carrying.
+     */
+    default ItemStack heldTemplate() {
+        return switch (this) {
+            case BreakBlock a -> a.toolTemplate();
+            case AttackEntity a -> a.weaponTemplate();
+            case PlaceBlock a -> new ItemStack(a.item());
+            case UseItem a -> new ItemStack(a.item());
+        };
+    }
+
     // ------------------------------------------------------------------------------
 
     record BreakBlock(BlockPos localPos, Holder<Block> expectedBlock, ItemStack toolTemplate)

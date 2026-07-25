@@ -15,6 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.WalkAnimationState;
 import net.minecraft.world.entity.player.PlayerSkin;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
@@ -47,6 +48,10 @@ public class ChronoCloneEntity extends Entity {
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> AUTHOR_NAME =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
+
+    /** What the clone appears to be holding. Cosmetic — see {@code ChronoAction.heldTemplate}. */
+    private static final EntityDataAccessor<ItemStack> HELD_ITEM =
+            SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
 
     /**
      * Drives the walk cycle.
@@ -111,6 +116,24 @@ public class ChronoCloneEntity extends Entity {
         return this.entityData.get(AUTHOR_NAME);
     }
 
+    /**
+     * Sets the visibly held item, skipping the write when nothing changed.
+     *
+     * <p>The guard is not an optimisation. {@code SynchedEntityData} compares with
+     * {@code Objects.equals}, and {@code ItemStack} does not override it — so handing it a fresh
+     * copy every tick marks the entry dirty every tick and puts one item packet per ghost per tick
+     * on the wire, forever.
+     */
+    public void setHeldItem(ItemStack stack) {
+        if (!ItemStack.matches(this.entityData.get(HELD_ITEM), stack)) {
+            this.entityData.set(HELD_ITEM, stack.copy());
+        }
+    }
+
+    public ItemStack heldItem() {
+        return this.entityData.get(HELD_ITEM);
+    }
+
     public WalkAnimationState walkAnimation() {
         return this.walkAnimation;
     }
@@ -168,6 +191,7 @@ public class ChronoCloneEntity extends Entity {
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(AUTHOR_ID, "");
         builder.define(AUTHOR_NAME, "");
+        builder.define(HELD_ITEM, ItemStack.EMPTY);
     }
 
     @Override
