@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": { "I": "minecraft:iron_ingot", "R": "minecraft:redstone", "A": "minecraft:amethyst_shard", "E": "minecraft:chrono_shard" },
+  "pattern": [ "IRI", "AEA", "IRI" ],
+  "result": {
+    "id": "chronoclones:chrono_recorder"
+  }
+}

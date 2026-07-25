@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": { "R": "minecraft:redstone", "B": "minecraft:blaze_powder", "A": "minecraft:amethyst_shard" },
+  "pattern": [ " R ", "RBR", " A " ],
+  "result": {
+    "id": "chronoclones:chrono_accelerator"
+  }
+}

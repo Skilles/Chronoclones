@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": { "E": "minecraft:chrono_shard", "A": "minecraft:amethyst_shard", "P": "minecraft:prismarine_crystals" },
+  "pattern": [ "E E", " P ", " A " ],
+  "result": {
+    "id": "chronoclones:chrono_splitter"
+  }
+}

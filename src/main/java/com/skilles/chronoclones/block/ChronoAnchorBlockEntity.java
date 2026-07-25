@@ -12,6 +12,7 @@ import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
 import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+import com.skilles.chronoclones.registry.ModDataComponents;
 import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.replay.ActionExecutor;
 import com.skilles.chronoclones.replay.CloneRuntime;
@@ -24,6 +25,8 @@ import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -193,6 +196,23 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         setChanged();
     }
 
+    /**
+     * Takes ownership without touching the routine, for an anchor placed from a stack that already
+     * carries one.
+     *
+     * <p>A routine survives being mined and re-placed — losing one to a pickaxe would be a miserable
+     * way to lose an afternoon's recording. Ownership does <em>not</em> survive: it is reassigned to
+     * whoever places the block, exactly as imprinting reassigns it. Mining someone's anchor and
+     * putting it down elsewhere must not let it keep acting in their name, and an
+     * anchor placed by a dispenser gets no owner at all, which leaves it inert.
+     */
+    public void adopt(ServerPlayer placer) {
+        this.ownerId = placer.getUUID();
+        this.ownerName = placer.getGameProfile().name();
+        this.lastFailure = DiagnosticState.NONE;
+        setChanged();
+    }
+
     public void clearRecording() {
         discardGhosts();
         runtimes.clear();
@@ -266,6 +286,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             rebuildRuntimes();
         }
         setActive(true);
+        emitIdleParticles(serverLevel);
 
         Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
         int length = Math.max(recording.lengthTicks(), 1);
@@ -428,6 +449,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
      */
     private void recordFailure(ServerLevel serverLevel, FailureReason reason, BlockPos localPos,
                                int tick, Direction facing) {
+        boolean wasRunning = !lastFailure.halts();
         lastFailure = DiagnosticState.of(reason, localPos, tick);
         setChanged();
 
@@ -435,7 +457,33 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.SMOKE,
                 worldPos.getX() + 0.5, worldPos.getY() + 0.5, worldPos.getZ() + 0.5,
                 6, 0.2, 0.2, 0.2, 0.01);
+
+        // Only on the transition into halted. A halted anchor re-enters this method every tick, and
+        // a sound per tick would be unbearable — which is precisely why it is worth one sound once:
+        // a stopped anchor is otherwise silent and looks no different from a finished job.
+        if (wasRunning && lastFailure.halts()) {
+            serverLevel.playSound(null, worldPosition, SoundEvents.BEACON_DEACTIVATE,
+                    SoundSource.BLOCKS, 0.5f, 1.4f);
+        }
     }
+
+    /**
+     * A slow drift of sculk soul above a running anchor.
+     *
+     * <p>The lit face already says "running" up close, but a block face is invisible from behind and
+     * from above. One particle every second and a half is enough to spot a working anchor across a
+     * base, and cheap enough to leave on for every anchor on a server.
+     */
+    private void emitIdleParticles(ServerLevel serverLevel) {
+        if (serverLevel.getGameTime() % IDLE_PARTICLE_INTERVAL_TICKS != 0) {
+            return;
+        }
+        serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.SCULK_SOUL,
+                worldPosition.getX() + 0.5, worldPosition.getY() + 1.05, worldPosition.getZ() + 0.5,
+                1, 0.15, 0.0, 0.15, 0.0);
+    }
+
+    private static final int IDLE_PARTICLE_INTERVAL_TICKS = 30;
 
     private void syncGhost(ServerLevel serverLevel, CloneRuntime runtime, Direction facing) {
         if (motionTrack == null || motionTrack.isEmpty()) {
@@ -444,6 +492,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ChronoCloneEntity ghost = runtime.ghost();
         if (ghost == null || ghost.isRemoved()) {
             ghost = ChronoCloneEntity.create(serverLevel);
+            // The AUTHOR, never the owner. This is the one place authorship is used for anything,
+            // and it is purely cosmetic: whose skin the clone wears.
+            if (recording != null) {
+                ghost.setAuthor(recording.authorId(), recording.authorName());
+            }
             runtime.setGhost(ghost);
             serverLevel.addFreshEntity(ghost);
         }
@@ -468,6 +521,73 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     public void setRemoved() {
         super.setRemoved();
         discardGhosts();
+    }
+
+    /**
+     * Spills everything the anchor is holding when it is broken.
+     *
+     * <p>The base implementation covers {@code Container} block entities only, and this one stores
+     * through the transfer API instead — so without this override a full anchor deletes its contents
+     * silently. That is the same item-loss failure the transactional break ordering exists to
+     * prevent, arriving through a different door.
+     */
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        super.preRemoveSideEffects(pos, state);
+        if (level == null) {
+            return;
+        }
+        spill(level, pos, inventory);
+        spill(level, pos, fuelSlot);
+        spill(level, pos, upgradeSlots);
+    }
+
+    private static void spill(net.minecraft.world.level.Level level, BlockPos pos,
+                              ItemStacksResourceHandler handler) {
+        for (int slot = 0; slot < handler.size(); slot++) {
+            ItemResource resource = handler.getResource(slot);
+            int amount = handler.getAmountAsInt(slot);
+            if (resource.isEmpty() || amount <= 0) {
+                continue;
+            }
+            net.minecraft.world.Containers.dropItemStack(level,
+                    pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, resource.toStack(amount));
+            handler.set(slot, ItemResource.EMPTY, 0);
+        }
+    }
+
+    // --------------------------------------------------------------- components
+
+    /**
+     * Carries the routine onto the dropped item, and back off it on placement.
+     *
+     * <p>Only the routine. The owner is deliberately not a component: it is reassigned by
+     * {@link #adopt}, so an anchor cannot be picked up and re-placed while still acting as its
+     * previous owner.
+     */
+    @Override
+    protected void collectImplicitComponents(net.minecraft.core.component.DataComponentMap.Builder builder) {
+        super.collectImplicitComponents(builder);
+        if (recording != null) {
+            builder.set(ModDataComponents.RECORDING.get(), recording);
+        }
+    }
+
+    @Override
+    protected void applyImplicitComponents(net.minecraft.core.component.DataComponentGetter getter) {
+        super.applyImplicitComponents(getter);
+        Recording carried = getter.get(ModDataComponents.RECORDING.get());
+        if (carried != null) {
+            this.recording = carried;
+            this.motionTrack = new MotionTrack(carried.motion());
+            rebuildRuntimes();
+        }
+    }
+
+    @Override
+    public void removeComponentsFromTag(ValueOutput output) {
+        // The routine now lives on the stack; leaving a copy in the saved tag would double it up.
+        output.discard("recording");
     }
 
     // ------------------------------------------------------------- persistence

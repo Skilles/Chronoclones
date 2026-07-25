@@ -1,0 +1,9 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": { "Q": "minecraft:quartz", "G": "minecraft:glass", "A": "minecraft:amethyst_shard" },
+  "pattern": [ " Q ", "QGQ", " A " ],
+  "result": {
+    "id": "chronoclones:chrono_lens"
+  }
+}

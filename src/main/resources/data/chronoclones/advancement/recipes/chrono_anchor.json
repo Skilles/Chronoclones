@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_chrono_shard": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": "minecraft:chrono_shard"
+          }
+        ]
+      }
+    },
+    "has_the_recipe": {
+      "trigger": "minecraft:recipe_unlocked",
+      "conditions": {
+        "recipe": "chronoclones:chrono_anchor"
+      }
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_chrono_shard"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "chronoclones:chrono_anchor"
+    ]
+  }
+}
