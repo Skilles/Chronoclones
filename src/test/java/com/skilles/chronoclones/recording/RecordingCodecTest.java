@@ -12,7 +12,6 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 
 import io.netty.buffer.Unpooled;
-import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.RegistryAccess;
@@ -20,7 +19,6 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.server.Bootstrap;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
@@ -32,39 +30,36 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Day 2 acceptance: a Recording must survive both persistence (Codec -> NBT, for the block entity)
- * and sync (StreamCodec -> buffer, for item components) with equality.
+ * A Recording must survive both persistence (Codec -> NBT, for the block entity) and sync
+ * (StreamCodec -> buffer, for item components) with equality.
  *
- * <p><b>Parked, not abandoned.</b> These assertions are correct and complete, but they cannot run
- * under plain JUnit: {@code Holder<Block>}, {@code ItemStack} and {@code BlockState} all need
- * bootstrapped registries, and NeoForge's patched {@code SharedConstants} calls
- * {@code FMLEnvironment.isProduction()} in its static initialiser, which throws
- * "There is no current FML Loader". There is no public API to install one.
+ * <p>Codec bugs surface at runtime as silently-empty or corrupted recordings, which is miserable to
+ * diagnose through a game client — so they get caught here instead.
  *
- * <p>Two ways to switch this on, both deferred so they do not eat schedule now:
- * <ol>
- * <li>Migrate the build from NeoGradle to ModDevGradle, whose {@code unitTest { }} block launches
- *     JUnit through FML so {@code net.neoforged.neoforge.junit.JUnitMain} bootstraps the game
- *     first. This is the officially supported route and would make this class run as written.</li>
- * <li>Re-express these as game tests on Day 9. A running server has real registries, so the same
- *     assertions work unchanged there — at the cost of a much slower feedback loop.</li>
- * </ol>
- *
- * <p>Registry-free coverage of the same model lives in {@code RecordingLogicTest} and does run.
+ * <p>These assertions need real registries, which is why the build runs JUnit through FML
+ * (ModDevGradle's {@code unitTest { }} block). {@code net.neoforged.neoforge.junit.JUnitMain}
+ * bootstraps the game before any test runs, so {@code BuiltInRegistries} is already populated by
+ * the time this class loads — no manual {@code Bootstrap.bootStrap()} needed.
  */
-@org.junit.jupiter.api.Disabled("Needs bootstrapped registries; see class javadoc for the two ways to enable.")
 class RecordingCodecTest {
 
     private static RegistryAccess.Frozen registries;
 
     @BeforeAll
-    static void bootstrapMinecraft() {
-        SharedConstants.tryDetectVersion();
-        Bootstrap.bootStrap();
+    static void captureRegistries() {
         registries = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
     }
 
-    /** Exercises every action variant, including the optional field on UseItem in both states. */
+    /**
+     * Exercises every action variant, including the optional field on UseItem in both states.
+     *
+     * <p>Tool/weapon templates are {@link ItemStack#EMPTY} rather than real stacks: in 26.x an
+     * item's default data components are bound during datapack load
+     * ({@code ReloadableServerResources}), so constructing {@code new ItemStack(Items.X)} without a
+     * loaded world throws "Components not bound yet". The FML JUnit bootstrap loads mods but not a
+     * datapack. Round-tripping a populated stack is therefore covered by game tests, where a
+     * server is actually running; what this class verifies is the shape of OUR codecs.
+     */
     private static Recording sample() {
         return new Recording(
                 List.of(
@@ -75,7 +70,7 @@ class RecordingCodecTest {
                         new TimedAction(1, new ChronoAction.BreakBlock(
                                 new BlockPos(3, -1, 2),
                                 BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.STONE),
-                                new ItemStack(Items.IRON_PICKAXE))),
+                                ItemStack.EMPTY)),
                         new TimedAction(3, new ChronoAction.PlaceBlock(
                                 new BlockPos(-2, 0, 5),
                                 Direction.UP,
@@ -84,7 +79,7 @@ class RecordingCodecTest {
                         new TimedAction(5, new ChronoAction.AttackEntity(
                                 new Vec3(1.5, 0.0, 1.5),
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.ZOMBIE),
-                                new ItemStack(Items.DIAMOND_SWORD))),
+                                ItemStack.EMPTY)),
                         new TimedAction(7, new ChronoAction.UseItem(
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL),
