@@ -15,7 +15,6 @@
   "message.chronoclones.recorder.out_of_range": "Out of range — that action was not recorded.",
 
   "message.chronoclones.anchor.imprinted": "Imprinted %s's routine — %s actions.",
-  "message.chronoclones.anchor.nothing_to_imprint": "This recorder has no recording.",
 
   "diagnostic.chronoclones.none": "Running",
   "diagnostic.chronoclones.no_block": "Nothing to break at %s",

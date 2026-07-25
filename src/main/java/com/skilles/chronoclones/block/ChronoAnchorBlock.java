@@ -99,27 +99,27 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
      *
      * <p>Ownership transfers to the imprinting player, not the recording's author — see
      * {@link ChronoAnchorBlockEntity} for why that distinction is security-critical.
+     *
+     * <p>Anything that is not a recorder must return {@link InteractionResult#TRY_WITH_EMPTY_HAND},
+     * NOT {@code PASS}. Only the former makes the game fall through to {@link #useWithoutItem}, so
+     * returning {@code PASS} here silently stops the anchor's GUI from ever opening.
      */
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hit) {
-        if (!stack.is(ModItems.CHRONO_RECORDER.get())) {
-            return InteractionResult.PASS;
+        // Only a recorder actually carrying a recording is an imprint attempt. An idle recorder in
+        // hand should still open the GUI rather than refusing, so it defers as well. The component
+        // is network-synchronised, so this decision matches on both sides.
+        Recording recording = ChronoRecorderItem.recordingOf(stack);
+        if (!stack.is(ModItems.CHRONO_RECORDER.get()) || recording == null) {
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
         if (!(player instanceof ServerPlayer serverPlayer)
                 || !(level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor)) {
-            return InteractionResult.PASS;
-        }
-
-        Recording recording = ChronoRecorderItem.recordingOf(stack);
-        if (recording == null) {
-            serverPlayer.sendOverlayMessage(Component
-                    .translatable("message.chronoclones.anchor.nothing_to_imprint")
-                    .withStyle(ChatFormatting.RED));
-            return InteractionResult.SUCCESS;
+            return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
         anchor.imprint(recording, serverPlayer);
