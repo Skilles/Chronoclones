@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "facing=north,active=false": { "model": "chronoclones:block/chrono_anchor" },
+    "facing=east,active=false":  { "model": "chronoclones:block/chrono_anchor", "y": 90 },
+    "facing=south,active=false": { "model": "chronoclones:block/chrono_anchor", "y": 180 },
+    "facing=west,active=false":  { "model": "chronoclones:block/chrono_anchor", "y": 270 },
+
+    "facing=north,active=true": { "model": "chronoclones:block/chrono_anchor_active" },
+    "facing=east,active=true":  { "model": "chronoclones:block/chrono_anchor_active", "y": 90 },
+    "facing=south,active=true": { "model": "chronoclones:block/chrono_anchor_active", "y": 180 },
+    "facing=west,active=true":  { "model": "chronoclones:block/chrono_anchor_active", "y": 270 }
+  }
+}

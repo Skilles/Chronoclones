@@ -1,0 +1,15 @@
+{
+  "block.chronoclones.chrono_anchor": "Chrono Anchor",
+  "entity.chronoclones.chrono_clone": "Chrono",
+
+  "chronoclones.configuration.title": "Chronoclones Config",
+  "chronoclones.configuration.section.chronoclones.server.toml": "Chronoclones Config",
+  "chronoclones.configuration.section.chronoclones.server.toml.title": "Chronoclones Config",
+  "chronoclones.configuration.limits": "Limits",
+  "chronoclones.configuration.maxRadius": "Max Action Radius",
+  "chronoclones.configuration.maxRecordingTicks": "Max Recording Ticks",
+  "chronoclones.configuration.maxActions": "Max Recorded Actions",
+  "chronoclones.configuration.maxActionsPerTick": "Max Actions Per Tick",
+  "chronoclones.configuration.gameplay": "Gameplay",
+  "chronoclones.configuration.allowPvp": "Allow Clones To Target Players"
+}
