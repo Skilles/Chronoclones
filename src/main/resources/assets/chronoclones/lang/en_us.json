@@ -27,6 +27,9 @@
   "diagnostic.chronoclones.inventory_full": "Inventory full — halted at %s",
   "diagnostic.chronoclones.no_charge": "Out of charge",
   "diagnostic.chronoclones.not_permitted": "Action not unlocked at %s",
+  "diagnostic.chronoclones.no_item": "No matching item to place at %s",
+  "diagnostic.chronoclones.obstructed": "Blocked at %s",
+  "diagnostic.chronoclones.no_target": "Nothing to attack at %s",
 
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",

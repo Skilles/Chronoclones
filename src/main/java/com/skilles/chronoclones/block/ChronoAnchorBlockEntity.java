@@ -14,6 +14,7 @@ import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.replay.ActionExecutor;
 import com.skilles.chronoclones.replay.CloneRuntime;
+import com.skilles.chronoclones.replay.LevelActionBudget;
 import com.skilles.chronoclones.replay.MotionTrack;
 
 import net.minecraft.core.BlockPos;
@@ -66,6 +67,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private final List<CloneRuntime> runtimes = new ArrayList<>();
     private int cloneCount = 1;
+    /** Which action types this anchor may run. Raised by the fidelity upgrade. */
+    private int fidelityTier = 3;
     private boolean enabled = true;
     private DiagnosticState lastFailure = DiagnosticState.NONE;
 
@@ -219,15 +222,36 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 && actions.get(runtime.actionCursor()).tick() <= runtime.playhead()) {
 
             TimedAction timed = actions.get(runtime.actionCursor());
-            runtime.consumeAction();
+            ChronoAction action = timed.action();
 
-            // Break-only for now. Place, attack and use arrive with the fidelity upgrade.
-            if (!(timed.action() instanceof ChronoAction.BreakBlock breakAction)) {
+            // Fidelity gates which action types this anchor may run at all.
+            if (!action.type().permittedAt(fidelityTier)) {
+                runtime.consumeAction();
+                recordFailure(serverLevel, FailureReason.NOT_PERMITTED, localPosOf(action),
+                        runtime.playhead(), facing);
                 continue;
             }
 
-            ActionExecutor.Result result = ActionExecutor.executeBreak(
-                    serverLevel, breakAction, worldPosition, facing, ownerId, ownerName, inventory);
+            // Out of level budget this tick. Leave the cursor alone so the action is retried next
+            // tick rather than silently dropped.
+            if (!LevelActionBudget.tryClaim(serverLevel)) {
+                return;
+            }
+
+            runtime.consumeAction();
+
+            ActionExecutor.Result result = switch (action) {
+                case ChronoAction.BreakBlock a -> ActionExecutor.executeBreak(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName);
+                // UseItem is the spec's first cut and is not executed; it is skipped visibly
+                // rather than silently so the GUI can say why.
+                case ChronoAction.UseItem a -> ActionExecutor.Result.fail(
+                        FailureReason.NOT_PERMITTED, a.localPos().orElse(BlockPos.ZERO));
+            };
 
             if (!result.succeeded()) {
                 recordFailure(serverLevel, result.reason(), result.localPos(), runtime.playhead(), facing);
@@ -241,6 +265,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 setChanged();
             }
         }
+    }
+
+    /** Diagnostic position for any action variant, for the failure marker. */
+    private static BlockPos localPosOf(ChronoAction action) {
+        return switch (action) {
+            case ChronoAction.BreakBlock a -> a.localPos();
+            case ChronoAction.PlaceBlock a -> a.localPos();
+            case ChronoAction.AttackEntity a -> BlockPos.containing(a.localPos());
+            case ChronoAction.UseItem a -> a.localPos().orElse(BlockPos.ZERO);
+        };
     }
 
     /**
@@ -309,6 +343,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
         output.putBoolean("enabled", enabled);
         output.putInt("chrono_count", cloneCount);
+        output.putInt("fidelity", fidelityTier);
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
         // Playheads are deliberately NOT saved: no catch-up on chunk load.
     }
@@ -325,6 +360,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ownerName = input.getStringOr("owner_name", "");
         enabled = input.getBooleanOr("enabled", true);
         cloneCount = Math.max(1, input.getIntOr("chrono_count", 1));
+        fidelityTier = input.getIntOr("fidelity", 3);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
         // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.

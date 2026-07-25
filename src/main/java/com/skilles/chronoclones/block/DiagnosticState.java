@@ -52,7 +52,13 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         /** Charge buffer empty. */
         NO_CHARGE("no_charge", true),
         /** Action type not permitted at the anchor's fidelity tier. */
-        NOT_PERMITTED("not_permitted", false);
+        NOT_PERMITTED("not_permitted", false),
+        /** No matching item in the anchor inventory to place. */
+        NO_ITEM("no_item", false),
+        /** Target position is occupied by something that cannot be replaced. */
+        OBSTRUCTED("obstructed", false),
+        /** Nothing to attack within reach. */
+        NO_TARGET("no_target", false);
 
         public static final Codec<FailureReason> CODEC = StringRepresentable.fromEnum(FailureReason::values);
 

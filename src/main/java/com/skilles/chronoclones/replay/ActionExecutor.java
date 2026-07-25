@@ -1,5 +1,6 @@
 package com.skilles.chronoclones.replay;
 
+import java.util.Comparator;
 import java.util.List;
 
 import com.skilles.chronoclones.ChronoclonesConfig;
@@ -11,10 +12,21 @@ import com.skilles.chronoclones.registry.ModTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.CommonHooks;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -122,4 +134,144 @@ public final class ActionExecutor {
             AnchorFakePlayer.release(owner);
         }
     }
+
+    // ------------------------------------------------------------------ place
+
+    public static Result executePlace(ServerLevel level, ChronoAction.PlaceBlock action,
+                                      BlockPos anchorPos, Direction anchorFacing,
+                                      java.util.UUID ownerId, String ownerName,
+                                      ResourceHandler<ItemResource> inventory) {
+
+        BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+
+        if (!worldPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+            return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
+        }
+        if (!level.isLoaded(worldPos)) {
+            return Result.fail(FailureReason.UNLOADED, action.localPos());
+        }
+
+        // Never build over another anchor, or over anything on the protected tag.
+        BlockState existing = level.getBlockState(worldPos);
+        if (existing.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || existing.hasBlockEntity()) {
+            return Result.fail(FailureReason.BLACKLISTED, action.localPos());
+        }
+
+        Item item = action.item().value();
+        if (!(item instanceof BlockItem blockItem)) {
+            // The recording captured a non-placeable item for a place action; nothing sensible to do.
+            return Result.fail(FailureReason.NOT_PERMITTED, action.localPos());
+        }
+
+        int slot = findSlotWith(inventory, item);
+        if (slot < 0) {
+            return Result.fail(FailureReason.NO_ITEM, action.localPos());
+        }
+
+        ItemStack toPlace = new ItemStack(item);
+        Direction face = LocalSpace.toWorld(action.localFace(), anchorFacing);
+
+        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
+                Vec3.atCenterOf(worldPos), 0.0f, 0.0f, toPlace);
+        try {
+            BlockHitResult hit = new BlockHitResult(
+                    Vec3.atCenterOf(worldPos), face, worldPos, false);
+            BlockPlaceContext context = new BlockPlaceContext(
+                    level, owner, InteractionHand.MAIN_HAND, owner.getMainHandItem(), hit);
+
+            if (!existing.canBeReplaced(context)) {
+                return Result.fail(FailureReason.OBSTRUCTED, action.localPos());
+            }
+
+            // Consume first, inside a transaction, so a placement that succeeds can never be free
+            // and one that fails can never eat the item.
+            try (Transaction tx = Transaction.openRoot()) {
+                int taken = inventory.extract(slot, ItemResource.of(toPlace), 1, tx);
+                if (taken != 1) {
+                    return Result.fail(FailureReason.NO_ITEM, action.localPos());
+                }
+
+                // Placing through the BlockItem path gives correct orientation, waterlogging,
+                // block-place events and sounds for free.
+                InteractionResult placed = blockItem.place(context);
+                if (!placed.consumesAction()) {
+                    return Result.fail(FailureReason.OBSTRUCTED, action.localPos());
+                }
+                tx.commit();
+            }
+
+            return Result.OK;
+        } finally {
+            AnchorFakePlayer.release(owner);
+        }
+    }
+
+    private static int findSlotWith(ResourceHandler<ItemResource> inventory, Item item) {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            ItemResource resource = inventory.getResource(slot);
+            if (!resource.isEmpty() && resource.getItem() == item && inventory.getAmountAsInt(slot) > 0) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    // ------------------------------------------------------------------ attack
+
+    public static Result executeAttack(ServerLevel level, ChronoAction.AttackEntity action,
+                                       BlockPos anchorPos, Direction anchorFacing,
+                                       java.util.UUID ownerId, String ownerName) {
+
+        Vec3 worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        BlockPos blockPos = BlockPos.containing(worldPos);
+        // Attack positions are continuous; diagnostics report the containing block.
+        BlockPos localBlock = BlockPos.containing(action.localPos());
+
+        if (!blockPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+            return Result.fail(FailureReason.OUT_OF_RANGE, localBlock);
+        }
+        if (!level.isLoaded(blockPos)) {
+            return Result.fail(FailureReason.UNLOADED, localBlock);
+        }
+
+        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        AABB box = new AABB(worldPos, worldPos).inflate(ATTACK_RADIUS);
+
+        // Ghosts are excluded for free: ChronoCloneEntity is a bare Entity, not a LivingEntity, so
+        // it can never appear in this query. That is deliberate — a visual-only clone must never be
+        // a target, and keeping it off LivingEntity makes that structural rather than a filter.
+        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box, entity ->
+                entity.isAlive()
+                        && !entity.getUUID().equals(ownerId)
+                        && (allowPvp || !(entity instanceof Player)));
+
+        if (candidates.isEmpty()) {
+            return Result.fail(FailureReason.NO_TARGET, localBlock);
+        }
+
+        // Prefer the recorded type; the spec treats it as a hint, so fall back to the nearest
+        // living thing rather than refusing to act.
+        EntityType<?> expected = action.expectedType().value();
+        LivingEntity target = candidates.stream()
+                .filter(e -> e.getType() == expected)
+                .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
+                .orElseGet(() -> candidates.stream()
+                        .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
+                        .orElseThrow());
+
+        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
+                worldPos, 0.0f, 0.0f, action.weaponTemplate());
+        try {
+            // Attributed to the owner so XP, loot tables and looting all resolve as if they had
+            // swung the weapon themselves.
+            float damage = (float) owner.getAttributeValue(Attributes.ATTACK_DAMAGE);
+            boolean hurt = target.hurtServer(level, level.damageSources().playerAttack(owner), damage);
+
+            return hurt ? Result.OK : Result.fail(FailureReason.NO_TARGET, localBlock);
+        } finally {
+            AnchorFakePlayer.release(owner);
+        }
+    }
+
+    private static final double ATTACK_RADIUS = 1.5;
 }
