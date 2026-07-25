@@ -7,6 +7,7 @@ import com.mojang.authlib.GameProfile;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
@@ -37,6 +38,16 @@ public final class AnchorFakePlayer {
     public static FakePlayer acquire(ServerLevel level, UUID ownerId, String ownerName,
                                      Vec3 position, float yaw, float pitch, ItemStack held) {
         FakePlayer player = FakePlayerFactory.get(level, new GameProfile(ownerId, ownerName));
+
+        // Pinned to survival, not left at whatever the server's default happens to be. Two of the
+        // three branches in ServerPlayerGameMode.useItemOn key off the game mode: a spectator opens
+        // menus and interacts with nothing, and a creative player's items are never consumed. An
+        // clone that silently stopped charging for its materials on a creative-default server would
+        // be a balance hole; one that quietly did nothing on a spectator-default server would be a
+        // bug with no symptom.
+        if (player.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
+            player.setGameMode(GameType.SURVIVAL);
+        }
 
         player.setPos(position.x, position.y, position.z);
         player.setYRot(yaw);

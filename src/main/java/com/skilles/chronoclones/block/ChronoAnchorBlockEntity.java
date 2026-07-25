@@ -351,10 +351,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
                         serverLevel, a, worldPosition, facing, ownerId, ownerName);
-                // UseItem is the spec's first cut and is not executed; it is skipped visibly
-                // rather than silently so the GUI can say why.
-                case ChronoAction.UseItem a -> ActionExecutor.Result.fail(
-                        FailureReason.NOT_PERMITTED, a.localPos().orElse(BlockPos.ZERO));
+                case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                case ChronoAction.TransferItems a -> ActionExecutor.executeTransfer(
+                        serverLevel, a, worldPosition, facing, inventory);
             };
 
             if (result.succeeded()) {
@@ -437,7 +441,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             case ChronoAction.BreakBlock a -> a.localPos();
             case ChronoAction.PlaceBlock a -> a.localPos();
             case ChronoAction.AttackEntity a -> BlockPos.containing(a.localPos());
-            case ChronoAction.UseItem a -> a.localPos().orElse(BlockPos.ZERO);
+            case ChronoAction.UseOnBlock a -> a.localPos();
+            case ChronoAction.UseItem ignored -> BlockPos.ZERO;
+            case ChronoAction.InteractEntity a -> BlockPos.containing(a.localPos());
+            case ChronoAction.TransferItems a -> a.localPos();
         };
     }
 

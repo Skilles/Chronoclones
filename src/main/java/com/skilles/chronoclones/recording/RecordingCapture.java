@@ -20,7 +20,9 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.world.phys.BlockHitResult;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
@@ -163,7 +165,7 @@ public final class RecordingCapture {
 
         ItemStack stack = event.getItemStack();
         // Using the recorder itself is control input, not part of the routine.
-        if (stack.isEmpty() || stack.is(ModItems.CHRONO_RECORDER.get())) {
+        if (stack.is(ModItems.CHRONO_RECORDER.get())) {
             return;
         }
 
@@ -175,10 +177,22 @@ public final class RecordingCapture {
         }
 
         BlockPos pos = event.getPos();
-        capture(player, session, new ChronoAction.UseItem(
+        BlockHitResult hit = event.getHitVec();
+        // Stored relative to the block centre so it rotates with the anchor, like every other
+        // position in a recording.
+        Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+
+        // Noted before capturing, so that if this click turns out to open a container the index
+        // points at the action we are about to add and the open handler can retract it.
+        ContainerWatch.noteInteraction(player, pos, session.nextActionIndex());
+
+        capture(player, session, new ChronoAction.UseOnBlock(
+                        session.toLocal(pos),
+                        session.toLocal(hit.getDirection()),
+                        LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
+                        hit.isInside(),
                         event.getHand(),
-                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()),
-                        java.util.Optional.of(session.toLocal(pos))),
+                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
                 Vec3.atCenterOf(pos));
     }
 
@@ -200,9 +214,70 @@ public final class RecordingCapture {
 
         capture(player, session, new ChronoAction.UseItem(
                         event.getHand(),
-                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()),
-                        java.util.Optional.empty()),
+                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
                 player.position());
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        RecordingSession session = RecordingSessions.get(player);
+        if (session == null) {
+            return;
+        }
+
+        ItemStack stack = event.getItemStack();
+        if (stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get())) {
+            return;
+        }
+
+        Vec3 target = event.getTarget().position();
+        capture(player, session, new ChronoAction.InteractEntity(
+                        session.toLocal(target),
+                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
+                        event.getHand(),
+                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
+                target);
+    }
+
+    // ------------------------------------------------------------------ containers
+
+    /**
+     * Records what a player did inside a container as a net movement of items, on close.
+     *
+     * <p>Not slot clicks. Clicks are raw input, and replaying them would mean driving a real
+     * container menu — whose behaviour every mod is free to override, and which needs a client to
+     * drive it in the first place. The net difference is both simpler and more faithful to what the
+     * routine is actually for: "this run takes 32 cobblestone out of that barrel" survives the
+     * player having shuffled the stack around three times while deciding.
+     */
+    @SubscribeEvent
+    public static void onContainerOpen(PlayerContainerEvent.Open event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        RecordingSession session = RecordingSessions.get(player);
+        if (session != null) {
+            ContainerWatch.onContainerOpened(player, session);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onContainerClose(PlayerContainerEvent.Close event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        RecordingSession session = RecordingSessions.get(player);
+        if (session == null) {
+            return;
+        }
+
+        BlockPos containerPos = ContainerWatch.openPosition(player);
+        for (ChronoAction.TransferItems transfer : ContainerWatch.onContainerClosed(player, session)) {
+            capture(player, session, transfer, Vec3.atCenterOf(containerPos));
+        }
     }
 
     // ------------------------------------------------------------------ lifecycle
@@ -249,6 +324,7 @@ public final class RecordingCapture {
             return;
         }
         RecordingSessions.discard(player);
+        ContainerWatch.forget(player);
 
         // Clear the stamp, otherwise the item keeps reporting RECORDING for a session that no
         // longer exists and every later interaction with it reads as a failure.

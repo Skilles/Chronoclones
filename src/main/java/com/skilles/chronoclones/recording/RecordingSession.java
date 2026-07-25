@@ -125,6 +125,25 @@ public final class RecordingSession {
         return null;
     }
 
+    /** Index the next recorded action will land at, for {@link #dropActionAt}. */
+    public int nextActionIndex() {
+        return actions.size();
+    }
+
+    /**
+     * Retracts an action that turned out not to be one.
+     *
+     * <p>Used for the click that opens a container: at click time it looks like an ordinary use, and
+     * only the menu appearing afterwards reveals that the interesting part is what the player then
+     * moves. Bounds-checked because the action may never have been recorded — out of range, or over
+     * the cap.
+     */
+    public void dropActionAt(int index) {
+        if (index >= 0 && index < actions.size()) {
+            actions.remove(index);
+        }
+    }
+
     private boolean withinRadius(Vec3 worldPos) {
         double dx = worldPos.x - (origin.getX() + 0.5);
         double dz = worldPos.z - (origin.getZ() + 0.5);

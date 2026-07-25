@@ -66,11 +66,15 @@ public record Recording(
                         maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
                 case ChronoAction.AttackEntity a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));
-                case ChronoAction.UseItem a -> {
-                    if (a.localPos().isPresent()) {
-                        maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos().get())));
-                    }
-                }
+                case ChronoAction.UseOnBlock a ->
+                        maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
+                case ChronoAction.TransferItems a ->
+                        maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
+                case ChronoAction.InteractEntity a ->
+                        maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));
+                // Using an item in mid-air happens wherever the clone is standing, which the motion
+                // samples already account for.
+                case ChronoAction.UseItem ignored -> { }
             }
         }
         return Math.sqrt(maxSqr);

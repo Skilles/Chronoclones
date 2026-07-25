@@ -80,14 +80,26 @@ class RecordingCodecTest {
                                 new Vec3(1.5, 0.0, 1.5),
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.ZOMBIE),
                                 ItemStack.EMPTY)),
-                        new TimedAction(7, new ChronoAction.UseItem(
+                        new TimedAction(7, new ChronoAction.UseOnBlock(
+                                new BlockPos(0, 0, 1),
+                                Direction.UP,
+                                new Vec3(0.25, 0.5, -0.125),
+                                false,
                                 InteractionHand.MAIN_HAND,
-                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL),
-                                Optional.of(new BlockPos(0, 0, 1)))),
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL))),
                         new TimedAction(9, new ChronoAction.UseItem(
                                 InteractionHand.OFF_HAND,
-                                BuiltInRegistries.ITEM.wrapAsHolder(Items.ENDER_PEARL),
-                                Optional.empty()))),
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.ENDER_PEARL))),
+                        new TimedAction(11, new ChronoAction.InteractEntity(
+                                new Vec3(-1.5, 0.0, 2.5),
+                                BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                                InteractionHand.MAIN_HAND,
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
+                        new TimedAction(13, new ChronoAction.TransferItems(
+                                new BlockPos(2, 0, -3),
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.COBBLESTONE),
+                                32,
+                                true))),
                 200,
                 "Bilal",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
@@ -168,7 +180,10 @@ class RecordingCodecTest {
         assertEquals(1, r.actionCounts().get(ChronoActionType.BREAK_BLOCK));
         assertEquals(1, r.actionCounts().get(ChronoActionType.PLACE_BLOCK));
         assertEquals(1, r.actionCounts().get(ChronoActionType.ATTACK_ENTITY));
-        assertEquals(2, r.actionCounts().get(ChronoActionType.USE_ITEM));
+        assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ON_BLOCK));
+        assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ITEM));
+        assertEquals(1, r.actionCounts().get(ChronoActionType.INTERACT_ENTITY));
+        assertEquals(1, r.actionCounts().get(ChronoActionType.TRANSFER_ITEMS));
 
         // Furthest horizontal point is the motion sample at (-7, _, 4) -> sqrt(49+16) ~= 8.06
         assertEquals(Math.sqrt(65.0), r.reach(), 1.0e-9);
@@ -241,11 +256,33 @@ class RecordingCodecTest {
                 assertEquals(e.expectedType().value(), a.expectedType().value());
                 assertTrue(ItemStack.matches(e.weaponTemplate(), a.weaponTemplate()), "weapon at " + index);
             }
+            case ChronoAction.UseOnBlock e -> {
+                ChronoAction.UseOnBlock a = (ChronoAction.UseOnBlock) actual;
+                assertEquals(e.localPos(), a.localPos());
+                assertEquals(e.localFace(), a.localFace());
+                assertEquals(e.localHitOffset(), a.localHitOffset());
+                assertEquals(e.inside(), a.inside());
+                assertEquals(e.hand(), a.hand());
+                assertEquals(e.item().value(), a.item().value());
+            }
             case ChronoAction.UseItem e -> {
                 ChronoAction.UseItem a = (ChronoAction.UseItem) actual;
                 assertEquals(e.hand(), a.hand());
                 assertEquals(e.item().value(), a.item().value());
+            }
+            case ChronoAction.InteractEntity e -> {
+                ChronoAction.InteractEntity a = (ChronoAction.InteractEntity) actual;
                 assertEquals(e.localPos(), a.localPos());
+                assertEquals(e.expectedType().value(), a.expectedType().value());
+                assertEquals(e.hand(), a.hand());
+                assertEquals(e.item().value(), a.item().value());
+            }
+            case ChronoAction.TransferItems e -> {
+                ChronoAction.TransferItems a = (ChronoAction.TransferItems) actual;
+                assertEquals(e.localPos(), a.localPos());
+                assertEquals(e.item().value(), a.item().value());
+                assertEquals(e.amount(), a.amount());
+                assertEquals(e.withdraw(), a.withdraw());
             }
         }
     }

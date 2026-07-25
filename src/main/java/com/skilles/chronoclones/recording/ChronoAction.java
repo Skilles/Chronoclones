@@ -43,7 +43,11 @@ public sealed interface ChronoAction {
             case BreakBlock a -> a.toolTemplate();
             case AttackEntity a -> a.weaponTemplate();
             case PlaceBlock a -> new ItemStack(a.item());
+            case UseOnBlock a -> new ItemStack(a.item());
             case UseItem a -> new ItemStack(a.item());
+            case InteractEntity a -> new ItemStack(a.item());
+            // A transfer is reaching into a chest, not brandishing something.
+            case TransferItems ignored -> ItemStack.EMPTY;
         };
     }
 
@@ -74,12 +78,64 @@ public sealed interface ChronoAction {
         }
     }
 
-    /** Lowest priority; gated behind the fidelity upgrade and first on the spec's cut list. */
-    record UseItem(InteractionHand hand, Holder<Item> item, Optional<BlockPos> localPos)
-            implements ChronoAction {
+    /**
+     * Right-clicking a block, replayed through the server's own interaction entry point.
+     *
+     * <p>The geometry is captured in full — face, and the exact point on the block face — because
+     * that is what the interaction pipeline consumes. A lever, a jukebox, a mod machine's side panel
+     * and a cake all read different parts of the same {@code BlockHitResult}, so recording only
+     * "which block" would work for some and quietly misbehave for the rest.
+     *
+     * <p>{@code localHitOffset} is measured from the block centre so that it rotates with the
+     * anchor exactly as the block position does.
+     */
+    record UseOnBlock(BlockPos localPos, Direction localFace, Vec3 localHitOffset, boolean inside,
+                      InteractionHand hand, Holder<Item> item) implements ChronoAction {
+        @Override
+        public ChronoActionType type() {
+            return ChronoActionType.USE_ON_BLOCK;
+        }
+    }
+
+    /** Right-clicking with nothing targeted — throwing, eating, firing a bow. */
+    record UseItem(InteractionHand hand, Holder<Item> item) implements ChronoAction {
         @Override
         public ChronoActionType type() {
             return ChronoActionType.USE_ITEM;
+        }
+    }
+
+    /**
+     * Right-clicking an entity: shearing, milking, feeding, trading, a mod's interactable mob.
+     *
+     * <p>{@code expectedType} is a hint, as it is for {@link AttackEntity} — the nearest match wins,
+     * falling back to the nearest entity of any type, because a routine that mills around a pen must
+     * not stop working because one particular sheep wandered off.
+     */
+    record InteractEntity(Vec3 localPos, Holder<EntityType<?>> expectedType,
+                          InteractionHand hand, Holder<Item> item) implements ChronoAction {
+        @Override
+        public ChronoActionType type() {
+            return ChronoActionType.INTERACT_ENTITY;
+        }
+    }
+
+    /**
+     * Moving items between a container and the player, recorded as net intent.
+     *
+     * <p>Deliberately not a replay of slot clicks. Clicks are raw input — the thing this model
+     * exists to avoid — and simulating them would mean driving a real {@code AbstractContainerMenu},
+     * whose behaviour every mod is free to override. Capturing the net change and replaying it
+     * through the block's item-handler capability instead works for anything that exposes one,
+     * which is every vanilla container and every mod machine that wanted to be automatable.
+     *
+     * @param withdraw true if items moved container → player, false for player → container
+     */
+    record TransferItems(BlockPos localPos, Holder<Item> item, int amount, boolean withdraw)
+            implements ChronoAction {
+        @Override
+        public ChronoActionType type() {
+            return ChronoActionType.TRANSFER_ITEMS;
         }
     }
 }

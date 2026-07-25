@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
@@ -60,6 +61,14 @@ final class AnchorTestFixture {
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 
+    /** A one-action routine, for exercising a single executor path. */
+    static Recording routine(ChronoAction action) {
+        return new Recording(
+                List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
+                List.of(new TimedAction(1, action)),
+                20, AUTHOR_NAME, AUTHOR_ID);
+    }
+
     /** The world position the above routine targets, for an anchor at {@code anchorPos}. */
     static BlockPos targetOf(BlockPos anchorPos) {
         return anchorPos.north();
@@ -106,6 +115,18 @@ final class AnchorTestFixture {
         anchor.getFuelHandler().set(0,
                 net.neoforged.neoforge.transfer.item.ItemResource.of(
                         ModItems.CREATIVE_CHARGE_CELL.get()), 1);
+    }
+
+    /**
+     * Unlocks every action type, for tests that are about an executor rather than the fidelity gate.
+     *
+     * <p>Without this, anything above break-tier is refused with {@code NOT_PERMITTED} and an
+     * interaction test fails for a reason that has nothing to do with interactions.
+     */
+    static void unlockAllActions(ChronoAnchorBlockEntity anchor) {
+        anchor.getUpgradeHandler().set(0,
+                net.neoforged.neoforge.transfer.item.ItemResource.of(ModItems.CHRONO_FOCUS.get()),
+                UpgradeState.MAX_FIDELITY);
     }
 
     static BlockState stateAt(GameTestHelper helper, BlockPos relative) {

@@ -50,8 +50,7 @@ class RecordingTooltipsTest {
                                 Blocks.OAK_PLANKS.defaultBlockState())),
                         new TimedAction(5, new ChronoAction.UseItem(
                                 InteractionHand.MAIN_HAND,
-                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL),
-                                Optional.empty()))),
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL)))),
                 240, "Bilal", UUID.randomUUID());
     }
 

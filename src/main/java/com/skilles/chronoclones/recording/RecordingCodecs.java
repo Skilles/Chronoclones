@@ -81,18 +81,44 @@ public final class RecordingCodecs {
             ItemStack.OPTIONAL_CODEC.fieldOf("weapon").forGetter(ChronoAction.AttackEntity::weaponTemplate)
     ).apply(i, ChronoAction.AttackEntity::new));
 
+    static final MapCodec<ChronoAction.UseOnBlock> USE_ON_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
+            BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.UseOnBlock::localPos),
+            Direction.CODEC.fieldOf("face").forGetter(ChronoAction.UseOnBlock::localFace),
+            Vec3.CODEC.fieldOf("hit").forGetter(ChronoAction.UseOnBlock::localHitOffset),
+            Codec.BOOL.fieldOf("inside").forGetter(ChronoAction.UseOnBlock::inside),
+            HAND.fieldOf("hand").forGetter(ChronoAction.UseOnBlock::hand),
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseOnBlock::item)
+    ).apply(i, ChronoAction.UseOnBlock::new));
+
     static final MapCodec<ChronoAction.UseItem> USE_ITEM = RecordCodecBuilder.mapCodec(i -> i.group(
             HAND.fieldOf("hand").forGetter(ChronoAction.UseItem::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseItem::item),
-            BlockPos.CODEC.optionalFieldOf("pos").forGetter(ChronoAction.UseItem::localPos)
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseItem::item)
     ).apply(i, ChronoAction.UseItem::new));
+
+    static final MapCodec<ChronoAction.InteractEntity> INTERACT_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
+            Vec3.CODEC.fieldOf("pos").forGetter(ChronoAction.InteractEntity::localPos),
+            BuiltInRegistries.ENTITY_TYPE.holderByNameCodec().fieldOf("expected")
+                    .forGetter(ChronoAction.InteractEntity::expectedType),
+            HAND.fieldOf("hand").forGetter(ChronoAction.InteractEntity::hand),
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.InteractEntity::item)
+    ).apply(i, ChronoAction.InteractEntity::new));
+
+    static final MapCodec<ChronoAction.TransferItems> TRANSFER_ITEMS = RecordCodecBuilder.mapCodec(i -> i.group(
+            BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.TransferItems::localPos),
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.TransferItems::item),
+            Codec.INT.fieldOf("amount").forGetter(ChronoAction.TransferItems::amount),
+            Codec.BOOL.fieldOf("withdraw").forGetter(ChronoAction.TransferItems::withdraw)
+    ).apply(i, ChronoAction.TransferItems::new));
 
     private static MapCodec<? extends ChronoAction> mapCodecFor(ChronoActionType type) {
         return switch (type) {
             case BREAK_BLOCK -> BREAK_BLOCK;
             case PLACE_BLOCK -> PLACE_BLOCK;
+            case TRANSFER_ITEMS -> TRANSFER_ITEMS;
             case ATTACK_ENTITY -> ATTACK_ENTITY;
+            case USE_ON_BLOCK -> USE_ON_BLOCK;
             case USE_ITEM -> USE_ITEM;
+            case INTERACT_ENTITY -> INTERACT_ENTITY;
         };
     }
 
@@ -125,12 +151,37 @@ public final class RecordingCodecs {
                     ItemStack.OPTIONAL_STREAM_CODEC, ChronoAction.AttackEntity::weaponTemplate,
                     ChronoAction.AttackEntity::new);
 
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseOnBlock> USE_ON_BLOCK_STREAM =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localPos,
+                    Direction.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localFace,
+                    Vec3.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localHitOffset,
+                    ByteBufCodecs.BOOL.cast(), ChronoAction.UseOnBlock::inside,
+                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::hand,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseOnBlock::item,
+                    ChronoAction.UseOnBlock::new);
+
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseItem> USE_ITEM_STREAM =
             StreamCodec.composite(
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseItem::hand,
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseItem::item,
-                    ByteBufCodecs.optional(BlockPos.STREAM_CODEC).cast(), ChronoAction.UseItem::localPos,
                     ChronoAction.UseItem::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.InteractEntity> INTERACT_ENTITY_STREAM =
+            StreamCodec.composite(
+                    Vec3.STREAM_CODEC.cast(), ChronoAction.InteractEntity::localPos,
+                    ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), ChronoAction.InteractEntity::expectedType,
+                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.InteractEntity::hand,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.InteractEntity::item,
+                    ChronoAction.InteractEntity::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.TransferItems> TRANSFER_ITEMS_STREAM =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC.cast(), ChronoAction.TransferItems::localPos,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.TransferItems::item,
+                    ByteBufCodecs.VAR_INT, ChronoAction.TransferItems::amount,
+                    ByteBufCodecs.BOOL.cast(), ChronoAction.TransferItems::withdraw,
+                    ChronoAction.TransferItems::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoActionType> ACTION_TYPE_STREAM =
             ByteBufCodecs.<ChronoActionType>idMapper(
@@ -141,8 +192,11 @@ public final class RecordingCodecs {
         StreamCodec<RegistryFriendlyByteBuf, ? extends ChronoAction> codec = switch (type) {
             case BREAK_BLOCK -> BREAK_BLOCK_STREAM;
             case PLACE_BLOCK -> PLACE_BLOCK_STREAM;
+            case TRANSFER_ITEMS -> TRANSFER_ITEMS_STREAM;
             case ATTACK_ENTITY -> ATTACK_ENTITY_STREAM;
+            case USE_ON_BLOCK -> USE_ON_BLOCK_STREAM;
             case USE_ITEM -> USE_ITEM_STREAM;
+            case INTERACT_ENTITY -> INTERACT_ENTITY_STREAM;
         };
         // Safe: dispatch only ever hands us the codec matching the value's own type().
         return (StreamCodec<RegistryFriendlyByteBuf, ChronoAction>) codec;
