@@ -1,5 +1,6 @@
 package com.skilles.chronoclones.menu.client;
 
+import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -8,17 +9,17 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 /**
- * DAY 1 SPIKE (1c). Prices the 26.x GUI rewrite before the schedule depends on it.
+ * The Chrono Anchor screen: storage, fuel, upgrades, charge, and the diagnostic line.
  *
- * <p>26.x replaced immediate-mode screen drawing with render-state extraction:
- * {@code renderBg} / {@code GuiGraphics} / {@code blit} are gone, and the direct replacement for
- * {@code renderBg} is {@link net.minecraft.client.gui.screens.Screen#extractBackground}, which is
- * exactly what vanilla's {@code HopperScreen} overrides.
+ * <p>26.x replaced immediate-mode screen drawing with render-state extraction — {@code renderBg},
+ * {@code GuiGraphics} and {@code blit} are gone. The direct replacement for {@code renderBg} is
+ * {@link net.minecraft.client.gui.screens.Screen#extractBackground}, which is what vanilla's
+ * {@code HopperScreen} overrides.
  *
- * <p>This deliberately draws with {@code fill} and {@code text} rather than a blitted texture, so
- * the spike proves the menu/slot/screen plumbing without also depending on a texture asset and the
- * new {@code RenderPipeline} parameter that every {@code blit} overload now requires. Texturing is
- * a Day 8 concern.
+ * <p>Drawn with {@code fill} and {@code text} rather than a blitted texture. That started as a way
+ * to de-risk the GUI spike without also depending on a texture asset and the {@code RenderPipeline}
+ * argument every {@code blit} overload now requires; it has stayed because it costs nothing and
+ * reads cleanly. A painted texture is a polish-pass swap, not a rewrite.
  *
  * <p>Client-only. Isolation comes from being referenced solely by {@code ChronoclonesClient}, which
  * is itself {@code @Mod(dist = Dist.CLIENT)} — 26.x removed the runtime member-stripping that
@@ -31,6 +32,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private static final int SLOT_BG = 0xFF8B8B8B;
     private static final int TEXT = 0xFFE0E0E8;
     private static final int ACCENT = 0xFF7FD4C1;
+    private static final int MUTED = 0xFF8A8A99;
+    private static final int WARNING = 0xFFE0B860;
+    private static final int HALTED = 0xFFE06060;
+    private static final int CHARGE_FULL = 0xFF7FD4C1;
+    private static final int CHARGE_EMPTY = 0xFF3A3A45;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x — they must go through the 5-arg constructor.
@@ -53,12 +59,20 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.fill(xo - 1, yo - 1, xo + imageWidth + 1, yo + imageHeight + 1, PANEL_EDGE);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, PANEL_BG);
 
-        // Anchor inventory slots (18) then the player inventory block, matching menu slot layout.
+        // Storage grid, then fuel + upgrades, then the player inventory — matching menu slot order.
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 9; col++) {
                 slotBox(extractor, xo + 8 + col * 18, yo + 18 + row * 18);
             }
         }
+
+        slotBox(extractor, xo + 8, yo + 58);
+        for (int i = 0; i < 3; i++) {
+            slotBox(extractor, xo + 116 + i * 18, yo + 58);
+        }
+
+        chargeBar(extractor, xo + 30, yo + 62);
+
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 slotBox(extractor, xo + 8 + col * 18, yo + 84 + row * 18);
@@ -66,6 +80,20 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
         for (int col = 0; col < 9; col++) {
             slotBox(extractor, xo + 8 + col * 18, yo + 142);
+        }
+    }
+
+    /** Charge is the balance lever, so it gets a bar rather than a number buried in text. */
+    private void chargeBar(GuiGraphicsExtractor extractor, int x, int y) {
+        int width = 78;
+        int height = 8;
+
+        extractor.fill(x - 1, y - 1, x + width + 1, y + height + 1, PANEL_EDGE);
+        extractor.fill(x, y, x + width, y + height, CHARGE_EMPTY);
+
+        int filled = menu.getCharge() * width / menu.getChargeCapacity();
+        if (filled > 0) {
+            extractor.fill(x, y, x + filled, y + height, CHARGE_FULL);
         }
     }
 
@@ -83,11 +111,32 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.text(font, title, titleLabelX, titleLabelY, TEXT);
         extractor.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, TEXT);
 
-        // Spike readout: proves ContainerData is syncing server -> client every tick.
-        int length = menu.getLengthTicks();
-        String status = length <= 0
-                ? "idle"
-                : String.format("t %d/%d  loops %d", menu.getPlayhead(), length, menu.getLoopsCompleted());
-        extractor.text(font, status, 8, 60, ACCENT);
+        if (menu.getLengthTicks() <= 0) {
+            extractor.text(font, Component.translatable("gui.chronoclones.anchor.no_recording"),
+                    8, 74, MUTED);
+            return;
+        }
+
+        // Left: what the routine is and how far through it the lead clone is.
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.progress",
+                        menu.getPlayhead() / 20, menu.getLengthTicks() / 20, menu.getActionCount()),
+                8, 6 + 10, ACCENT);
+
+        // Right: the upgrade state, so the tradeoff is visible next to the charge bar.
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.clones",
+                        menu.getActiveClones(), menu.getTicksPerStep()),
+                112, 6 + 10, ACCENT);
+
+        // The diagnostic line the spec insists on: why the anchor is not doing what you expect.
+        DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
+        if (reason != DiagnosticState.FailureReason.NONE) {
+            extractor.text(font, Component.translatable(reason.translationKey(), ""),
+                    8, 74, reason.halts() ? HALTED : WARNING);
+        }
+    }
+
+    private static DiagnosticState.FailureReason reasonOf(int ordinal) {
+        DiagnosticState.FailureReason[] values = DiagnosticState.FailureReason.values();
+        return ordinal >= 0 && ordinal < values.length ? values[ordinal] : DiagnosticState.FailureReason.NONE;
     }
 }

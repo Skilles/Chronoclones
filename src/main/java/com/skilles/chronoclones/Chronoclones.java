@@ -2,6 +2,7 @@ package com.skilles.chronoclones;
 
 import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.registry.ModBlocks;
+import com.skilles.chronoclones.registry.ModCreativeTabs;
 import com.skilles.chronoclones.registry.ModDataComponents;
 import com.skilles.chronoclones.registry.ModEntities;
 import com.skilles.chronoclones.registry.ModItems;
@@ -24,6 +25,7 @@ public class Chronoclones {
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);
         ModDataComponents.COMPONENTS.register(modEventBus);
+        ModCreativeTabs.TABS.register(modEventBus);
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);

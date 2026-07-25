@@ -37,6 +37,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -51,6 +52,7 @@ import org.jspecify.annotations.Nullable;
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
     public static final int INVENTORY_SLOTS = 18;
+    public static final int UPGRADE_SLOTS = 3;
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
         @Override
@@ -65,10 +67,25 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private @Nullable UUID ownerId;
     private String ownerName = "";
 
+    /** One fuel item at a time; charge is drawn from it as it burns. */
+    private final ItemStacksResourceHandler fuelSlot = new ItemStacksResourceHandler(1) {
+        @Override
+        protected void onContentsChanged(int index, ItemStack previousContents) {
+            setChanged();
+        }
+    };
+
+    /** Three upgrade slots. */
+    private final ItemStacksResourceHandler upgradeSlots = new ItemStacksResourceHandler(UPGRADE_SLOTS) {
+        @Override
+        protected void onContentsChanged(int index, ItemStack previousContents) {
+            setChanged();
+        }
+    };
+
     private final List<CloneRuntime> runtimes = new ArrayList<>();
-    private int cloneCount = 1;
-    /** Which action types this anchor may run. Raised by the fidelity upgrade. */
-    private int fidelityTier = 3;
+    private UpgradeState upgrades = UpgradeState.BASE;
+    private ChargeBuffer charge = ChargeBuffer.EMPTY;
     private boolean enabled = true;
     private DiagnosticState lastFailure = DiagnosticState.NONE;
 
@@ -82,6 +99,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case 3 -> lastFailure.reason().ordinal();
                 case 4 -> enabled ? 1 : 0;
                 case 5 -> runtimes.size();
+                case 6 -> charge.stored();
+                case 7 -> charge.capacity();
+                case 8 -> upgrades.cloneCount();
+                case 9 -> upgrades.ticksPerStep();
+                case 10 -> upgrades.fidelityTier();
                 default -> 0;
             };
         }
@@ -91,7 +113,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return 6;
+            return 11;
         }
     };
 
@@ -109,6 +131,22 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     public ContainerData getContainerData() {
         return data;
+    }
+
+    public ItemStacksResourceHandler getFuelHandler() {
+        return fuelSlot;
+    }
+
+    public ItemStacksResourceHandler getUpgradeHandler() {
+        return upgradeSlots;
+    }
+
+    public ChargeBuffer getCharge() {
+        return charge;
+    }
+
+    public UpgradeState getUpgrades() {
+        return upgrades;
     }
 
     public @Nullable Recording getRecording() {
@@ -158,9 +196,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (recording == null) {
             return;
         }
-        for (int i = 0; i < cloneCount; i++) {
+        int count = upgrades.cloneCount();
+        for (int i = 0; i < count; i++) {
             runtimes.add(new CloneRuntime(
-                    CloneRuntime.phaseOffsetFor(i, cloneCount, recording.lengthTicks())));
+                    CloneRuntime.phaseOffsetFor(i, count, recording.lengthTicks())));
         }
     }
 
@@ -188,6 +227,17 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
 
+        // Derived every tick so pulling an upgrade out takes effect immediately.
+        UpgradeState current = UpgradeState.from(upgradeSlots);
+        if (current.cloneCount() != upgrades.cloneCount()) {
+            upgrades = current;
+            rebuildRuntimes();
+        } else {
+            upgrades = current;
+        }
+
+        consumeFuel();
+
         if (runtimes.isEmpty()) {
             rebuildRuntimes();
         }
@@ -197,7 +247,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         int length = Math.max(recording.lengthTicks(), 1);
 
         for (CloneRuntime runtime : runtimes) {
-            runtime.advance(1);
+            runtime.advance(upgrades.ticksPerStep());
             if (runtime.playhead() >= length) {
                 runtime.loop(length);
             }
@@ -225,7 +275,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             ChronoAction action = timed.action();
 
             // Fidelity gates which action types this anchor may run at all.
-            if (!action.type().permittedAt(fidelityTier)) {
+            if (!action.type().permittedAt(upgrades.fidelityTier())) {
                 runtime.consumeAction();
                 recordFailure(serverLevel, FailureReason.NOT_PERMITTED, localPosOf(action),
                         runtime.playhead(), facing);
@@ -235,6 +285,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             // Out of level budget this tick. Leave the cursor alone so the action is retried next
             // tick rather than silently dropped.
             if (!LevelActionBudget.tryClaim(serverLevel)) {
+                return;
+            }
+
+            // Charge is the balance lever: more clones at a higher rate burn it
+            // proportionally faster, so upgrades cost something rather than being pure gain.
+            int cost = action.chargeCost();
+            if (!charge.canAfford(cost)) {
+                recordFailure(serverLevel, FailureReason.NO_CHARGE, localPosOf(action),
+                        runtime.playhead(), facing);
                 return;
             }
 
@@ -253,6 +312,12 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         FailureReason.NOT_PERMITTED, a.localPos().orElse(BlockPos.ZERO));
             };
 
+            if (result.succeeded()) {
+                // Only pay for work that actually happened; a skipped action is free.
+                charge = charge.spend(cost);
+                setChanged();
+            }
+
             if (!result.succeeded()) {
                 recordFailure(serverLevel, result.reason(), result.localPos(), runtime.playhead(), facing);
                 if (result.reason().halts()) {
@@ -265,6 +330,42 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 setChanged();
             }
         }
+    }
+
+    /**
+     * Burns one fuel item if there is room for the charge it would produce.
+     *
+     * <p>Deliberately only consumes when the whole burn fits, so a nearly-full anchor never eats a
+     * block of coal to gain twenty charge.
+     */
+    private void consumeFuel() {
+        if (level == null || charge.headroom() <= 0) {
+            return;
+        }
+        ItemResource resource = fuelSlot.getResource(0);
+        if (resource.isEmpty() || fuelSlot.getAmountAsInt(0) <= 0) {
+            return;
+        }
+
+        ItemStack probe = resource.toStack(1);
+        int burnTicks = level.fuelValues().burnDuration(probe);
+        if (burnTicks <= 0) {
+            return;
+        }
+
+        int gained = burnTicks * ChargeBuffer.CHARGE_PER_BURN_TICK;
+        if (gained > charge.headroom()) {
+            return;
+        }
+
+        try (Transaction tx = Transaction.openRoot()) {
+            if (fuelSlot.extract(0, resource, 1, tx) != 1) {
+                return;
+            }
+            tx.commit();
+        }
+        charge = charge.refill(gained);
+        setChanged();
     }
 
     /** Diagnostic position for any action variant, for the failure marker. */
@@ -333,6 +434,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         inventory.serialize(output.child("inventory"));
+        fuelSlot.serialize(output.child("fuel"));
+        upgradeSlots.serialize(output.child("upgrades"));
+        output.store("charge", ChargeBuffer.CODEC, charge);
 
         if (recording != null) {
             output.store("recording", RecordingCodecs.RECORDING, recording);
@@ -342,8 +446,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             output.putString("owner_name", ownerName);
         }
         output.putBoolean("enabled", enabled);
-        output.putInt("chrono_count", cloneCount);
-        output.putInt("fidelity", fidelityTier);
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
         // Playheads are deliberately NOT saved: no catch-up on chunk load.
     }
@@ -352,6 +454,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         input.child("inventory").ifPresent(inventory::deserialize);
+        input.child("fuel").ifPresent(fuelSlot::deserialize);
+        input.child("upgrades").ifPresent(upgradeSlots::deserialize);
+        charge = input.read("charge", ChargeBuffer.CODEC).orElse(ChargeBuffer.EMPTY);
 
         recording = input.read("recording", RecordingCodecs.RECORDING).orElse(null);
         motionTrack = recording == null ? null : new MotionTrack(recording.motion());
@@ -359,8 +464,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ownerId = input.read("owner_id", UUIDUtil.CODEC).orElse(null);
         ownerName = input.getStringOr("owner_name", "");
         enabled = input.getBooleanOr("enabled", true);
-        cloneCount = Math.max(1, input.getIntOr("chrono_count", 1));
-        fidelityTier = input.getIntOr("fidelity", 3);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
         // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.

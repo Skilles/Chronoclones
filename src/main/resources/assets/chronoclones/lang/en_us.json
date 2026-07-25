@@ -1,4 +1,5 @@
 {
+  "itemGroup.chronoclones": "Chronoclones",
   "block.chronoclones.chrono_anchor": "Chrono Anchor",
   "item.chronoclones.chrono_recorder": "Chrono Recorder",
   "entity.chronoclones.chrono_clone": "Chrono",
@@ -29,6 +30,15 @@
   "diagnostic.chronoclones.no_item": "No matching item to place at %s",
   "diagnostic.chronoclones.obstructed": "Blocked at %s",
   "diagnostic.chronoclones.no_target": "Nothing to attack at %s",
+
+  "item.chronoclones.chrono_splitter": "Chrono Splitter",
+  "item.chronoclones.chrono_accelerator": "Chrono Accelerator",
+  "item.chronoclones.chrono_focus": "Chrono Focus",
+  "item.chronoclones.chrono_lens": "Chrono Lens",
+
+  "gui.chronoclones.anchor.no_recording": "No routine imprinted",
+  "gui.chronoclones.anchor.progress": "%ss / %ss  ·  %s actions",
+  "gui.chronoclones.anchor.clones": "%s clone(s) ×%s",
 
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",

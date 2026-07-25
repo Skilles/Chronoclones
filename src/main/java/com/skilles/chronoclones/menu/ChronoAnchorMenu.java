@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.menu;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -19,8 +20,12 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.INVENTORY_SLOTS;
 
-    /** playhead, lengthTicks, loopsCompleted — keep in sync with the block entity's ContainerData. */
-    public static final int DATA_COUNT = 3;
+    /** Keep in sync with the block entity's ContainerData. */
+    public static final int DATA_COUNT = 11;
+
+    /** 18 storage + 1 fuel + 3 upgrade. */
+    private static final int TOTAL_ANCHOR_SLOTS =
+            ChronoAnchorBlockEntity.INVENTORY_SLOTS + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
 
     private final ChronoAnchorBlockEntity anchor;
     private final ContainerData data;
@@ -44,13 +49,22 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.anchor = anchor;
         this.data = data;
 
-        ItemStacksResourceHandler handler = anchor.getInventoryHandler();
-        // 18 anchor slots, 9 across × 2
+        ItemStacksResourceHandler storage = anchor.getInventoryHandler();
+        // 18 storage slots, 9 across x 2
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 9; col++) {
                 int index = col + row * 9;
-                addSlot(new ResourceHandlerSlot(handler, handler::set, index, 8 + col * 18, 18 + row * 18));
+                addSlot(new ResourceHandlerSlot(storage, storage::set, index, 8 + col * 18, 18 + row * 18));
             }
+        }
+
+        // Fuel, then three upgrades, on the row below the storage grid.
+        ItemStacksResourceHandler fuel = anchor.getFuelHandler();
+        addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, 8, 58));
+
+        ItemStacksResourceHandler upgrades = anchor.getUpgradeHandler();
+        for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
+            addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i, 116 + i * 18, 58));
         }
 
         addPlayerInventory(playerInventory);
@@ -83,8 +97,40 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return data.get(1);
     }
 
-    public int getLoopsCompleted() {
+    public int getActionCount() {
         return data.get(2);
+    }
+
+    public int getFailureOrdinal() {
+        return data.get(3);
+    }
+
+    public boolean isAnchorEnabled() {
+        return data.get(4) != 0;
+    }
+
+    public int getActiveClones() {
+        return data.get(5);
+    }
+
+    public int getCharge() {
+        return data.get(6);
+    }
+
+    public int getChargeCapacity() {
+        return Math.max(1, data.get(7));
+    }
+
+    public int getCloneCount() {
+        return data.get(8);
+    }
+
+    public int getTicksPerStep() {
+        return data.get(9);
+    }
+
+    public int getFidelityTier() {
+        return data.get(10);
     }
 
     @Override
@@ -96,12 +142,26 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         ItemStack stack = slot.getItem();
         ItemStack original = stack.copy();
 
-        if (index < ANCHOR_SLOTS) {
-            if (!moveItemStackTo(stack, ANCHOR_SLOTS, slots.size(), true)) {
+        if (index < TOTAL_ANCHOR_SLOTS) {
+            // Out of the anchor and into the player.
+            if (!moveItemStackTo(stack, TOTAL_ANCHOR_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
-        } else if (!moveItemStackTo(stack, 0, ANCHOR_SLOTS, false)) {
-            return ItemStack.EMPTY;
+        } else {
+            // Into the anchor. Route upgrades and fuel to their own slots first, so shift-clicking
+            // a splitter installs it rather than burying it in storage.
+            boolean moved;
+            if (UpgradeState.isUpgrade(stack.getItem())) {
+                moved = moveItemStackTo(stack, ANCHOR_SLOTS + 1, TOTAL_ANCHOR_SLOTS, false);
+            } else if (player.level().fuelValues().burnDuration(stack) > 0) {
+                moved = moveItemStackTo(stack, ANCHOR_SLOTS, ANCHOR_SLOTS + 1, false)
+                        || moveItemStackTo(stack, 0, ANCHOR_SLOTS, false);
+            } else {
+                moved = moveItemStackTo(stack, 0, ANCHOR_SLOTS, false);
+            }
+            if (!moved) {
+                return ItemStack.EMPTY;
+            }
         }
 
         if (stack.isEmpty()) {

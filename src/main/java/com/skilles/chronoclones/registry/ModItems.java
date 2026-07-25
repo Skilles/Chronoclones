@@ -19,5 +19,24 @@ public final class ModItems {
             ChronoRecorderItem::new,
             (Item.Properties props) -> props.stacksTo(1).rarity(Rarity.UNCOMMON));
 
+    // Upgrades. Items in slots rather than block tiers, so five independent axes do not
+    // become a combinatorial crafting tree.
+
+    /** +1 clone, distributed along the timeline by phase offset. The visual showpiece. */
+    public static final DeferredItem<Item> CHRONO_SPLITTER = upgrade("chrono_splitter");
+
+    /** Faster replay: raises ticksPerStep. */
+    public static final DeferredItem<Item> CHRONO_ACCELERATOR = upgrade("chrono_accelerator");
+
+    /** Unlocks action types: break -> +place -> +attack -> +use. */
+    public static final DeferredItem<Item> CHRONO_FOCUS = upgrade("chrono_focus");
+
+    /** Loosens block matching: strict -> tag-compatible -> adaptive retargeting. */
+    public static final DeferredItem<Item> CHRONO_LENS = upgrade("chrono_lens");
+
+    private static DeferredItem<Item> upgrade(String name) {
+        return ITEMS.registerSimpleItem(name, (Item.Properties props) -> props.stacksTo(16).rarity(Rarity.UNCOMMON));
+    }
+
     private ModItems() {}
 }
