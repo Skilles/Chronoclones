@@ -12,6 +12,7 @@ import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
 import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.replay.ActionExecutor;
 import com.skilles.chronoclones.replay.CloneRuntime;
 import com.skilles.chronoclones.replay.LevelActionBudget;
@@ -104,6 +105,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case 8 -> upgrades.cloneCount();
                 case 9 -> upgrades.ticksPerStep();
                 case 10 -> upgrades.fidelityTier();
+                case 11 -> lastFailure.localPos().getX();
+                case 12 -> lastFailure.localPos().getY();
+                case 13 -> lastFailure.localPos().getZ();
                 default -> 0;
             };
         }
@@ -113,7 +117,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return 11;
+            return 14;
         }
     };
 
@@ -344,6 +348,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
         ItemResource resource = fuelSlot.getResource(0);
         if (resource.isEmpty() || fuelSlot.getAmountAsInt(0) <= 0) {
+            return;
+        }
+
+        // Creative cell: top up and never consume, so charge stops being a variable while testing.
+        if (resource.getItem() == ModItems.CREATIVE_CHARGE_CELL.get()) {
+            charge = charge.refill(charge.headroom());
+            setChanged();
             return;
         }
 

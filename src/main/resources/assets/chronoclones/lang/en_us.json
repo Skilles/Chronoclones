@@ -31,6 +31,9 @@
   "diagnostic.chronoclones.obstructed": "Blocked at %s",
   "diagnostic.chronoclones.no_target": "Nothing to attack at %s",
 
+  "item.chronoclones.creative_charge_cell": "Creative Charge Cell",
+  "tooltip.chronoclones.charge_cell": "Keeps an anchor fully charged",
+  "tooltip.chronoclones.charge_cell.creative": "Debug item — never consumed",
   "item.chronoclones.chrono_splitter": "Chrono Splitter",
   "item.chronoclones.chrono_accelerator": "Chrono Accelerator",
   "item.chronoclones.chrono_focus": "Chrono Focus",
@@ -38,7 +41,7 @@
 
   "gui.chronoclones.anchor.no_recording": "No routine imprinted",
   "gui.chronoclones.anchor.progress": "%ss / %ss  ·  %s actions",
-  "gui.chronoclones.anchor.clones": "%s clone(s) ×%s",
+  "gui.chronoclones.anchor.upgrades": "Clones %s  ·  Rate ×%s",
 
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",

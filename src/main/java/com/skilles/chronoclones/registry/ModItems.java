@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.registry;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.item.CreativeChargeCellItem;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
 
 import net.minecraft.world.item.BlockItem;
@@ -33,6 +34,12 @@ public final class ModItems {
 
     /** Loosens block matching: strict -> tag-compatible -> adaptive retargeting. */
     public static final DeferredItem<Item> CHRONO_LENS = upgrade("chrono_lens");
+
+    /** Creative-only: keeps an anchor charged so the rest of the system can be observed. */
+    public static final DeferredItem<CreativeChargeCellItem> CREATIVE_CHARGE_CELL = ITEMS.registerItem(
+            "creative_charge_cell",
+            CreativeChargeCellItem::new,
+            (Item.Properties props) -> props.stacksTo(1).rarity(Rarity.EPIC));
 
     private static DeferredItem<Item> upgrade(String name) {
         return ITEMS.registerSimpleItem(name, (Item.Properties props) -> props.stacksTo(16).rarity(Rarity.UNCOMMON));

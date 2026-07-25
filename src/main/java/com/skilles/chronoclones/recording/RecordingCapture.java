@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
@@ -164,6 +165,13 @@ public final class RecordingCapture {
             return;
         }
 
+        // Placing a block fires this event AND EntityPlaceEvent. Recording both would capture every
+        // placement twice — once as a place, once as a spurious use — so block items are left
+        // entirely to the place handler.
+        if (stack.getItem() instanceof BlockItem) {
+            return;
+        }
+
         BlockPos pos = event.getPos();
         capture(player, session, new ChronoAction.UseItem(
                         event.getHand(),
@@ -183,7 +191,8 @@ public final class RecordingCapture {
         }
 
         ItemStack stack = event.getItemStack();
-        if (stack.isEmpty() || stack.is(ModItems.CHRONO_RECORDER.get())) {
+        if (stack.isEmpty() || stack.is(ModItems.CHRONO_RECORDER.get())
+                || stack.getItem() instanceof BlockItem) {
             return;
         }
 

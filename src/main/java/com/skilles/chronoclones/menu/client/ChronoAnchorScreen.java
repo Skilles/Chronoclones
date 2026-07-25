@@ -2,8 +2,10 @@ package com.skilles.chronoclones.menu.client;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
+import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
@@ -40,8 +42,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x — they must go through the 5-arg constructor.
-        super(menu, playerInventory, title, 176, 166);
-        this.inventoryLabelY = this.imageHeight - 94;
+        super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
+        this.inventoryLabelY = Layout.PLAYER_LABEL_Y;
     }
 
     /**
@@ -62,31 +64,31 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         // Storage grid, then fuel + upgrades, then the player inventory — matching menu slot order.
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 9; col++) {
-                slotBox(extractor, xo + 8 + col * 18, yo + 18 + row * 18);
+                slotBox(extractor, xo + 8 + col * 18, yo + Layout.STORAGE_Y + row * 18);
             }
         }
 
-        slotBox(extractor, xo + 8, yo + 58);
+        slotBox(extractor, xo + Layout.FUEL_X, yo + Layout.MODULE_Y);
         for (int i = 0; i < 3; i++) {
-            slotBox(extractor, xo + 116 + i * 18, yo + 58);
+            slotBox(extractor, xo + Layout.UPGRADE_X + i * 18, yo + Layout.MODULE_Y);
         }
 
-        chargeBar(extractor, xo + 30, yo + 62);
+        chargeBar(extractor, xo + Layout.CHARGE_X, yo + Layout.CHARGE_Y);
 
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                slotBox(extractor, xo + 8 + col * 18, yo + 84 + row * 18);
+                slotBox(extractor, xo + 8 + col * 18, yo + Layout.PLAYER_Y + row * 18);
             }
         }
         for (int col = 0; col < 9; col++) {
-            slotBox(extractor, xo + 8 + col * 18, yo + 142);
+            slotBox(extractor, xo + 8 + col * 18, yo + Layout.HOTBAR_Y);
         }
     }
 
     /** Charge is the balance lever, so it gets a bar rather than a number buried in text. */
     private void chargeBar(GuiGraphicsExtractor extractor, int x, int y) {
-        int width = 78;
-        int height = 8;
+        int width = Layout.CHARGE_WIDTH;
+        int height = Layout.CHARGE_HEIGHT;
 
         extractor.fill(x - 1, y - 1, x + width + 1, y + height + 1, PANEL_EDGE);
         extractor.fill(x, y, x + width, y + height, CHARGE_EMPTY);
@@ -113,25 +115,28 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         if (menu.getLengthTicks() <= 0) {
             extractor.text(font, Component.translatable("gui.chronoclones.anchor.no_recording"),
-                    8, 74, MUTED);
+                    8, Layout.STATUS_Y, MUTED);
             return;
         }
 
-        // Left: what the routine is and how far through it the lead clone is.
+        // Each readout gets its own line. Packing them side by side overlapped as soon as a
+        // routine had a two-digit action count.
         extractor.text(font, Component.translatable("gui.chronoclones.anchor.progress",
                         menu.getPlayhead() / 20, menu.getLengthTicks() / 20, menu.getActionCount()),
-                8, 6 + 10, ACCENT);
+                8, Layout.STATUS_Y, ACCENT);
 
-        // Right: the upgrade state, so the tradeoff is visible next to the charge bar.
-        extractor.text(font, Component.translatable("gui.chronoclones.anchor.clones",
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.upgrades",
                         menu.getActiveClones(), menu.getTicksPerStep()),
-                112, 6 + 10, ACCENT);
+                8, Layout.UPGRADE_INFO_Y, MUTED);
 
-        // The diagnostic line the spec insists on: why the anchor is not doing what you expect.
+        // The diagnostic line the spec insists on: not just what failed, but where, in
+        // anchor-local coordinates, so the failing block can actually be found.
         DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
         if (reason != DiagnosticState.FailureReason.NONE) {
-            extractor.text(font, Component.translatable(reason.translationKey(), ""),
-                    8, 74, reason.halts() ? HALTED : WARNING);
+            BlockPos at = menu.getFailurePos();
+            String where = String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ());
+            extractor.text(font, Component.translatable(reason.translationKey(), where),
+                    8, Layout.DIAGNOSTIC_Y, reason.halts() ? HALTED : WARNING);
         }
     }
 
