@@ -1,6 +1,27 @@
 {
   "block.chronoclones.chrono_anchor": "Chrono Anchor",
+  "item.chronoclones.chrono_recorder": "Chrono Recorder",
   "entity.chronoclones.chrono_clone": "Chrono",
+
+  "message.chronoclones.recorder.started": "Recording. Origin facing %s.",
+  "message.chronoclones.recorder.stopped": "Recorded %ss, %s actions.",
+  "message.chronoclones.recorder.stopped_length": "Length limit reached — recorded %ss, %s actions.",
+  "message.chronoclones.recorder.stopped_actions": "Action limit reached — recorded %ss, %s actions.",
+  "message.chronoclones.recorder.discarded": "Recording discarded.",
+  "message.chronoclones.recorder.empty": "Nothing was recorded.",
+  "message.chronoclones.recorder.holding": "Right-click an Chrono Anchor to imprint this recording.",
+  "message.chronoclones.recorder.out_of_range": "Out of range — that action was not recorded.",
+
+  "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
+  "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",
+  "tooltip.chronoclones.recording.author": "Author: %s",
+  "tooltip.chronoclones.recording.length": "%ss, %s actions",
+  "tooltip.chronoclones.recording.no_actions": "No actions — movement only",
+  "tooltip.chronoclones.recording.action.break_block": "%s break",
+  "tooltip.chronoclones.recording.action.place_block": "%s place",
+  "tooltip.chronoclones.recording.action.attack_entity": "%s attack",
+  "tooltip.chronoclones.recording.action.use_item": "%s use",
+  "tooltip.chronoclones.recording.reach": "Reaches %s blocks",
 
   "chronoclones.configuration.title": "Chronoclones Config",
   "chronoclones.configuration.section.chronoclones.server.toml": "Chronoclones Config",
