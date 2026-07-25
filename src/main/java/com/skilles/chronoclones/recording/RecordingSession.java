@@ -29,6 +29,9 @@ public final class RecordingSession {
         ABANDONED
     }
 
+    /** Identifies which recorder stack this session owns. See {@code RecordingProgress}. */
+    private final UUID sessionId = UUID.randomUUID();
+
     private final UUID authorId;
     private final String authorName;
     private final BlockPos origin;
@@ -46,6 +49,10 @@ public final class RecordingSession {
         this.origin = player.blockPosition();
         // Snapping to a cardinal is mandatory — see LocalSpace for why arbitrary yaw cannot work.
         this.originFacing = LocalSpace.snapToCardinal(player.getYRot());
+    }
+
+    public UUID sessionId() {
+        return sessionId;
     }
 
     public BlockPos origin() {

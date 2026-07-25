@@ -58,7 +58,7 @@ public final class RecordingCapture {
             return;
         }
 
-        ItemStack recorder = findRecorder(player);
+        ItemStack recorder = findSessionRecorder(player, session);
         if (recorder == null) {
             // Only abandon if the recorder has left the inventory entirely (dropped, died). It does
             // NOT need to stay in hand: recording a mining routine requires holding a pickaxe, so
@@ -71,7 +71,7 @@ public final class RecordingCapture {
         RecordingSession.StopReason stop = session.tickAndSample(player);
 
         recorder.set(ModDataComponents.PROGRESS.get(), new RecordingProgress(
-                session.tick(), session.actionCount(), session.outOfRangeWarning()));
+                session.sessionId(), session.tick(), session.actionCount(), session.outOfRangeWarning()));
         session.clearOutOfRangeWarning();
 
         if (stop != null) {
@@ -224,48 +224,66 @@ public final class RecordingCapture {
                                 ChronoAction action, Vec3 worldPos) {
         RecordingSession.StopReason stop = session.record(action, worldPos);
         if (stop != null) {
-            ItemStack recorder = findRecorder(player);
+            ItemStack recorder = findSessionRecorder(player, session);
             if (recorder != null) {
                 ChronoRecorderItem.stopRecording(player, recorder, stop);
             }
         }
     }
 
+    /** Ends a session and clears the stranded PROGRESS stamp from its recorder. */
     private static void abandon(ServerPlayer player) {
-        if (!RecordingSessions.isRecording(player)) {
+        RecordingSession session = RecordingSessions.get(player);
+        if (session == null) {
             return;
         }
         RecordingSessions.discard(player);
-        ItemStack recorder = findRecorder(player);
+
+        // Clear the stamp, otherwise the item keeps reporting RECORDING for a session that no
+        // longer exists and every later interaction with it reads as a failure.
+        ItemStack recorder = findSessionRecorder(player, session);
         if (recorder != null) {
             recorder.remove(ModDataComponents.PROGRESS.get());
         }
     }
 
     /**
-     * The player's recorder anywhere in their inventory, or null if they no longer have one.
+     * The specific recorder stack this session is bound to, or null if it is gone.
      *
-     * <p>Deliberately not restricted to the hands. Any routine worth recording involves holding
-     * something else — a pickaxe to mine, blocks to place — so requiring the recorder to stay in
-     * hand would end the session on the first hotbar switch.
+     * <p>Matched by session id, not by "is a recorder". Scanning for any recorder would let a
+     * running session latch onto a <em>different</em> recorder the player happens to be carrying —
+     * stamping PROGRESS over its finished RECORDING and then overwriting or erasing it on stop.
+     * That is a silent data-loss bug and it depends on inventory slot order, so it only shows up
+     * sometimes.
      *
-     * <p>Hands are checked first so the stack the player is actually holding is the one whose HUD
-     * component gets updated.
+     * <p>Deliberately not restricted to the hands: any routine worth recording involves holding
+     * something else, so requiring the recorder in hand would end the session on the first hotbar
+     * switch.
      */
-    private static @Nullable ItemStack findRecorder(Player player) {
-        for (InteractionHand hand : InteractionHand.values()) {
-            ItemStack stack = player.getItemInHand(hand);
-            if (stack.is(ModItems.CHRONO_RECORDER.get())) {
-                return stack;
-            }
-        }
+    public static @Nullable ItemStack findSessionRecorder(Player player, RecordingSession session) {
         Inventory inventory = player.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack stack = inventory.getItem(slot);
-            if (stack.is(ModItems.CHRONO_RECORDER.get())) {
+            if (belongsTo(stack, session)) {
+                return stack;
+            }
+        }
+        // Off-hand and armour are not part of getNonEquipmentItems on every version; check hands
+        // explicitly so a recorder held in the off-hand is still found.
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack stack = player.getItemInHand(hand);
+            if (belongsTo(stack, session)) {
                 return stack;
             }
         }
         return null;
+    }
+
+    private static boolean belongsTo(ItemStack stack, RecordingSession session) {
+        if (!stack.is(ModItems.CHRONO_RECORDER.get())) {
+            return false;
+        }
+        RecordingProgress progress = stack.get(ModDataComponents.PROGRESS.get());
+        return progress != null && progress.sessionId().equals(session.sessionId());
     }
 }

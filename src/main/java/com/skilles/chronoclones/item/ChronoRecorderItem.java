@@ -85,7 +85,13 @@ public class ChronoRecorderItem extends Item {
             if (state == State.IDLE) {
                 return InteractionResult.PASS;
             }
-            RecordingSessions.discard(serverPlayer);
+            // Only end the live session if THIS recorder owns it. Discarding a finished recording
+            // must not kill a capture running on a different recorder in the same inventory.
+            RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
+            RecordingSession active = RecordingSessions.get(serverPlayer);
+            if (stamp != null && active != null && stamp.sessionId().equals(active.sessionId())) {
+                RecordingSessions.discard(serverPlayer);
+            }
             clear(stack);
             feedback(serverPlayer, "message.chronoclones.recorder.discarded", ChatFormatting.GRAY);
             playSound(serverPlayer, SoundEvents.ITEM_BREAK.value(), 0.7f);
@@ -105,8 +111,17 @@ public class ChronoRecorderItem extends Item {
     }
 
     private InteractionResult beginRecording(ServerPlayer player, ItemStack stack) {
+        // Refuse rather than silently replace. RecordingSessions is keyed by player, so starting a
+        // second capture would drop the first session while leaving its PROGRESS stamp behind —
+        // stranding that recorder in a permanent RECORDING state it can never leave cleanly.
+        if (RecordingSessions.isRecording(player)) {
+            feedback(player, "message.chronoclones.recorder.already_recording", ChatFormatting.RED);
+            return InteractionResult.SUCCESS;
+        }
+
         RecordingSession session = RecordingSessions.start(player);
-        stack.set(ModDataComponents.PROGRESS.get(), RecordingProgress.EMPTY);
+        stack.set(ModDataComponents.PROGRESS.get(),
+                new RecordingProgress(session.sessionId(), 0, 0, false));
 
         player.sendOverlayMessage(Component.translatable(
                 "message.chronoclones.recorder.started",
@@ -119,6 +134,19 @@ public class ChronoRecorderItem extends Item {
     /** Also called by the tick handler when a cap is reached, hence the explicit reason. */
     public static InteractionResult stopRecording(ServerPlayer player, ItemStack stack,
                                                   RecordingSession.StopReason reason) {
+        // Only the recorder that started the live session may end it. Without this check a stack
+        // carrying a stale stamp would end somebody else's running session and write that
+        // recording onto the wrong item.
+        RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
+        RecordingSession active = RecordingSessions.get(player);
+        if (stamp != null && active != null && !stamp.sessionId().equals(active.sessionId())) {
+            stack.remove(ModDataComponents.PROGRESS.get());
+            Chronoclones.LOGGER.warn("Cleared a stale recording stamp from {}'s recorder; "
+                    + "it did not belong to the running session.", player.getGameProfile().name());
+            feedback(player, "message.chronoclones.recorder.lost", ChatFormatting.RED);
+            return InteractionResult.SUCCESS;
+        }
+
         RecordingSession session = RecordingSessions.end(player);
         stack.remove(ModDataComponents.PROGRESS.get());
 
