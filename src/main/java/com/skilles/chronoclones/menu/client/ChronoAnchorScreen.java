@@ -6,8 +6,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 
 /**
  * DAY 1 SPIKE (1c). Prices the 26.x GUI rewrite before the schedule depends on it.
@@ -21,8 +19,11 @@ import net.neoforged.api.distmarker.OnlyIn;
  * the spike proves the menu/slot/screen plumbing without also depending on a texture asset and the
  * new {@code RenderPipeline} parameter that every {@code blit} overload now requires. Texturing is
  * a Day 8 concern.
+ *
+ * <p>Client-only. Isolation comes from being referenced solely by {@code ChronoclonesClient}, which
+ * is itself {@code @Mod(dist = Dist.CLIENT)} — 26.x removed the runtime member-stripping that
+ * {@code @OnlyIn} used to provide, so that annotation is noise and NeoForge warns about it.
  */
-@OnlyIn(Dist.CLIENT)
 public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu> {
 
     private static final int PANEL_BG = 0xFF2B2B33;

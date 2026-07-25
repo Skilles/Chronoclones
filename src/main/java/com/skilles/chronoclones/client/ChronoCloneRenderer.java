@@ -5,8 +5,6 @@ import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.api.distmarker.OnlyIn;
 
 /**
  * DAY 1 SPIKE renderer. Draws only a shadow, which is enough to watch the ghost travel its loop
@@ -16,8 +14,11 @@ import net.neoforged.api.distmarker.OnlyIn;
  * silhouette fallback is what ships if skin fetching over-runs. Note that 26.x entity rendering is
  * also state-extraction based — {@code createRenderState} is the only abstract member, and drawing
  * happens in {@code submit}.
+ *
+ * <p>Client-only. Isolation comes from being referenced solely by {@code ChronoclonesClient}, which
+ * is itself {@code @Mod(dist = Dist.CLIENT)} — 26.x removed the runtime member-stripping that
+ * {@code @OnlyIn} used to provide, so that annotation is noise and NeoForge warns about it.
  */
-@OnlyIn(Dist.CLIENT)
 public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, EntityRenderState> {
 
     public ChronoCloneRenderer(EntityRendererProvider.Context context) {
