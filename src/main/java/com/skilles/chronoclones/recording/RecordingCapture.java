@@ -36,7 +36,9 @@ import org.jspecify.annotations.Nullable;
  * event, so a routine can never contain a step that was blocked by a protection mod at record time.
  *
  * <p>All handlers no-op unless the player has an active session, so the cost on a server with no
- * recordings in progress is a single map lookup.
+ * recordings in progress is a single map lookup. That same lookup is what keeps a routine from
+ * recording its own clones — see {@link RecordingSessions} for why an anchor's actions arrive here
+ * wearing the recording player's identity.
  *
  * <p>A session is tied to the <em>player</em>, not to what they are holding. Any routine worth
  * recording means holding something other than the recorder — a pickaxe, a stack of blocks — so the
