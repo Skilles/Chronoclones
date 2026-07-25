@@ -2,6 +2,7 @@ package com.skilles.chronoclones.item;
 
 import java.util.List;
 
+import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
@@ -121,8 +122,23 @@ public class ChronoRecorderItem extends Item {
         RecordingSession session = RecordingSessions.end(player);
         stack.remove(ModDataComponents.PROGRESS.get());
 
-        if (session == null || session.isEmpty()) {
+        // Distinguish "the session vanished" from "the session captured nothing". Collapsing these
+        // into one message is what made this failure impossible to diagnose.
+        if (session == null) {
             ChronoRecorderItem.clear(stack);
+            Chronoclones.LOGGER.warn("Recorder stopped for {} but no capture session existed — "
+                    + "it was discarded while the item still read RECORDING.",
+                    player.getGameProfile().name());
+            feedback(player, "message.chronoclones.recorder.lost", ChatFormatting.RED);
+            playSound(player, SoundEvents.ITEM_BREAK.value(), 0.7f);
+            return InteractionResult.SUCCESS;
+        }
+
+        if (session.isEmpty()) {
+            ChronoRecorderItem.clear(stack);
+            Chronoclones.LOGGER.warn("Recorder stopped for {} with an empty session: {} ticks elapsed, "
+                    + "{} actions. Capture events are not reaching the session.",
+                    player.getGameProfile().name(), session.tick(), session.actionCount());
             feedback(player, "message.chronoclones.recorder.empty", ChatFormatting.RED);
             playSound(player, SoundEvents.ITEM_BREAK.value(), 0.7f);
             return InteractionResult.SUCCESS;

@@ -11,6 +11,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
@@ -33,8 +34,12 @@ import org.jspecify.annotations.Nullable;
  * every handler runs at {@link EventPriority#LOWEST} and bails if another listener cancelled the
  * event, so a routine can never contain a step that was blocked by a protection mod at record time.
  *
- * <p>All handlers no-op unless the player is holding a recorder in the RECORDING state, so the cost
- * on a server with no active recordings is a map lookup.
+ * <p>All handlers no-op unless the player has an active session, so the cost on a server with no
+ * recordings in progress is a single map lookup.
+ *
+ * <p>A session is tied to the <em>player</em>, not to what they are holding. Any routine worth
+ * recording means holding something other than the recorder — a pickaxe, a stack of blocks — so the
+ * recorder only has to remain somewhere in the inventory.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class RecordingCapture {
@@ -55,8 +60,10 @@ public final class RecordingCapture {
 
         ItemStack recorder = findRecorder(player);
         if (recorder == null) {
-            // Recorder gone from hand (dropped, died, swapped away) — abandon rather than keep a
-            // session alive with nowhere to write it.
+            // Only abandon if the recorder has left the inventory entirely (dropped, died). It does
+            // NOT need to stay in hand: recording a mining routine requires holding a pickaxe, so
+            // treating "not in hand" as abandonment would kill the session the instant the player
+            // switched hotbar slots — which is to say, always.
             RecordingSessions.discard(player);
             return;
         }
@@ -235,10 +242,26 @@ public final class RecordingCapture {
         }
     }
 
-    /** The recorder currently in hand, or null. Both hands, because either can hold it. */
+    /**
+     * The player's recorder anywhere in their inventory, or null if they no longer have one.
+     *
+     * <p>Deliberately not restricted to the hands. Any routine worth recording involves holding
+     * something else — a pickaxe to mine, blocks to place — so requiring the recorder to stay in
+     * hand would end the session on the first hotbar switch.
+     *
+     * <p>Hands are checked first so the stack the player is actually holding is the one whose HUD
+     * component gets updated.
+     */
     private static @Nullable ItemStack findRecorder(Player player) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
+            if (stack.is(ModItems.CHRONO_RECORDER.get())) {
+                return stack;
+            }
+        }
+        Inventory inventory = player.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
             if (stack.is(ModItems.CHRONO_RECORDER.get())) {
                 return stack;
             }
