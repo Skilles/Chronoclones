@@ -16,6 +16,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.gui.ConfigurationScreen;
@@ -48,5 +49,18 @@ public class ChronoclonesClient {
     @SubscribeEvent
     static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(ModMenus.CHRONO_ANCHOR.get(), ChronoAnchorScreen::new);
+    }
+
+    /**
+     * Everything the client caches about a world is scoped to that world.
+     *
+     * <p>All of it is keyed by things a server hands out — container ids from zero, block positions,
+     * game time — so anything kept across a disconnect is not stale so much as wrong: it will match
+     * something on the next world and describe it incorrectly.
+     */
+    @SubscribeEvent
+    static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        PreviewCache.forget();
+        RecordingHighlights.forget();
     }
 }

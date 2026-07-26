@@ -29,6 +29,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
 
@@ -260,13 +261,13 @@ public final class RecordingCapture {
     // ------------------------------------------------------------------ containers
 
     /**
-     * Records what a player did inside a container as a net movement of items, on close.
+     * Starts collecting the clicks made inside a container, which {@link ContainerWatch} turns into
+     * one action when the menu closes.
      *
-     * <p>Not slot clicks. Clicks are raw input, and replaying them would mean driving a real
-     * container menu — whose behaviour every mod is free to override, and which needs a client to
-     * drive it in the first place. The net difference is both simpler and more faithful to what the
-     * routine is actually for: "this run takes 32 cobblestone out of that barrel" survives the
-     * player having shuffled the stack around three times while deciding.
+     * <p>Clicks, not the net movement of items. Splitting a stack by right-clicking it means "take
+     * half of whatever is there", and recording the arithmetic that produced on one particular chest
+     * on one particular day replays as something the player never did. See {@link ContainerWatch}
+     * for the rest of that argument, and the mixin for why the clicks have to be intercepted.
      */
     @SubscribeEvent
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
@@ -319,6 +320,21 @@ public final class RecordingCapture {
         if (event.getEntity() instanceof ServerPlayer player) {
             abandon(player);
         }
+    }
+
+    /**
+     * Wipes the capture maps when the server goes away.
+     *
+     * <p>They are static, and in single player the JVM outlives the server: quit to the title screen
+     * while recording and the session survives into the next world you load, with an origin in a
+     * place that no longer exists. Logout normally clears it, but a crash or a quit mid-session does
+     * not go through logout — and the open-container watch has never been cleared by anything but
+     * the container closing.
+     */
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
+        RecordingSessions.clear();
+        ContainerWatch.clear();
     }
 
     // ------------------------------------------------------------------ helpers

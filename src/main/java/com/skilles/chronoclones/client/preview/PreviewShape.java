@@ -12,6 +12,7 @@ import com.skilles.chronoclones.recording.TimedAction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A routine turned into something you can look at: boxes where it will act, and the path it walks.
@@ -96,7 +97,7 @@ public final class PreviewShape {
      * the clone is standing and whatever wandered into range — drawing a box at the recorded position
      * would assert a certainty the routine does not have.
      */
-    private static PreviewShape.@org.jspecify.annotations.Nullable Kind kindOf(ChronoAction action) {
+    private static @Nullable Kind kindOf(ChronoAction action) {
         return switch (action) {
             case ChronoAction.BreakBlock ignored -> Kind.BREAK;
             case ChronoAction.PlaceBlock ignored -> Kind.PLACE;
@@ -108,7 +109,7 @@ public final class PreviewShape {
         };
     }
 
-    private static @org.jspecify.annotations.Nullable BlockPos blockOf(ChronoAction action) {
+    private static @Nullable BlockPos blockOf(ChronoAction action) {
         return switch (action) {
             case ChronoAction.BreakBlock a -> a.localPos();
             case ChronoAction.PlaceBlock a -> a.localPos();

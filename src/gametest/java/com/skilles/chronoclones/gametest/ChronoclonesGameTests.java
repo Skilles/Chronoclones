@@ -7,7 +7,6 @@ import java.util.function.Consumer;
 import com.skilles.chronoclones.Chronoclones;
 
 import net.minecraft.core.Holder;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -18,7 +17,7 @@ import net.minecraft.resources.ResourceKey;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Game test registration for 26.x.
@@ -37,9 +36,15 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * registries are still unfrozen. Test instances are then registered later, on
  * {@link RegisterGameTestsEvent}, by which point the functions resolve.
  *
- * <p>Registered here rather than in the test source set: game tests run inside a real server, so
- * they live in main alongside the code they exercise. Off-runtime logic is covered by plain JUnit
- * instead — see the {@code src/test} suite.
+ * <p>These live in {@code src/gametest} rather than in {@code src/main}: they need a running server,
+ * so plain JUnit cannot host them, but registering test functions from a released mod would leave
+ * every install carrying a couple of dozen test ids visible in {@code /test} and in registry dumps.
+ * Their own source set is on the classpath for the dev runs and absent from the jar. Off-runtime
+ * logic is covered by plain JUnit instead — see the {@code src/test} suite.
+ *
+ * <p>That split is also why nothing in {@code src/main} may name this class. Registration therefore
+ * hangs off {@link RegisterEvent} rather than a {@code DeferredRegister} handed to the mod
+ * constructor — same window while built-in registries are unfrozen, no call from the entrypoint.
  *
  * <p>Run with {@code ./gradlew runGameTestServer}, or {@code /test runall} in a dev client.
  */
@@ -52,18 +57,21 @@ public final class ChronoclonesGameTests {
     private static final int DEFAULT_MAX_TICKS = 200;
     private static final int DEFAULT_SETUP_TICKS = 0;
 
-    public static final DeferredRegister<Consumer<GameTestHelper>> TEST_FUNCTIONS =
-            DeferredRegister.create(BuiltInRegistries.TEST_FUNCTION, Chronoclones.MODID);
-
     /** Declared tests, paired with the instance settings they should run under. */
-    private record Entry(String name, int maxTicks) {}
+    private record Entry(String name, int maxTicks, Consumer<GameTestHelper> function) {}
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
 
     private ChronoclonesGameTests() {}
 
-    /** Call from the mod constructor, before the DeferredRegister is attached to the bus. */
-    public static void bootstrap() {
+    /**
+     * Fills {@link #ENTRIES}. Idempotent, because both registration events can arrive per launch and
+     * declaring every test twice would register duplicate ids.
+     */
+    private static synchronized void declare() {
+        if (!ENTRIES.isEmpty()) {
+            return;
+        }
         AttributionGameTest.register();
         ReplayGameTest.register();
         ShardGameTest.register();
@@ -78,12 +86,33 @@ public final class ChronoclonesGameTests {
     }
 
     static void add(String name, int maxTicks, Consumer<GameTestHelper> function) {
-        TEST_FUNCTIONS.register(name, () -> function);
-        ENTRIES.add(new Entry(name, maxTicks));
+        ENTRIES.add(new Entry(name, maxTicks, function));
+    }
+
+    /**
+     * The functions half, during the window while {@code TEST_FUNCTION} is still unfrozen.
+     *
+     * <p>{@code TEST_FUNCTION} is bootstrapped during {@code BuiltInRegistries} class initialisation,
+     * long before any mod is constructed, so vanilla's {@code TestFunctionLoader} is always too late.
+     * This is the same window a {@code DeferredRegister} would use, reached without main having to
+     * hand one to the mod constructor.
+     */
+    @SubscribeEvent
+    public static void registerFunctions(RegisterEvent event) {
+        if (!event.getRegistryKey().equals(Registries.TEST_FUNCTION)) {
+            return;
+        }
+        declare();
+        event.register(Registries.TEST_FUNCTION, registry -> {
+            for (Entry entry : ENTRIES) {
+                registry.register(Chronoclones.id(entry.name()), entry.function());
+            }
+        });
     }
 
     @SubscribeEvent
     public static void registerTests(RegisterGameTestsEvent event) {
+        declare();
         Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(Chronoclones.id("default"));
 
         for (Entry entry : ENTRIES) {

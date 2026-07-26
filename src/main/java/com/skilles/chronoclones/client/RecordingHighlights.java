@@ -51,6 +51,19 @@ public final class RecordingHighlights {
         CARRIED.addAll(payload.carried());
     }
 
+    /**
+     * Leaving a world drops the highlights with it.
+     *
+     * <p>Container ids are small integers a server hands out from zero, so a highlight kept across a
+     * disconnect will eventually match a completely unrelated menu on the next world — and paint
+     * squares in it that no recording ever touched.
+     */
+    public static void forget() {
+        containerId = -1;
+        TOUCHED.clear();
+        CARRIED.clear();
+    }
+
     @SubscribeEvent
     static void render(ContainerScreenEvent.Render.Foreground event) {
         AbstractContainerScreen<?> screen = event.getContainerScreen();

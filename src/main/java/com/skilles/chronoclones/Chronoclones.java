@@ -1,6 +1,5 @@
 package com.skilles.chronoclones;
 
-import com.skilles.chronoclones.gametest.ChronoclonesGameTests;
 import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.registry.ModBlocks;
 import com.skilles.chronoclones.registry.ModCreativeTabs;
@@ -30,10 +29,6 @@ public class Chronoclones {
         ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
         ModEntities.ENTITY_TYPES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
-
-        // Declared during construction so the DeferredRegister is populated before it is attached.
-        ChronoclonesGameTests.bootstrap();
-        ChronoclonesGameTests.TEST_FUNCTIONS.register(modEventBus);
 
         modContainer.registerConfig(ModConfig.Type.SERVER, ChronoclonesConfig.SPEC);
     }
