@@ -101,7 +101,7 @@ public final class PreviewShape {
             case ChronoAction.BreakBlock ignored -> Kind.BREAK;
             case ChronoAction.PlaceBlock ignored -> Kind.PLACE;
             case ChronoAction.UseOnBlock ignored -> Kind.INTERACT;
-            case ChronoAction.TransferItems ignored -> Kind.TRANSFER;
+            case ChronoAction.UseContainer ignored -> Kind.TRANSFER;
             case ChronoAction.UseItem ignored -> null;
             case ChronoAction.AttackEntity ignored -> null;
             case ChronoAction.InteractEntity ignored -> null;
@@ -113,7 +113,7 @@ public final class PreviewShape {
             case ChronoAction.BreakBlock a -> a.localPos();
             case ChronoAction.PlaceBlock a -> a.localPos();
             case ChronoAction.UseOnBlock a -> a.localPos();
-            case ChronoAction.TransferItems a -> a.localPos();
+            case ChronoAction.UseContainer a -> a.localPos();
             default -> null;
         };
     }

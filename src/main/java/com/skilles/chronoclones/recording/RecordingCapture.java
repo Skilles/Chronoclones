@@ -291,12 +291,9 @@ public final class RecordingCapture {
 
         // Read before closing the watch, which clears it.
         BlockPos containerPos = ContainerWatch.openPosition(player);
-        List<ChronoAction.TransferItems> transfers = ContainerWatch.onContainerClosed(player, session);
-        if (containerPos == null) {
-            return;
-        }
-        for (ChronoAction.TransferItems transfer : transfers) {
-            capture(player, session, transfer, Vec3.atCenterOf(containerPos));
+        ChronoAction.UseContainer containerSession = ContainerWatch.onContainerClosed(player, session);
+        if (containerPos != null && containerSession != null) {
+            capture(player, session, containerSession, Vec3.atCenterOf(containerPos));
         }
     }
 

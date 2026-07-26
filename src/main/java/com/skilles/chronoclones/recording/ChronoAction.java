@@ -1,11 +1,12 @@
 package com.skilles.chronoclones.recording;
 
-import java.util.Optional;
+import java.util.List;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -46,8 +47,8 @@ public sealed interface ChronoAction {
             case UseOnBlock a -> new ItemStack(a.item());
             case UseItem a -> new ItemStack(a.item());
             case InteractEntity a -> new ItemStack(a.item());
-            // A transfer is reaching into a chest, not brandishing something.
-            case TransferItems ignored -> ItemStack.EMPTY;
+            // Working a chest is reaching into it, not brandishing something.
+            case UseContainer ignored -> ItemStack.EMPTY;
         };
     }
 
@@ -121,49 +122,34 @@ public sealed interface ChronoAction {
     }
 
     /**
-     * Moving items from one slot to another, recorded as net intent.
+     * A whole session at a container, recorded as the clicks the player made.
      *
-     * <p>Deliberately not a replay of slot clicks. Clicks are raw input — the thing this model
-     * exists to avoid — and simulating them would mean driving a real {@code AbstractContainerMenu},
-     * whose behaviour every mod is free to override. Capturing where items ended up and replaying it
-     * through the block's item-handler capability instead works for anything that exposes one,
-     * which is every vanilla container and every mod machine that wanted to be automatable.
+     * <p>This replaced a version that recorded net movements — "32 cobblestone from slot 4 to the
+     * player" — and the difference is intent versus arithmetic. Right-clicking a stack means
+     * <em>take half of whatever is there</em>; recording it as "take 32" bakes in the contents of
+     * the chest on the day it was taught, and a routine that splits a stack stops splitting the
+     * moment the stack is a different size. Buttons survive that. Amounts do not.
      *
-     * <p><b>Slots, not totals.</b> "The furnace gained two logs" is not enough to reproduce what the
-     * player did: one goes in the input and one in the fuel slot, and an insert that just looks for
-     * room puts both in the first slot that accepts them and smelts nothing. A slot in a machine is
-     * a meaning, and the routine has to carry it.
+     * <p>Replayed by opening the block's real menu and calling {@code clicked} on it, the same
+     * method the server calls for a player, so a mod's slot restrictions, shift-click behaviour and
+     * crafting-output rules all apply without this mod knowing they exist. Which also means the
+     * whole grammar comes free: shift-click, drag-distribute, swap-to-hotbar, throw.
      *
-     * <p>Both endpoints use the same encoding, so the three interesting cases are one shape:
-     * container slot → carrier is a withdrawal, carrier → container slot is a deposit, and slot →
-     * slot is a move within the container.
-     *
-     * @param fromSlot source slot in the container at {@code localPos}, or {@link #CARRIER}
-     * @param toSlot   destination slot in that container, or {@link #CARRIER}
+     * <p>{@code menuSize} is recorded so a session can refuse to run against a menu of a different
+     * shape. Slot indices only mean anything relative to the menu that produced them.
      */
-    record TransferItems(BlockPos localPos, Holder<Item> item, int amount, int fromSlot, int toSlot)
-            implements ChronoAction {
+    record UseContainer(BlockPos localPos, int menuSize, List<Click> clicks) implements ChronoAction {
 
-        /**
-         * The player's own inventory at record time; the anchor's at replay.
-         *
-         * <p>Unindexed on purpose. A player has thirty-six slots and an anchor eighteen, so a
-         * remembered index would mean nothing on the other side — and unlike a machine's slots, they
-         * carry no meaning worth preserving.
-         */
-        public static final int CARRIER = -1;
+        /** One click: which slot, which button, and what kind of click it was. */
+        public record Click(int slot, int button, ContainerInput input) {}
 
-        public boolean isWithdrawal() {
-            return toSlot == CARRIER && fromSlot != CARRIER;
-        }
-
-        public boolean isDeposit() {
-            return fromSlot == CARRIER && toSlot != CARRIER;
+        public UseContainer {
+            clicks = List.copyOf(clicks);
         }
 
         @Override
         public ChronoActionType type() {
-            return ChronoActionType.TRANSFER_ITEMS;
+            return ChronoActionType.USE_CONTAINER;
         }
     }
 }

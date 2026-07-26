@@ -68,7 +68,7 @@ public record Recording(
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));
                 case ChronoAction.UseOnBlock a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
-                case ChronoAction.TransferItems a ->
+                case ChronoAction.UseContainer a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
                 case ChronoAction.InteractEntity a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));

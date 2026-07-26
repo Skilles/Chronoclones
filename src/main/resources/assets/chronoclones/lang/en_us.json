@@ -63,7 +63,7 @@
   "tooltip.chronoclones.recording.action.use_item": "%s use",
   "tooltip.chronoclones.recording.action.use_on_block": "%s interact",
   "tooltip.chronoclones.recording.action.interact_entity": "%s mob interact",
-  "tooltip.chronoclones.recording.action.transfer_items": "%s item transfer",
+  "tooltip.chronoclones.recording.action.use_container": "%s container session",
   "tooltip.chronoclones.recording.reach": "Reaches %s blocks",
 
   "chronoclones.configuration.title": "Chronoclones Config",

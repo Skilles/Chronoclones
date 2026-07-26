@@ -22,6 +22,8 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -35,6 +37,7 @@ import net.neoforged.neoforge.common.CommonHooks;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
@@ -433,16 +436,23 @@ public final class ActionExecutor {
     // ------------------------------------------------------------------ transfer
 
     /**
-     * Moves items between the anchor and a container, through the item-handler capability.
+     * Replays a container session by opening the block's real menu and clicking it.
      *
-     * <p>Capability rather than menu simulation, which is what makes this work with mods at all: a
-     * chest, a barrel, a furnace's output slot and somebody else's machine all expose the same
-     * handler, and none of them have to know this mod exists. A block that exposes nothing is simply
-     * not automatable by an anchor, which is the same answer hoppers give.
+     * <p>{@code AbstractContainerMenu.clicked} is the same method the server calls when a player
+     * clicks a slot, so a mod's slot restrictions, shift-click routing and crafting-output rules all
+     * apply without this mod knowing they exist — the same principle as running block interaction
+     * through {@code useItemOn}. It also means the whole grammar of container work is supported by
+     * construction: splitting, shift-click, drag-distribute, swap-to-hotbar, throw.
+     *
+     * <p>Runs the entire session inside one action rather than one click per tick, and that is a
+     * deliberate trade. Holding a menu open across ticks would mean anchor state that has to survive
+     * a halt, a chunk unload and the block being mined — every one of which strands the items sitting
+     * on the cursor. Spec  already refuses cross-tick replay state for the same reason.
      */
-    public static Result executeTransfer(ServerLevel level, ChronoAction.TransferItems action,
-                                         BlockPos anchorPos, Direction anchorFacing,
-                                         ResourceHandler<ItemResource> inventory) {
+    public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
+                                             BlockPos anchorPos, Direction anchorFacing,
+                                             java.util.UUID ownerId, String ownerName,
+                                             ItemStacksResourceHandler inventory) {
 
         BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
 
@@ -458,64 +468,43 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        ResourceHandler<ItemResource> container =
-                level.getCapability(Capabilities.Item.BLOCK, worldPos, null);
-        if (container == null) {
+        MenuProvider provider = level.getBlockState(worldPos).getMenuProvider(level, worldPos);
+        if (provider == null) {
             return Result.fail(FailureReason.NO_TARGET, action.localPos());
         }
 
-        // A recorded slot index is only meaningful against the block that was there. If something
-        // smaller has replaced it, refuse rather than fall back to "anywhere that fits" — a routine
-        // that quietly stops respecting which slot is the fuel slot is worse than one that stops.
-        if (!slotExists(container, action.fromSlot()) || !slotExists(container, action.toSlot())) {
-            return Result.fail(FailureReason.NO_TARGET, action.localPos());
-        }
-
-        ItemResource resource = ItemResource.of(action.item().value());
-
-        try (Transaction tx = Transaction.openRoot()) {
-            int available = extract(container, inventory, action.fromSlot(), resource, action.amount(), tx);
-            if (available <= 0) {
-                return Result.fail(FailureReason.NO_ITEM, action.localPos());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
+                Vec3.atCenterOf(worldPos), anchorFacing.toYRot(), 0.0f, ItemStack.EMPTY);
+        try {
+            AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
+            if (menu == null) {
+                return Result.fail(FailureReason.NO_TARGET, action.localPos());
+            }
+            // Slot indices only mean anything relative to the menu that produced them. A menu of a
+            // different shape is a different machine, and clicking it by remembered index would be
+            // pressing buttons at random.
+            if (menu.slots.size() != action.menuSize()) {
+                return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            int moved = insert(container, inventory, action.toSlot(), resource, available, tx);
-            if (moved < available) {
-                // Partial moves are refused outright rather than committed. A transfer that half
-                // happens leaves the routine's next loop working from a different world than the one
-                // it was recorded in, and the failure is exactly the one the player needs to see.
-                return Result.fail(action.isWithdrawal()
-                        ? FailureReason.INVENTORY_FULL : FailureReason.OBSTRUCTED, action.localPos());
+            ContainerCarrier.load(inventory, owner);
+            try {
+                for (ChronoAction.UseContainer.Click click : action.clicks()) {
+                    if (click.slot() >= menu.slots.size()) {
+                        return Result.fail(FailureReason.NO_TARGET, action.localPos());
+                    }
+                    menu.clicked(click.slot(), click.button(), click.input(), owner);
+                }
+            } finally {
+                // Returns whatever is on the cursor to the player, then everything the player is
+                // holding to the anchor — in a finally, because a mod's slot throwing mid-session
+                // must not leave a routine's items inside a fake player nobody can open.
+                menu.removed(owner);
+                ContainerCarrier.drain(level, anchorPos, inventory, owner);
             }
-            tx.commit();
+            return Result.OK;
+        } finally {
+            AnchorFakePlayer.release(owner);
         }
-
-        return Result.OK;
-    }
-
-    /**
-     * Takes from a specific container slot, or from anywhere in the anchor.
-     *
-     * <p>Partial extraction is accepted. A routine that hauls eight logs and finds three should move
-     * the three — a hopper would, and refusing turns a slightly-short chest into a halted farm.
-     */
-    private static int extract(ResourceHandler<ItemResource> container,
-                               ResourceHandler<ItemResource> inventory,
-                               int slot, ItemResource resource, int amount, Transaction tx) {
-        return slot == ChronoAction.TransferItems.CARRIER
-                ? inventory.extract(resource, amount, tx)
-                : container.extract(slot, resource, amount, tx);
-    }
-
-    private static int insert(ResourceHandler<ItemResource> container,
-                              ResourceHandler<ItemResource> inventory,
-                              int slot, ItemResource resource, int amount, Transaction tx) {
-        return slot == ChronoAction.TransferItems.CARRIER
-                ? inventory.insert(resource, amount, tx)
-                : container.insert(slot, resource, amount, tx);
-    }
-
-    private static boolean slotExists(ResourceHandler<ItemResource> container, int slot) {
-        return slot == ChronoAction.TransferItems.CARRIER || slot < container.size();
     }
 }

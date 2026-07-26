@@ -65,7 +65,7 @@ public final class RecordingTooltips {
             case BREAK_BLOCK -> ChatFormatting.GOLD;
             case PLACE_BLOCK -> ChatFormatting.GREEN;
             case ATTACK_ENTITY -> ChatFormatting.RED;
-            case TRANSFER_ITEMS -> ChatFormatting.YELLOW;
+            case USE_CONTAINER -> ChatFormatting.YELLOW;
             case USE_ON_BLOCK, USE_ITEM, INTERACT_ENTITY -> ChatFormatting.AQUA;
         };
     }

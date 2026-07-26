@@ -16,6 +16,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
@@ -103,19 +104,36 @@ public final class RecordingCodecs {
             BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.InteractEntity::item)
     ).apply(i, ChronoAction.InteractEntity::new));
 
-    static final MapCodec<ChronoAction.TransferItems> TRANSFER_ITEMS = RecordCodecBuilder.mapCodec(i -> i.group(
-            BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.TransferItems::localPos),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.TransferItems::item),
-            Codec.INT.fieldOf("amount").forGetter(ChronoAction.TransferItems::amount),
-            Codec.INT.fieldOf("from_slot").forGetter(ChronoAction.TransferItems::fromSlot),
-            Codec.INT.fieldOf("to_slot").forGetter(ChronoAction.TransferItems::toSlot)
-    ).apply(i, ChronoAction.TransferItems::new));
+    /** ContainerInput ships a StreamCodec but no Codec, so build one by name. */
+    static final Codec<ContainerInput> CONTAINER_INPUT =
+            Codec.STRING.flatXmap(
+                    name -> {
+                        for (ContainerInput input : ContainerInput.values()) {
+                            if (input.name().equalsIgnoreCase(name)) {
+                                return DataResult.success(input);
+                            }
+                        }
+                        return DataResult.error(() -> "unknown container input: " + name);
+                    },
+                    input -> DataResult.success(input.name().toLowerCase(java.util.Locale.ROOT)));
+
+    static final Codec<ChronoAction.UseContainer.Click> CLICK = RecordCodecBuilder.create(i -> i.group(
+            Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.Click::slot),
+            Codec.INT.fieldOf("button").forGetter(ChronoAction.UseContainer.Click::button),
+            CONTAINER_INPUT.fieldOf("input").forGetter(ChronoAction.UseContainer.Click::input)
+    ).apply(i, ChronoAction.UseContainer.Click::new));
+
+    static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
+            BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.UseContainer::localPos),
+            Codec.INT.fieldOf("menu_size").forGetter(ChronoAction.UseContainer::menuSize),
+            CLICK.listOf().fieldOf("clicks").forGetter(ChronoAction.UseContainer::clicks)
+    ).apply(i, ChronoAction.UseContainer::new));
 
     private static MapCodec<? extends ChronoAction> mapCodecFor(ChronoActionType type) {
         return switch (type) {
             case BREAK_BLOCK -> BREAK_BLOCK;
             case PLACE_BLOCK -> PLACE_BLOCK;
-            case TRANSFER_ITEMS -> TRANSFER_ITEMS;
+            case USE_CONTAINER -> USE_CONTAINER_CODEC;
             case ATTACK_ENTITY -> ATTACK_ENTITY;
             case USE_ON_BLOCK -> USE_ON_BLOCK;
             case USE_ITEM -> USE_ITEM;
@@ -176,15 +194,22 @@ public final class RecordingCodecs {
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.InteractEntity::item,
                     ChronoAction.InteractEntity::new);
 
-    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.TransferItems> TRANSFER_ITEMS_STREAM =
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer.Click> CLICK_STREAM =
             StreamCodec.composite(
-                    BlockPos.STREAM_CODEC.cast(), ChronoAction.TransferItems::localPos,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.TransferItems::item,
-                    ByteBufCodecs.VAR_INT, ChronoAction.TransferItems::amount,
-                    // Not VAR_INT: the carrier is -1, which zigzag-free varints encode in five bytes.
-                    ByteBufCodecs.INT, ChronoAction.TransferItems::fromSlot,
-                    ByteBufCodecs.INT, ChronoAction.TransferItems::toSlot,
-                    ChronoAction.TransferItems::new);
+                    // Not VAR_INT: clicking outside a menu is slot -999, which unsigned varints
+                    // encode in five bytes.
+                    ByteBufCodecs.INT, ChronoAction.UseContainer.Click::slot,
+                    ByteBufCodecs.INT, ChronoAction.UseContainer.Click::button,
+                    ContainerInput.STREAM_CODEC.cast(), ChronoAction.UseContainer.Click::input,
+                    ChronoAction.UseContainer.Click::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer> USE_CONTAINER_STREAM =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC.cast(), ChronoAction.UseContainer::localPos,
+                    ByteBufCodecs.VAR_INT, ChronoAction.UseContainer::menuSize,
+                    CLICK_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ChronoAction.UseContainer::clicks,
+                    ChronoAction.UseContainer::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoActionType> ACTION_TYPE_STREAM =
             ByteBufCodecs.<ChronoActionType>idMapper(
@@ -195,7 +220,7 @@ public final class RecordingCodecs {
         StreamCodec<RegistryFriendlyByteBuf, ? extends ChronoAction> codec = switch (type) {
             case BREAK_BLOCK -> BREAK_BLOCK_STREAM;
             case PLACE_BLOCK -> PLACE_BLOCK_STREAM;
-            case TRANSFER_ITEMS -> TRANSFER_ITEMS_STREAM;
+            case USE_CONTAINER -> USE_CONTAINER_STREAM;
             case ATTACK_ENTITY -> ATTACK_ENTITY_STREAM;
             case USE_ON_BLOCK -> USE_ON_BLOCK_STREAM;
             case USE_ITEM -> USE_ITEM_STREAM;

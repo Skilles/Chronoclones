@@ -20,7 +20,7 @@ public enum ChronoActionType implements StringRepresentable {
     BREAK_BLOCK("break_block", 0, 10),
     PLACE_BLOCK("place_block", 1, 5),
     /** Hauling is a place-tier convenience, not an interaction — it swings nothing and hits nothing. */
-    TRANSFER_ITEMS("transfer_items", 1, 2),
+    USE_CONTAINER("use_container", 1, 2),
     ATTACK_ENTITY("attack_entity", 2, 20),
     USE_ON_BLOCK("use_on_block", 3, 5),
     USE_ITEM("use_item", 3, 5),

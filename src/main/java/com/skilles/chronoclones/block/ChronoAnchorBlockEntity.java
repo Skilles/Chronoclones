@@ -357,8 +357,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
                         serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
-                case ChronoAction.TransferItems a -> ActionExecutor.executeTransfer(
-                        serverLevel, a, worldPosition, facing, inventory);
+                case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
             };
 
             if (result.succeeded()) {
@@ -444,7 +444,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             case ChronoAction.UseOnBlock a -> a.localPos();
             case ChronoAction.UseItem ignored -> BlockPos.ZERO;
             case ChronoAction.InteractEntity a -> BlockPos.containing(a.localPos());
-            case ChronoAction.TransferItems a -> a.localPos();
+            case ChronoAction.UseContainer a -> a.localPos();
         };
     }
 

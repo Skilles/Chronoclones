@@ -20,6 +20,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -95,10 +96,12 @@ class RecordingCodecTest {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
-                        new TimedAction(13, new ChronoAction.TransferItems(
-                                new BlockPos(2, 0, -3),
-                                BuiltInRegistries.ITEM.wrapAsHolder(Items.COBBLESTONE),
-                                32, 4, ChronoAction.TransferItems.CARRIER))),
+                        new TimedAction(13, new ChronoAction.UseContainer(
+                                new BlockPos(2, 0, -3), 63,
+                                List.of(
+                                        new ChronoAction.UseContainer.Click(4, 1, ContainerInput.PICKUP),
+                                        new ChronoAction.UseContainer.Click(54, 0, ContainerInput.PICKUP),
+                                        new ChronoAction.UseContainer.Click(-999, 0, ContainerInput.THROW))))),
                 200,
                 "Bilal",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
@@ -182,7 +185,7 @@ class RecordingCodecTest {
         assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ON_BLOCK));
         assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ITEM));
         assertEquals(1, r.actionCounts().get(ChronoActionType.INTERACT_ENTITY));
-        assertEquals(1, r.actionCounts().get(ChronoActionType.TRANSFER_ITEMS));
+        assertEquals(1, r.actionCounts().get(ChronoActionType.USE_CONTAINER));
 
         // Furthest horizontal point is the motion sample at (-7, _, 4) -> sqrt(49+16) ~= 8.06
         assertEquals(Math.sqrt(65.0), r.reach(), 1.0e-9);
@@ -276,13 +279,11 @@ class RecordingCodecTest {
                 assertEquals(e.hand(), a.hand());
                 assertEquals(e.item().value(), a.item().value());
             }
-            case ChronoAction.TransferItems e -> {
-                ChronoAction.TransferItems a = (ChronoAction.TransferItems) actual;
+            case ChronoAction.UseContainer e -> {
+                ChronoAction.UseContainer a = (ChronoAction.UseContainer) actual;
                 assertEquals(e.localPos(), a.localPos());
-                assertEquals(e.item().value(), a.item().value());
-                assertEquals(e.amount(), a.amount());
-                assertEquals(e.fromSlot(), a.fromSlot());
-                assertEquals(e.toSlot(), a.toSlot());
+                assertEquals(e.menuSize(), a.menuSize());
+                assertEquals(e.clicks(), a.clicks());
             }
         }
     }

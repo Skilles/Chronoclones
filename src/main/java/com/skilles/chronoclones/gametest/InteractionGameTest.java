@@ -12,6 +12,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -43,10 +44,11 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("use_on_block_flips_a_lever", InteractionGameTest::flipsLever);
         ChronoclonesGameTests.add("use_needs_its_item_in_the_anchor", InteractionGameTest::needsItsItem);
         ChronoclonesGameTests.add("use_returns_what_it_borrowed", InteractionGameTest::returnsWhatItBorrowed);
-        ChronoclonesGameTests.add("transfer_withdraws_from_a_container", InteractionGameTest::withdraws);
-        ChronoclonesGameTests.add("transfer_deposits_into_a_container", InteractionGameTest::deposits);
-        ChronoclonesGameTests.add("transfer_respects_which_slot", InteractionGameTest::respectsSlots);
-        ChronoclonesGameTests.add("transfer_moves_within_one_container", InteractionGameTest::movesWithinContainer);
+        ChronoclonesGameTests.add("container_splits_a_stack_by_intent", InteractionGameTest::splitsByIntent);
+        ChronoclonesGameTests.add("container_loads_a_furnace", InteractionGameTest::loadsAFurnace);
+        ChronoclonesGameTests.add("container_shift_clicks_out", InteractionGameTest::shiftClicksOut);
+        ChronoclonesGameTests.add("container_moves_within_itself", InteractionGameTest::movesWithinContainer);
+        ChronoclonesGameTests.add("container_refuses_another_menu", InteractionGameTest::refusesAnotherMenu);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -137,79 +139,59 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** Pulling out of a container, through the capability rather than a simulated menu. */
-    private static void withdraws(GameTestHelper helper) {
+    // ------------------------------------------------------------------ containers
+
+    /**
+     * The reason container work is recorded as clicks rather than amounts.
+     *
+     * <p>The session right-clicks a stack to split it. Right-click means <em>take half of whatever
+     * is there</em>, so the barrel is deliberately stocked with 40 rather than the 64 such a routine
+     * would have been taught on: an amount baked in at record time would move 32, and intent moves
+     * 20. Getting 20 out is the whole argument for the click model.
+     */
+    private static void splitsByIntent(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
-
-        ServerLevel level = helper.getLevel();
-        stock(level, helper.absolutePos(target), Items.COBBLESTONE, 32);
-
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(new ChronoAction.TransferItems(
-                        new BlockPos(0, 0, -1),
-                        BuiltInRegistries.ITEM.wrapAsHolder(Items.COBBLESTONE),
-                        32, 0, ChronoAction.TransferItems.CARRIER)));
-        AnchorTestFixture.unlockAllActions(anchor);
-
-        helper.startSequence()
-                .thenExecuteAfter(40, () -> {
-                    if (countIn(anchor.getInventory(), Items.COBBLESTONE) < 32) {
-                        helper.fail("expected 32 cobblestone pulled out of the barrel, anchor holds "
-                                + countIn(anchor.getInventory(), Items.COBBLESTONE));
-                    }
-                })
-                .thenSucceed();
-    }
-
-    /** And putting back in. */
-    private static void deposits(GameTestHelper helper) {
-        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        helper.setBlock(target, Blocks.BARREL);
-
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(new ChronoAction.TransferItems(
-                        new BlockPos(0, 0, -1),
-                        BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND),
-                        5, ChronoAction.TransferItems.CARRIER, 0)));
-        AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 5);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
+        stock(level, absoluteTarget, 0, Items.COBBLESTONE, 40);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        // Right-click slot 0: half of it onto the cursor.
+                        click(0, RIGHT, ContainerInput.PICKUP),
+                        // Left-click the carrier's first slot: put all of it down.
+                        click(CHEST_CARRIER_SLOT, LEFT, ContainerInput.PICKUP))));
+        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
-                .thenExecuteAfter(40, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel == null) {
-                        helper.fail("the barrel exposes no item handler");
-                        return;
-                    }
-                    if (countIn(barrel, Items.DIAMOND) != 5) {
-                        helper.fail("expected 5 diamonds deposited, barrel holds "
-                                + countIn(barrel, Items.DIAMOND));
+                .thenExecuteAfter(15, () -> {
+                    int taken = countIn(anchor.getInventory(), Items.COBBLESTONE);
+                    if (taken != 20) {
+                        helper.fail("expected half of 40 = 20 cobblestone taken, got " + taken
+                                + " - a recorded amount was replayed instead of the right-click");
                     }
                 })
                 .thenSucceed();
     }
 
     /**
-     * The reason transfers carry slots at all: loading a furnace.
+     * Loading a furnace, which is where slots carry meaning.
      *
-     * <p>One log into the input and one into the fuel slot. Both slots accept a log, so a transfer
-     * that only knew "the furnace gained two logs" would put both wherever they first fit and smelt
-     * nothing — the failure would be silent, and the routine would look like it was working.
+     * <p>Pick the logs up, then right-click one into the input and one into the fuel slot. Both
+     * accept a log, so anything that merely looked for room would put both in the input and smelt
+     * nothing.
      */
-    private static void respectsSlots(GameTestHelper helper) {
+    private static void loadsAFurnace(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(
-                        List.of(
-                                transfer(Items.OAK_LOG, 1, ChronoAction.TransferItems.CARRIER, FURNACE_INPUT),
-                                transfer(Items.OAK_LOG, 1, ChronoAction.TransferItems.CARRIER, FURNACE_FUEL))));
+                AnchorTestFixture.routine(session(FURNACE_MENU_SIZE,
+                        click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
+                        click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
+                        click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
         AnchorTestFixture.unlockAllActions(anchor);
         anchor.getInventoryHandler().set(0, ItemResource.of(Items.OAK_LOG), 2);
 
@@ -227,11 +209,34 @@ final class InteractionGameTest {
                     assertSlotHolds(helper, furnace, FURNACE_INPUT, Items.OAK_LOG, "input");
 
                     // The fuel slot is asserted through the furnace being lit rather than by reading
-                    // it, because a furnace that receives fuel consumes it on the same tick — an
-                    // empty fuel slot here means the log arrived and burned, which is the point.
+                    // it, because a furnace consumes fuel on the tick it arrives - an empty fuel slot
+                    // here means the log got there and burned, which is the point.
                     if (!helper.getBlockState(target).getValue(BlockStateProperties.LIT)) {
                         helper.fail("the furnace never lit - the second log did not reach the fuel "
-                                + "slot, so both went to the input and nothing smelts");
+                                + "slot, so nothing smelts");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Shift-clicking a stack out of a container, routed entirely by the menu's own logic. */
+    private static void shiftClicksOut(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        stock(level, helper.absolutePos(target), 0, Items.DIAMOND, 5);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        click(0, LEFT, ContainerInput.QUICK_MOVE))));
+        AnchorTestFixture.unlockAllActions(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (countIn(anchor.getInventory(), Items.DIAMOND) != 5) {
+                        helper.fail("expected 5 diamonds shift-clicked into the anchor, got "
+                                + countIn(anchor.getInventory(), Items.DIAMOND));
                     }
                 })
                 .thenSucceed();
@@ -244,23 +249,22 @@ final class InteractionGameTest {
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
-        ResourceHandler<ItemResource> barrel =
-                level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-        if (barrel == null) {
-            helper.fail("the barrel exposes no item handler");
-            return;
-        }
-        try (Transaction tx = Transaction.openRoot()) {
-            barrel.insert(3, ItemResource.of(Items.COBBLESTONE), 16, tx);
-            tx.commit();
-        }
+        stock(level, absoluteTarget, 3, Items.COBBLESTONE, 16);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(transfer(Items.COBBLESTONE, 16, 3, 7)));
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        click(3, LEFT, ContainerInput.PICKUP),
+                        click(7, LEFT, ContainerInput.PICKUP))));
         AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
                     assertSlotHolds(helper, barrel, 7, Items.COBBLESTONE, "destination");
                     if (!barrel.getResource(3).isEmpty()) {
                         helper.fail("slot 3 still holds items - the move did not come out of it");
@@ -273,15 +277,73 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** Vanilla furnace slot meanings, which this mod knows nothing about — the test supplies them. */
+    /**
+     * A session refuses a menu of a different shape.
+     *
+     * <p>Slot indices only mean anything relative to the menu that produced them, so a routine taught
+     * on a barrel must not start pressing the same numbered buttons on a furnace.
+     */
+    private static void refusesAnotherMenu(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.FURNACE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        click(0, LEFT, ContainerInput.QUICK_MOVE))));
+        AnchorTestFixture.unlockAllActions(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
+                        helper.fail("expected WRONG_BLOCK for a chest routine run against a furnace, "
+                                + "got " + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    // ------------------------------------------------------------------ menu geometry
+
+    // Vanilla menus lay out container slots first, then the player's main inventory, then the
+    // hotbar. The anchor's slot 0 is loaded into Inventory slot 0, which is hotbar 0 - so it lands
+    // at containerSlots + 27. None of this is knowledge the mod has; the tests need it to write
+    // click scripts by hand, which is exactly what a recording does for real.
+    private static final int CHEST_MENU_SIZE = 27 + 36;
+    private static final int CHEST_CARRIER_SLOT = 27 + 27;
+    private static final int FURNACE_MENU_SIZE = 3 + 36;
+    private static final int FURNACE_CARRIER_SLOT = 3 + 27;
     private static final int FURNACE_INPUT = 0;
     private static final int FURNACE_FUEL = 1;
 
+    private static final int LEFT = 0;
+    private static final int RIGHT = 1;
+
     // ------------------------------------------------------------------ helpers
 
-    private static ChronoAction transfer(Item item, int amount, int fromSlot, int toSlot) {
-        return new ChronoAction.TransferItems(new BlockPos(0, 0, -1),
-                BuiltInRegistries.ITEM.wrapAsHolder(item), amount, fromSlot, toSlot);
+    private static ChronoAction.UseContainer.Click click(int slot, int button, ContainerInput input) {
+        return new ChronoAction.UseContainer.Click(slot, button, input);
+    }
+
+    private static ChronoAction session(int menuSize, ChronoAction.UseContainer.Click... clicks) {
+        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, List.of(clicks));
+    }
+
+    /** Right-click the top face, dead centre - the geometry a player clicking a floor block produces. */
+    private static ChronoAction useOnBlock(BlockPos localPos, Item item) {
+        return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
+                InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item));
+    }
+
+    private static void stock(ServerLevel level, BlockPos absolutePos, int slot, Item item, int amount) {
+        ResourceHandler<ItemResource> handler =
+                level.getCapability(Capabilities.Item.BLOCK, absolutePos, null);
+        if (handler == null) {
+            return;
+        }
+        try (Transaction tx = Transaction.openRoot()) {
+            handler.insert(slot, ItemResource.of(item), amount, tx);
+            tx.commit();
+        }
     }
 
     private static void assertSlotHolds(GameTestHelper helper, ResourceHandler<ItemResource> handler,
@@ -290,24 +352,6 @@ final class InteractionGameTest {
         if (resource.isEmpty() || resource.getItem() != expected) {
             helper.fail("expected " + expected + " in the " + label + " slot (" + slot + "), found "
                     + (resource.isEmpty() ? "nothing" : resource.getItem()));
-        }
-    }
-
-    /** Right-click the top face, dead centre — the geometry a player clicking a floor block produces. */
-    private static ChronoAction useOnBlock(BlockPos localPos, Item item) {
-        return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
-                InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item));
-    }
-
-    private static void stock(ServerLevel level, BlockPos absolutePos, Item item, int amount) {
-        ResourceHandler<ItemResource> handler =
-                level.getCapability(Capabilities.Item.BLOCK, absolutePos, null);
-        if (handler == null) {
-            return;
-        }
-        try (Transaction tx = Transaction.openRoot()) {
-            handler.insert(ItemResource.of(item), amount, tx);
-            tx.commit();
         }
     }
 
