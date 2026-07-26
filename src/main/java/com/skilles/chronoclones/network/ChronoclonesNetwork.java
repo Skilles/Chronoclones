@@ -26,6 +26,9 @@ public final class ChronoclonesNetwork {
     /** Installed by the client entrypoint. Stays a no-op on a dedicated server. */
     public static volatile Consumer<AnchorPreviewPayloads.Reply> clientReplyHandler = reply -> { };
 
+    /** Likewise, for the slot highlights drawn over an open container while recording. */
+    public static volatile Consumer<RecordingHighlightPayload> clientHighlightHandler = highlight -> { };
+
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
@@ -37,5 +40,9 @@ public final class ChronoclonesNetwork {
         registrar.playToClient(AnchorPreviewPayloads.Reply.TYPE,
                 AnchorPreviewPayloads.Reply.STREAM_CODEC,
                 (payload, context) -> clientReplyHandler.accept(payload));
+
+        registrar.playToClient(RecordingHighlightPayload.TYPE,
+                RecordingHighlightPayload.STREAM_CODEC,
+                (payload, context) -> clientHighlightHandler.accept(payload));
     }
 }

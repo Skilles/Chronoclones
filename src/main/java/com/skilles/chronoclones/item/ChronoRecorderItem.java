@@ -3,6 +3,7 @@ package com.skilles.chronoclones.item;
 import java.util.List;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.recording.ContainerWatch;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
@@ -148,6 +149,9 @@ public class ChronoRecorderItem extends Item {
         }
 
         RecordingSession session = RecordingSessions.end(player);
+        // A recording can be stopped with a chest still open, and the watch has no other way to hear
+        // about it — PlayerContainerEvent.Close will find no session and return.
+        ContainerWatch.forget(player);
         stack.remove(ModDataComponents.PROGRESS.get());
 
         // Distinguish "the session vanished" from "the session captured nothing". Collapsing these

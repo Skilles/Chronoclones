@@ -30,6 +30,7 @@ public class ChronoclonesClient {
         // Installed from here so the common network class never names a client type — see
         // ChronoclonesNetwork for why that matters on 26.x.
         ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
+        ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
         // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask. This
         // is what Screen used to do underneath.
         RecordingTooltips.detailRequested = () -> {

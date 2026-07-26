@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.skilles.chronoclones.network.RecordingHighlightPayload;
 import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
@@ -17,6 +18,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -88,8 +90,28 @@ public final class ContainerWatch {
         }
 
         session.dropActionAt(pending.actionIndex());
-        OPEN.put(player.getUUID(), new Watch(pending.pos(), new ArrayList<>(),
-                player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>()));
+        Watch watch = new Watch(pending.pos(), new ArrayList<>(),
+                player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>());
+        OPEN.put(player.getUUID(), watch);
+        // Nothing to highlight yet, but sending it anyway is the signal that this container is one
+        // the recorder is watching — which is worth knowing before you start clicking in it.
+        publish(player, watch);
+    }
+
+    /**
+     * Tells the client which slots the session has picked up, for the highlight drawn over the menu.
+     *
+     * <p>Pushed on every click rather than polled, because the interesting moment is the one right
+     * after a click: whether that click landed where you meant it to is exactly what you cannot see
+     * from the item moving.
+     */
+    private static void publish(ServerPlayer player, Watch watch) {
+        List<Integer> carried = new ArrayList<>();
+        for (ChronoAction.UseContainer.CarrierSlot slot : carried(watch.snapshot(), watch.touched())) {
+            carried.add(slot.menuSlot());
+        }
+        send(player, new RecordingHighlightPayload(
+                player.containerMenu.containerId, List.copyOf(watch.touched()), carried));
     }
 
     /**
@@ -148,6 +170,7 @@ public final class ContainerWatch {
                 watch.touched().add(swapped);
             }
         }
+        publish(player, watch);
     }
 
     /** Where a player-inventory index sits in the open menu, or -1 if this menu does not show it. */
@@ -188,8 +211,8 @@ public final class ContainerWatch {
     /** The session, or null if nothing was clicked. */
     public static ChronoAction.@Nullable UseContainer onContainerClosed(ServerPlayer player,
                                                                      RecordingSession session) {
-        PENDING.remove(player.getUUID());
-        Watch watch = OPEN.remove(player.getUUID());
+        Watch watch = OPEN.get(player.getUUID());
+        forget(player);
         if (watch == null || watch.clicks().isEmpty()) {
             return null;
         }
@@ -203,10 +226,28 @@ public final class ContainerWatch {
         return watch == null ? null : watch.pos();
     }
 
+    /**
+     * Stops watching this player, and takes the highlight down with it.
+     *
+     * <p>The clear matters on the path where a recording is stopped with the container still open:
+     * nothing else will fire until that screen closes, and a highlight left on screen would be
+     * claiming a session is still collecting clicks that nothing is collecting.
+     */
     public static void forget(ServerPlayer player) {
         OPEN.remove(player.getUUID());
         PENDING.remove(player.getUUID());
+        send(player, new RecordingHighlightPayload(NO_CONTAINER, List.of(), List.of()));
     }
+
+    /** Forgetting a watch also happens on the way out of a dimension, and on respawn. */
+    private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
+        if (player.connection != null && !player.hasDisconnected()) {
+            PacketDistributor.sendToPlayer(player, payload);
+        }
+    }
+
+    /** A container id no menu has, which the client reads as "draw nothing". */
+    private static final int NO_CONTAINER = -1;
 
     public static void clear() {
         OPEN.clear();
