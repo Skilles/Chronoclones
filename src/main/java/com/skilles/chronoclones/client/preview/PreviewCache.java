@@ -43,7 +43,7 @@ public final class PreviewCache {
     private static DiagnosticState cachedFailure = DiagnosticState.NONE;
     private static BlockPos cachedOffset = BlockPos.ZERO;
     private static long cachedAtTick = Long.MIN_VALUE;
-    private static long lastRequestTick = Long.MIN_VALUE;
+    private static final RequestClock CLOCK = new RequestClock();
 
     /**
      * The anchor being looked at and the routine to draw there, or null.
@@ -78,24 +78,29 @@ public final class PreviewCache {
         }
         Direction facing = state.getValue(ChronoAnchorBlock.FACING);
 
+        long now = minecraft.level.getGameTime();
+        boolean fresh = pos.equals(cachedFor) && cachedAtTick != Long.MIN_VALUE
+                && now - cachedAtTick <= TTL_TICKS;
+        if (!fresh && CLOCK.claim(now, REQUEST_INTERVAL_TICKS)) {
+            ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
+        }
+
+        // The offset belongs to the anchor, not to the routine, so it applies to a shard being
+        // lined up as much as to one already imprinted — that is what makes aiming before you
+        // commit possible at all. Zero until the reply lands, which is also the right answer for an
+        // anchor nobody has nudged.
+        BlockPos offset = fresh ? cachedOffset : BlockPos.ZERO;
+
         // A routine in hand wins: the player is asking "what would this do here", and answering with
         // what the anchor already holds would be a different question.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
-            // A shard in hand previews at the anchor itself: the offset belongs to a routine that
-            // has been imprinted, and this one has not been.
-            return new Target(pos, facing, held, true, DiagnosticState.NONE, BlockPos.ZERO);
+            return new Target(pos, facing, held, true, DiagnosticState.NONE, offset);
         }
 
-        long now = minecraft.level.getGameTime();
-        if (pos.equals(cachedFor) && now - cachedAtTick <= TTL_TICKS) {
+        if (fresh) {
             return cached == null ? null
-                    : new Target(pos, facing, cached, false, cachedFailure, cachedOffset);
-        }
-
-        if (now - lastRequestTick >= REQUEST_INTERVAL_TICKS) {
-            lastRequestTick = now;
-            ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
+                    : new Target(pos, facing, cached, false, cachedFailure, offset);
         }
         // Nothing to draw until the reply lands. One frame of nothing beats a stale routine drawn
         // over a different anchor.

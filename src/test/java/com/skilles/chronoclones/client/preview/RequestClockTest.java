@@ -1,0 +1,64 @@
+package com.skilles.chronoclones.client.preview;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * The throttle in front of the preview and goggle requests.
+ *
+ * <p>The first assertion here is the whole reason this class exists. Written the obvious way —
+ * {@code now - lastRequest >= INTERVAL}, with {@code lastRequest} starting at {@code Long.MIN_VALUE}
+ * — the subtraction overflows to a large negative number, the comparison is false forever, and no
+ * request is ever sent. That shipped in two caches: the anchor preview did nothing at all, and the
+ * only reason it went unnoticed is that previewing a routine held in hand returns before it.
+ */
+class RequestClockTest {
+
+    private static final long INTERVAL = 40;
+
+    @Test
+    @DisplayName("the very first request is allowed, at any world time")
+    void firstRequestIsAllowed() {
+        // A brand new world starts at tick zero, which is exactly where the overflow bit hardest.
+        assertTrue(new RequestClock().claim(0, INTERVAL),
+                "a fresh clock refused its first request — the feature would do nothing, silently");
+        assertTrue(new RequestClock().claim(1, INTERVAL));
+        assertTrue(new RequestClock().claim(1_000_000, INTERVAL));
+    }
+
+    @Test
+    @DisplayName("a second request inside the interval is refused")
+    void secondRequestIsThrottled() {
+        RequestClock clock = new RequestClock();
+        assertTrue(clock.claim(100, INTERVAL));
+
+        assertFalse(clock.claim(100, INTERVAL));
+        assertFalse(clock.claim(139, INTERVAL), "one tick early is still early");
+    }
+
+    @Test
+    @DisplayName("the request is allowed again once the interval has passed")
+    void intervalReopensTheClock() {
+        RequestClock clock = new RequestClock();
+        clock.claim(100, INTERVAL);
+
+        assertTrue(clock.claim(140, INTERVAL));
+        assertFalse(clock.claim(179, INTERVAL), "the interval restarts from the last request");
+        assertTrue(clock.claim(180, INTERVAL));
+    }
+
+    @Test
+    @DisplayName("resetting reopens it immediately")
+    void resetReopens() {
+        RequestClock clock = new RequestClock();
+        clock.claim(100, INTERVAL);
+        assertFalse(clock.claim(101, INTERVAL));
+
+        // Taking the goggles off and putting them back on should not mean waiting out the interval.
+        clock.reset();
+        assertTrue(clock.claim(101, INTERVAL));
+    }
+}

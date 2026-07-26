@@ -29,8 +29,9 @@ import net.neoforged.neoforge.client.network.ClientPacketDistributor;
  * keys live all the time would be worse than useless — they are arrow keys, and something has to
  * decide which of several anchors you meant.
  *
- * <p>A routine held in hand is deliberately excluded. That preview answers "what would this shard do
- * if I imprinted it here", and there is nothing yet to nudge.
+ * <p>Works with a shard in hand too. The offset belongs to the anchor rather than to the routine, so
+ * aiming one before committing to it is the same operation as adjusting one already running — and it
+ * is the more useful of the two, since it is the point at which you can still see you got it wrong.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class NudgeKeys {
@@ -75,7 +76,7 @@ public final class NudgeKeys {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         PreviewCache.Target target = PreviewCache.current();
-        if (target == null || target.fromHand()) {
+        if (target == null) {
             return;
         }
         Minecraft client = Minecraft.getInstance();

@@ -30,7 +30,7 @@ public final class GoggleCache {
 
     private static List<GogglePayloads.Entry> anchors = List.of();
     private static boolean truncated;
-    private static long lastRequestTick = Long.MIN_VALUE;
+    private static final RequestClock CLOCK = new RequestClock();
 
     /** The anchors to draw, refreshing in the background if the goggles are on. */
     public static List<PreviewCache.Target> current() {
@@ -45,8 +45,7 @@ public final class GoggleCache {
         }
 
         long now = client.level.getGameTime();
-        if (now - lastRequestTick >= REFRESH_INTERVAL_TICKS) {
-            lastRequestTick = now;
+        if (CLOCK.claim(now, REFRESH_INTERVAL_TICKS)) {
             net.neoforged.neoforge.client.network.ClientPacketDistributor
                     .sendToServer(new GogglePayloads.Request());
         }
@@ -73,6 +72,6 @@ public final class GoggleCache {
     public static void forget() {
         anchors = List.of();
         truncated = false;
-        lastRequestTick = Long.MIN_VALUE;
+        CLOCK.reset();
     }
 }
