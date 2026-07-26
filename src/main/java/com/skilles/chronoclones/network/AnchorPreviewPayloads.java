@@ -3,6 +3,7 @@ package com.skilles.chronoclones.network;
 import java.util.Optional;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
@@ -46,8 +47,16 @@ public final class AnchorPreviewPayloads {
         }
     }
 
-    /** Server → client: the routine, or empty if that anchor has none. */
-    public record Reply(BlockPos pos, Optional<Recording> recording) implements CustomPacketPayload {
+    /**
+     * Server → client: the routine, or empty if that anchor has none.
+     *
+     * <p>The diagnostic rides along because the preview is where it is most useful. The anchor GUI
+     * has always said <em>why</em> the last action failed; drawing the same information in the world
+     * says <em>which</em> of fourteen identical-looking breaks is the one that cannot run, which is
+     * the part you otherwise have to work out by counting.
+     */
+    public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure)
+            implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Reply> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("anchor_preview"));
@@ -56,6 +65,7 @@ public final class AnchorPreviewPayloads {
                 StreamCodec.composite(
                         BlockPos.STREAM_CODEC.cast(), Reply::pos,
                         ByteBufCodecs.optional(RecordingCodecs.RECORDING_STREAM), Reply::recording,
+                        ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Reply::failure,
                         Reply::new);
 
         @Override
@@ -84,7 +94,7 @@ public final class AnchorPreviewPayloads {
             return;
         }
 
-        context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording())));
+        context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording()), anchor.getLastFailure()));
     }
 
     /** A little beyond any reasonable reach, so a laggy client is not refused its own preview. */

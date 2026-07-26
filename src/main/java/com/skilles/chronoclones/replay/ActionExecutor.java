@@ -281,7 +281,14 @@ public final class ActionExecutor {
         }
     }
 
-    private static final double ATTACK_RADIUS = 1.5;
+    /**
+     * How far from the recorded point an attack looks for something to hit.
+     *
+     * <p>Public because the preview draws this exact volume. An attack lands on whatever wandered
+     * into range rather than on a fixed block, and a preview that drew a box would be describing a
+     * routine nobody wrote.
+     */
+    public static final double ATTACK_RADIUS = 1.5;
 
     // ------------------------------------------------------------------ interaction
 
@@ -433,7 +440,8 @@ public final class ActionExecutor {
         return result.consumesAction() ? Result.OK : Result.fail(FailureReason.NO_TARGET, localPos);
     }
 
-    private static final double INTERACT_RADIUS = 2.0;
+    /** Same story as {@link #ATTACK_RADIUS}, for right-clicking a mob. */
+    public static final double INTERACT_RADIUS = 2.0;
 
     // ------------------------------------------------------------------ transfer
 

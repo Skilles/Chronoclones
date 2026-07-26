@@ -1,5 +1,6 @@
 package com.skilles.chronoclones.client.preview;
 
+import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.network.AnchorPreviewPayloads;
 import com.skilles.chronoclones.recording.Recording;
@@ -38,11 +39,18 @@ public final class PreviewCache {
 
     private static @Nullable BlockPos cachedFor;
     private static @Nullable Recording cached;
+    private static DiagnosticState cachedFailure = DiagnosticState.NONE;
     private static long cachedAtTick = Long.MIN_VALUE;
     private static long lastRequestTick = Long.MIN_VALUE;
 
-    /** The anchor being looked at and the routine to draw there, or null. */
-    public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand) {}
+    /**
+     * The anchor being looked at and the routine to draw there, or null.
+     *
+     * @param failure what that anchor is currently stuck on. Always NONE for a routine held in hand:
+     *                a shard has never run anywhere, so it has nothing to be stuck on.
+     */
+    public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
+                         DiagnosticState failure) {}
 
     public static @Nullable Target current() {
         Minecraft minecraft = Minecraft.getInstance();
@@ -66,12 +74,12 @@ public final class PreviewCache {
         // what the anchor already holds would be a different question.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
-            return new Target(pos, facing, held, true);
+            return new Target(pos, facing, held, true, DiagnosticState.NONE);
         }
 
         long now = minecraft.level.getGameTime();
         if (pos.equals(cachedFor) && now - cachedAtTick <= TTL_TICKS) {
-            return cached == null ? null : new Target(pos, facing, cached, false);
+            return cached == null ? null : new Target(pos, facing, cached, false, cachedFailure);
         }
 
         if (now - lastRequestTick >= REQUEST_INTERVAL_TICKS) {
@@ -88,12 +96,14 @@ public final class PreviewCache {
         Minecraft minecraft = Minecraft.getInstance();
         cachedFor = reply.pos();
         cached = reply.recording().orElse(null);
+        cachedFailure = reply.failure();
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
     public static void forget() {
         cachedFor = null;
         cached = null;
+        cachedFailure = DiagnosticState.NONE;
         cachedAtTick = Long.MIN_VALUE;
     }
 
