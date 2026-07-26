@@ -18,6 +18,7 @@ import com.skilles.chronoclones.replay.ActionExecutor;
 import com.skilles.chronoclones.replay.CloneRuntime;
 import com.skilles.chronoclones.replay.LevelActionBudget;
 import com.skilles.chronoclones.replay.MotionTrack;
+import com.skilles.chronoclones.replay.Placement;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -56,6 +57,14 @@ import org.jspecify.annotations.Nullable;
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
     public static final int INVENTORY_SLOTS = 18;
+    /**
+     * How many ints the menu syncs.
+     *
+     * <p>Lives here, next to the switch that produces them, because the client builds a buffer of
+     * exactly this size and reads it by index. When the two drifted apart the readouts past the end
+     * did not degrade — they threw, on a client, in a code path no game test reaches.
+     */
+    public static final int DATA_COUNT = 18;
     public static final int UPGRADE_SLOTS = 3;
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
@@ -88,6 +97,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     };
 
     private final List<CloneRuntime> runtimes = new ArrayList<>();
+    private BlockPos originOffset = BlockPos.ZERO;
     private UpgradeState upgrades = UpgradeState.BASE;
     private ChargeBuffer charge = ChargeBuffer.EMPTY;
     private boolean enabled = true;
@@ -112,6 +122,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case 12 -> lastFailure.localPos().getY();
                 case 13 -> lastFailure.localPos().getZ();
                 case 14 -> upgrades.coherenceTier();
+                case 15 -> originOffset.getX();
+                case 16 -> originOffset.getY();
+                case 17 -> originOffset.getZ();
                 default -> 0;
             };
         }
@@ -121,7 +134,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return 15;
+            return DATA_COUNT;
         }
     };
 
@@ -176,6 +189,43 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     public boolean isEnabled() {
         return enabled;
+    }
+
+    /** How far the routine has been nudged from the anchor, in anchor-local space. */
+    public BlockPos getOriginOffset() {
+        return originOffset;
+    }
+
+    /**
+     * Where this anchor's routine lands, and where its radius is measured from.
+     *
+     * <p>Built here rather than at each call site so the two positions are decided once. See
+     * {@link Placement} for why conflating them would hand out unlimited reach.
+     */
+    public Placement placement() {
+        return Placement.of(worldPosition, getBlockState().getValue(ChronoAnchorBlock.FACING),
+                originOffset);
+    }
+
+    /**
+     * Moves the routine's origin, clamped so it cannot become a way to extend reach.
+     *
+     * <p>The clamp is belt-and-braces — every action is radius-checked against the anchor block
+     * regardless, so an offset beyond the radius makes a routine fail rather than reach further.
+     * Bounding it anyway keeps absurd values out of the save file and keeps the preview on screen.
+     */
+    public void nudgeOrigin(BlockPos delta) {
+        int limit = com.skilles.chronoclones.ChronoclonesConfig.MAX_RADIUS.getAsInt();
+        originOffset = new BlockPos(
+                Math.clamp(originOffset.getX() + delta.getX(), -limit, limit),
+                Math.clamp(originOffset.getY() + delta.getY(), -limit, limit),
+                Math.clamp(originOffset.getZ() + delta.getZ(), -limit, limit));
+        setChanged();
+    }
+
+    public void resetOrigin() {
+        originOffset = BlockPos.ZERO;
+        setChanged();
     }
 
     // ------------------------------------------------------------------ imprint
@@ -290,6 +340,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         emitIdleParticles(serverLevel);
 
         Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
+        Placement placement = placement();
         int length = Math.max(recording.lengthTicks(), 1);
 
         for (CloneRuntime runtime : runtimes) {
@@ -313,6 +364,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
         List<TimedAction> actions = recording.actions();
         Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
+        Placement placement = placement();
 
         while (runtime.actionCursor() < actions.size()
                 && actions.get(runtime.actionCursor()).tick() <= runtime.playhead()) {
@@ -347,20 +399,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> ActionExecutor.executeBreak(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory,
+                        serverLevel, a, placement, ownerId, ownerName, inventory,
                         upgrades.coherenceTier());
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName);
+                        serverLevel, a, placement, ownerId, ownerName);
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory);
             };
 
             if (result.succeeded()) {
@@ -462,7 +514,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         lastFailure = DiagnosticState.of(reason, localPos, tick);
         setChanged();
 
-        BlockPos worldPos = com.skilles.chronoclones.recording.LocalSpace.toWorld(localPos, worldPosition, facing);
+        BlockPos worldPos = placement().toWorld(localPos);
         serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.SMOKE,
                 worldPos.getX() + 0.5, worldPos.getY() + 0.5, worldPos.getZ() + 0.5,
                 6, 0.2, 0.2, 0.2, 0.01);
@@ -510,7 +562,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             serverLevel.addFreshEntity(ghost);
         }
 
-        Vec3 pos = motionTrack.worldPositionAt(runtime.playhead(), worldPosition, facing);
+        Vec3 pos = motionTrack.worldPositionAt(runtime.playhead(), placement().origin(), facing);
         float yaw = motionTrack.worldYawAt(runtime.playhead(), facing);
         ghost.driveTo(pos, yaw, motionTrack.pitchAt(runtime.playhead()));
         ghost.setHeldItem(upcomingHeldItem(runtime));
@@ -636,6 +688,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             output.putString("owner_name", ownerName);
         }
         output.putBoolean("enabled", enabled);
+        if (!originOffset.equals(BlockPos.ZERO)) {
+            output.store("origin_offset", BlockPos.CODEC, originOffset);
+        }
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
         // Playheads are deliberately NOT saved: no catch-up on chunk load.
     }
@@ -654,6 +709,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ownerId = input.read("owner_id", UUIDUtil.CODEC).orElse(null);
         ownerName = input.getStringOr("owner_name", "");
         enabled = input.getBooleanOr("enabled", true);
+        originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
         // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.

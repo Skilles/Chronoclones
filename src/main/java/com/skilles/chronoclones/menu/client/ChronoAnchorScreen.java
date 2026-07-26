@@ -134,6 +134,15 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                                 : "gui.chronoclones.anchor.matching.strict")),
                 8, Layout.UPGRADE_INFO_Y, MUTED);
 
+        // Only when it has been moved. A permanent "Origin 0, 0, 0" line would be noise on every
+        // anchor to explain a feature most of them are not using.
+        net.minecraft.core.BlockPos offset = menu.getOriginOffset();
+        if (!offset.equals(net.minecraft.core.BlockPos.ZERO)) {
+            extractor.text(font, Component.translatable("gui.chronoclones.anchor.origin",
+                            offset.getX(), offset.getY(), offset.getZ()),
+                    8, Layout.STATUS_Y - 10, MUTED);
+        }
+
         // The diagnostic line the spec insists on: not just what failed, but where, in
         // anchor-local coordinates, so the failing block can actually be found.
         DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());

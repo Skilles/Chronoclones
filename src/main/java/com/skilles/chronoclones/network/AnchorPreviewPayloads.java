@@ -55,8 +55,8 @@ public final class AnchorPreviewPayloads {
      * says <em>which</em> of fourteen identical-looking breaks is the one that cannot run, which is
      * the part you otherwise have to work out by counting.
      */
-    public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure)
-            implements CustomPacketPayload {
+    public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure,
+                        BlockPos originOffset) implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Reply> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("anchor_preview"));
@@ -66,6 +66,7 @@ public final class AnchorPreviewPayloads {
                         BlockPos.STREAM_CODEC.cast(), Reply::pos,
                         ByteBufCodecs.optional(RecordingCodecs.RECORDING_STREAM), Reply::recording,
                         ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Reply::failure,
+                        BlockPos.STREAM_CODEC.cast(), Reply::originOffset,
                         Reply::new);
 
         @Override
@@ -94,7 +95,8 @@ public final class AnchorPreviewPayloads {
             return;
         }
 
-        context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording()), anchor.getLastFailure()));
+        context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording()),
+                anchor.getLastFailure(), anchor.getOriginOffset()));
     }
 
     /** A little beyond any reasonable reach, so a laggy client is not refused its own preview. */

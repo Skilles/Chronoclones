@@ -48,8 +48,9 @@ public final class PreviewRenderer {
             return;
         }
 
-        PreviewShape shape = PreviewShape.of(target.recording(), target.anchorPos(), target.facing(),
-                target.failure().isFailure() ? target.failure().localPos() : null);
+        // Drawn from the nudged origin, so what you see is where the work actually lands.
+        PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
+                target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
         if (shape.isEmpty()) {
             return;
         }

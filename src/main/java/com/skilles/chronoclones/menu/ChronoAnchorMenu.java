@@ -20,8 +20,8 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.INVENTORY_SLOTS;
 
-    /** Keep in sync with the block entity's ContainerData. */
-    public static final int DATA_COUNT = 14;
+    /** Defined by the block entity, so the two cannot drift apart. */
+    public static final int DATA_COUNT = ChronoAnchorBlockEntity.DATA_COUNT;
 
     /** 18 storage + 1 fuel + 3 upgrade. */
     private static final int TOTAL_ANCHOR_SLOTS =
@@ -135,6 +135,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     public int getCoherenceTier() {
         return data.get(14);
+    }
+
+    /** How far the routine has been nudged, so the GUI can say so. */
+    public net.minecraft.core.BlockPos getOriginOffset() {
+        return new net.minecraft.core.BlockPos(data.get(15), data.get(16), data.get(17));
     }
 
     /** Anchor-local position of the last failure, for the diagnostic line. */

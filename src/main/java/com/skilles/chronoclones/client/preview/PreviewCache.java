@@ -4,6 +4,7 @@ import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.network.AnchorPreviewPayloads;
 import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.replay.Placement;
 import com.skilles.chronoclones.registry.ModDataComponents;
 
 import net.minecraft.client.Minecraft;
@@ -40,6 +41,7 @@ public final class PreviewCache {
     private static @Nullable BlockPos cachedFor;
     private static @Nullable Recording cached;
     private static DiagnosticState cachedFailure = DiagnosticState.NONE;
+    private static BlockPos cachedOffset = BlockPos.ZERO;
     private static long cachedAtTick = Long.MIN_VALUE;
     private static long lastRequestTick = Long.MIN_VALUE;
 
@@ -50,7 +52,13 @@ public final class PreviewCache {
      *                a shard has never run anywhere, so it has nothing to be stuck on.
      */
     public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
-                         DiagnosticState failure) {}
+                         DiagnosticState failure, BlockPos originOffset) {
+
+        /** Where the routine is actually drawn from, which is the anchor plus its nudge. */
+        public Placement placement() {
+            return Placement.of(anchorPos, facing, originOffset);
+        }
+    }
 
     public static @Nullable Target current() {
         Minecraft minecraft = Minecraft.getInstance();
@@ -74,12 +82,15 @@ public final class PreviewCache {
         // what the anchor already holds would be a different question.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
-            return new Target(pos, facing, held, true, DiagnosticState.NONE);
+            // A shard in hand previews at the anchor itself: the offset belongs to a routine that
+            // has been imprinted, and this one has not been.
+            return new Target(pos, facing, held, true, DiagnosticState.NONE, BlockPos.ZERO);
         }
 
         long now = minecraft.level.getGameTime();
         if (pos.equals(cachedFor) && now - cachedAtTick <= TTL_TICKS) {
-            return cached == null ? null : new Target(pos, facing, cached, false, cachedFailure);
+            return cached == null ? null
+                    : new Target(pos, facing, cached, false, cachedFailure, cachedOffset);
         }
 
         if (now - lastRequestTick >= REQUEST_INTERVAL_TICKS) {
@@ -97,6 +108,7 @@ public final class PreviewCache {
         cachedFor = reply.pos();
         cached = reply.recording().orElse(null);
         cachedFailure = reply.failure();
+        cachedOffset = reply.originOffset();
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
@@ -104,6 +116,7 @@ public final class PreviewCache {
         cachedFor = null;
         cached = null;
         cachedFailure = DiagnosticState.NONE;
+        cachedOffset = BlockPos.ZERO;
         cachedAtTick = Long.MIN_VALUE;
     }
 

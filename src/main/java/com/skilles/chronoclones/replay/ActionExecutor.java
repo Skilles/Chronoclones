@@ -65,17 +65,17 @@ public final class ActionExecutor {
     private ActionExecutor() {}
 
     public static Result executeBreak(ServerLevel level, ChronoAction.BreakBlock action,
-                                      BlockPos anchorPos, Direction anchorFacing,
+                                      Placement placement,
                                       java.util.UUID ownerId, String ownerName,
                                       ResourceHandler<ItemResource> inventory,
                                       int coherenceTier) {
 
-        BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        BlockPos worldPos = placement.toWorld(action.localPos());
 
         // 1. Radius, re-checked here and not merely at record time. The recording is untrusted
-        //    input the moment it can be transferred between players.
-        int maxRadius = ChronoclonesConfig.MAX_RADIUS.getAsInt();
-        if (!worldPos.closerThan(anchorPos, maxRadius)) {
+        //    input the moment it can be transferred between players. Measured from the
+        //    anchor block rather than the routine's origin — see Placement for why.
+        if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
         }
 
@@ -146,13 +146,13 @@ public final class ActionExecutor {
     // ------------------------------------------------------------------ place
 
     public static Result executePlace(ServerLevel level, ChronoAction.PlaceBlock action,
-                                      BlockPos anchorPos, Direction anchorFacing,
+                                      Placement placement,
                                       java.util.UUID ownerId, String ownerName,
                                       ResourceHandler<ItemResource> inventory) {
 
-        BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        BlockPos worldPos = placement.toWorld(action.localPos());
 
-        if (!worldPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+        if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
         }
         if (!level.isLoaded(worldPos)) {
@@ -177,7 +177,7 @@ public final class ActionExecutor {
         }
 
         ItemStack toPlace = new ItemStack(item);
-        Direction face = LocalSpace.toWorld(action.localFace(), anchorFacing);
+        Direction face = placement.toWorld(action.localFace());
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
                 Vec3.atCenterOf(worldPos), 0.0f, 0.0f, toPlace);
@@ -227,15 +227,15 @@ public final class ActionExecutor {
     // ------------------------------------------------------------------ attack
 
     public static Result executeAttack(ServerLevel level, ChronoAction.AttackEntity action,
-                                       BlockPos anchorPos, Direction anchorFacing,
+                                       Placement placement,
                                        java.util.UUID ownerId, String ownerName) {
 
-        Vec3 worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        Vec3 worldPos = placement.toWorld(action.localPos());
         BlockPos blockPos = BlockPos.containing(worldPos);
         // Attack positions are continuous; diagnostics report the containing block.
         BlockPos localBlock = BlockPos.containing(action.localPos());
 
-        if (!blockPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+        if (!placement.withinRadius(blockPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, localBlock);
         }
         if (!level.isLoaded(blockPos)) {
@@ -302,13 +302,13 @@ public final class ActionExecutor {
      * machine is, and nothing here needs to.
      */
     public static Result executeUseOnBlock(ServerLevel level, ChronoAction.UseOnBlock action,
-                                           BlockPos anchorPos, Direction anchorFacing,
+                                           Placement placement,
                                            java.util.UUID ownerId, String ownerName,
                                            ResourceHandler<ItemResource> inventory) {
 
-        BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        BlockPos worldPos = placement.toWorld(action.localPos());
 
-        if (!worldPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+        if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
         }
         if (!level.isLoaded(worldPos)) {
@@ -327,9 +327,9 @@ public final class ActionExecutor {
 
         // The sub-block hit point rotates with the anchor, exactly as the block position does, so a
         // rotated routine still clicks the same corner of the same face.
-        Direction face = LocalSpace.toWorld(action.localFace(), anchorFacing);
+        Direction face = placement.toWorld(action.localFace());
         Vec3 hit = Vec3.atCenterOf(worldPos)
-                .add(LocalSpace.rotateY(action.localHitOffset(), LocalSpace.stepsFromNorth(anchorFacing)));
+                .add(LocalSpace.rotateY(action.localHitOffset(), LocalSpace.stepsFromNorth(placement.facing())));
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
                 Vec3.atCenterOf(worldPos), face.getOpposite().toYRot(), 0.0f, loan.stack());
@@ -338,7 +338,7 @@ public final class ActionExecutor {
                     owner.getMainHandItem(), action.hand(),
                     new BlockHitResult(hit, face, worldPos, action.inside()));
 
-            return finishInteraction(level, anchorPos, inventory, owner, loan, result, action.localPos());
+            return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, action.localPos());
         } finally {
             AnchorFakePlayer.release(owner);
         }
@@ -346,7 +346,7 @@ public final class ActionExecutor {
 
     /** Right-clicking with nothing targeted. Same pipeline, no hit result. */
     public static Result executeUseItem(ServerLevel level, ChronoAction.UseItem action,
-                                        BlockPos anchorPos, Direction anchorFacing,
+                                        Placement placement,
                                         java.util.UUID ownerId, String ownerName,
                                         ResourceHandler<ItemResource> inventory) {
 
@@ -360,11 +360,11 @@ public final class ActionExecutor {
         }
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(anchorPos).add(0.0, 1.0, 0.0), anchorFacing.toYRot(), 0.0f, loan.stack());
+                Vec3.atCenterOf(placement.anchorPos()).add(0.0, 1.0, 0.0), placement.facing().toYRot(), 0.0f, loan.stack());
         try {
             InteractionResult result = owner.gameMode.useItem(owner, level,
                     owner.getMainHandItem(), action.hand());
-            return finishInteraction(level, anchorPos, inventory, owner, loan, result, BlockPos.ZERO);
+            return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, BlockPos.ZERO);
         } finally {
             AnchorFakePlayer.release(owner);
         }
@@ -372,14 +372,14 @@ public final class ActionExecutor {
 
     /** Right-clicking an entity: shearing, milking, feeding, or a mod's own interaction. */
     public static Result executeInteractEntity(ServerLevel level, ChronoAction.InteractEntity action,
-                                               BlockPos anchorPos, Direction anchorFacing,
+                                               Placement placement,
                                                java.util.UUID ownerId, String ownerName,
                                                ResourceHandler<ItemResource> inventory) {
 
-        Vec3 worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        Vec3 worldPos = placement.toWorld(action.localPos());
         BlockPos localBlock = BlockPos.containing(action.localPos());
 
-        if (!BlockPos.containing(worldPos).closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+        if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, localBlock);
         }
         if (!level.isLoaded(BlockPos.containing(worldPos))) {
@@ -412,11 +412,11 @@ public final class ActionExecutor {
         }
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                worldPos, anchorFacing.toYRot(), 0.0f, loan.stack());
+                worldPos, placement.facing().toYRot(), 0.0f, loan.stack());
         try {
             InteractionResult result = owner.interactOn(target, action.hand(),
                     worldPos.subtract(target.position()));
-            return finishInteraction(level, anchorPos, inventory, owner, loan, result, localBlock);
+            return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, localBlock);
         } finally {
             AnchorFakePlayer.release(owner);
         }
@@ -460,13 +460,13 @@ public final class ActionExecutor {
      * on the cursor. Spec  already refuses cross-tick replay state for the same reason.
      */
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
-                                             BlockPos anchorPos, Direction anchorFacing,
+                                             Placement placement,
                                              java.util.UUID ownerId, String ownerName,
                                              ItemStacksResourceHandler inventory) {
 
-        BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
+        BlockPos worldPos = placement.toWorld(action.localPos());
 
-        if (!worldPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt())) {
+        if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
         }
         if (!level.isLoaded(worldPos)) {
@@ -484,7 +484,7 @@ public final class ActionExecutor {
         }
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), anchorFacing.toYRot(), 0.0f, ItemStack.EMPTY);
+                Vec3.atCenterOf(worldPos), placement.facing().toYRot(), 0.0f, ItemStack.EMPTY);
         try {
             AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
             if (menu == null) {
@@ -498,7 +498,7 @@ public final class ActionExecutor {
             }
 
             if (!ContainerCarrier.load(inventory, owner, menu, action.carrier())) {
-                ContainerCarrier.drain(level, anchorPos, inventory, owner, menu);
+                ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
                 return Result.fail(FailureReason.NO_ITEM, action.localPos());
             }
             try {
@@ -513,7 +513,7 @@ public final class ActionExecutor {
                 // holding to the anchor — in a finally, because a mod's slot throwing mid-session
                 // must not leave a routine's items inside a fake player nobody can open.
                 menu.removed(owner);
-                ContainerCarrier.drain(level, anchorPos, inventory, owner, menu);
+                ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
             }
             return Result.OK;
         } finally {
