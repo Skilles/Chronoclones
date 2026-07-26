@@ -3,7 +3,6 @@
   "block.chronoclones.chrono_anchor": "Chrono Anchor",
   "item.chronoclones.chrono_recorder": "Chrono Recorder",
   "entity.chronoclones.chrono_clone": "Chrono",
-
   "message.chronoclones.recorder.started": "Recording. Origin facing %s.",
   "message.chronoclones.recorder.stopped": "Recorded %ss, %s actions.",
   "message.chronoclones.recorder.stopped_length": "Length limit reached — recorded %ss, %s actions.",
@@ -14,9 +13,7 @@
   "message.chronoclones.recorder.lost": "Recording was interrupted and could not be saved.",
   "message.chronoclones.recorder.holding": "Right-click an Chrono Anchor to imprint this recording.",
   "message.chronoclones.recorder.out_of_range": "Out of range — that action was not recorded.",
-
   "message.chronoclones.anchor.imprinted": "Imprinted %s's routine — %s actions.",
-
   "diagnostic.chronoclones.none": "Running",
   "diagnostic.chronoclones.no_block": "Nothing to break at %s",
   "diagnostic.chronoclones.wrong_block": "Unexpected block at %s",
@@ -30,7 +27,6 @@
   "diagnostic.chronoclones.no_item": "No matching item to place at %s",
   "diagnostic.chronoclones.obstructed": "Blocked at %s",
   "diagnostic.chronoclones.no_target": "Nothing to attack at %s",
-
   "item.chronoclones.creative_charge_cell": "Creative Charge Cell",
   "tooltip.chronoclones.charge_cell": "Keeps an anchor fully charged",
   "tooltip.chronoclones.charge_cell.creative": "Debug item — never consumed",
@@ -47,11 +43,9 @@
   "tooltip.chronoclones.chrono_focus": "Unlocks more kinds of action",
   "tooltip.chronoclones.chrono_lens": "Tolerates blocks that changed since recording",
   "tooltip.chronoclones.upgrade.slot": "Slot into an Chrono Anchor",
-
   "gui.chronoclones.anchor.no_recording": "No routine imprinted",
   "gui.chronoclones.anchor.progress": "%ss / %ss  ·  %s actions",
   "gui.chronoclones.anchor.upgrades": "Clones %s  ·  Rate ×%s",
-
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",
   "tooltip.chronoclones.recording.author": "Author: %s",
@@ -65,7 +59,6 @@
   "tooltip.chronoclones.recording.action.interact_entity": "%s mob interact",
   "tooltip.chronoclones.recording.action.use_container": "%s container session",
   "tooltip.chronoclones.recording.reach": "Reaches %s blocks",
-
   "chronoclones.configuration.title": "Chronoclones Config",
   "chronoclones.configuration.section.chronoclones.server.toml": "Chronoclones Config",
   "chronoclones.configuration.section.chronoclones.server.toml.title": "Chronoclones Config",
@@ -75,5 +68,24 @@
   "chronoclones.configuration.maxActions": "Max Recorded Actions",
   "chronoclones.configuration.maxActionsPerTick": "Max Actions Per Tick",
   "chronoclones.configuration.gameplay": "Gameplay",
-  "chronoclones.configuration.allowPvp": "Allow Clones To Target Players"
+  "chronoclones.configuration.allowPvp": "Allow Clones To Target Players",
+  "tooltip.chronoclones.recording.hold_shift": "Hold SHIFT for the full routine",
+  "tooltip.chronoclones.detail.break": "Break %s at %s",
+  "tooltip.chronoclones.detail.place": "Place %s at %s",
+  "tooltip.chronoclones.detail.attack": "Attack %s near %s",
+  "tooltip.chronoclones.detail.use_on": "Use %s on block at %s",
+  "tooltip.chronoclones.detail.use": "Use %s",
+  "tooltip.chronoclones.detail.interact": "Interact with %s near %s",
+  "tooltip.chronoclones.detail.container": "Container at %s � %s clicks",
+  "tooltip.chronoclones.detail.container.needs": "brings %s� %s",
+  "tooltip.chronoclones.detail.empty_hand": "an empty hand",
+  "tooltip.chronoclones.detail.more": "�and %s more",
+  "tooltip.chronoclones.detail.click.pickup_all": "take/place all in slot %s",
+  "tooltip.chronoclones.detail.click.pickup_half": "take half / place one in slot %s",
+  "tooltip.chronoclones.detail.click.quick_move": "shift-click slot %s",
+  "tooltip.chronoclones.detail.click.swap": "swap slot %s with hotbar",
+  "tooltip.chronoclones.detail.click.clone": "clone slot %s",
+  "tooltip.chronoclones.detail.click.throw": "throw from slot %s",
+  "tooltip.chronoclones.detail.click.drag": "drag across slot %s",
+  "tooltip.chronoclones.detail.click.collect": "double-click collect at slot %s"
 }

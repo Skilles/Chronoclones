@@ -1,14 +1,23 @@
 package com.skilles.chronoclones.replay;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.skilles.chronoclones.recording.ChronoAction;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Lends the anchor's inventory to the fake player for the length of one container session.
@@ -31,27 +40,85 @@ public final class ContainerCarrier {
     private ContainerCarrier() {}
 
     /**
-     * Copies the anchor's inventory into the fake player, emptying the anchor.
+     * Sets the stage: empties the anchor into the fake player, with the recorded items in the slots
+     * the session's clicks expect.
      *
-     * <p>Emptying is deliberate: if the anchor kept a copy, a session that consumed items would
+     * <p>Placement is the whole job. A click on a player slot names a square whose contents are an
+     * accident of where that player kept things, so dumping the anchor's supply in from index zero
+     * leaves every recorded deposit clicking somewhere empty. The recorded layout says which square
+     * held what, and this puts it back there.
+     *
+     * <p>Anything the layout did not ask for still comes along, in whatever slots are left, so a
+     * session that shift-clicks its whole inventory into a chest still has one.
+     *
+     * <p>Emptying the anchor is deliberate: if it kept a copy, a session that consumed items would
      * duplicate them on the way back.
+     *
+     * @return false if the layout named an item the anchor does not have at all
      */
-    public static void load(ItemStacksResourceHandler inventory, FakePlayer player) {
+    public static boolean load(ItemStacksResourceHandler inventory, FakePlayer player,
+                               AbstractContainerMenu menu,
+                               List<ChronoAction.UseContainer.CarrierSlot> layout) {
         Inventory target = player.getInventory();
         target.clearContent();
-        player.containerMenu.setCarried(ItemStack.EMPTY);
+        menu.setCarried(ItemStack.EMPTY);
 
+        // Drain the anchor first, so staging and leftovers draw from the same pool and nothing is
+        // counted twice.
+        List<ItemStack> pool = new ArrayList<>();
         for (int slot = 0; slot < inventory.size(); slot++) {
             ItemResource resource = inventory.getResource(slot);
             int amount = inventory.getAmountAsInt(slot);
-            if (resource.isEmpty() || amount <= 0) {
-                continue;
-            }
-            if (slot < target.getContainerSize()) {
-                target.setItem(slot, resource.toStack(amount));
+            if (!resource.isEmpty() && amount > 0) {
+                pool.add(resource.toStack(amount));
             }
             inventory.set(slot, ItemResource.EMPTY, 0);
         }
+
+        for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
+            if (wanted.menuSlot() >= menu.slots.size()) {
+                continue;
+            }
+            Slot slot = menu.slots.get(wanted.menuSlot());
+            if (slot.container != target) {
+                continue;
+            }
+
+            ItemStack staged = draw(pool, wanted.item().value(), wanted.count());
+            if (staged.isEmpty()) {
+                // The routine needs something the anchor is not stocked with. Report it rather than
+                // running a session whose clicks will land on empty squares and quietly do nothing.
+                return false;
+            }
+            target.setItem(slot.getContainerSlot(), staged);
+        }
+
+        // Everything the layout did not claim, wherever it fits.
+        for (ItemStack leftover : pool) {
+            if (!leftover.isEmpty()) {
+                target.add(leftover);
+            }
+        }
+        return true;
+    }
+
+    /** Takes up to {@code count} of {@code item} out of the pool. */
+    private static ItemStack draw(List<ItemStack> pool, Item item, int count) {
+        ItemStack drawn = ItemStack.EMPTY;
+        for (int i = 0; i < pool.size() && drawn.getCount() < count; i++) {
+            ItemStack candidate = pool.get(i);
+            if (candidate.isEmpty() || !candidate.is(item)) {
+                continue;
+            }
+            int take = Math.min(candidate.getCount(), count - drawn.getCount());
+            if (drawn.isEmpty()) {
+                drawn = candidate.copyWithCount(take);
+            } else {
+                drawn.grow(take);
+            }
+            candidate.shrink(take);
+        }
+        return drawn;
     }
 
     /**
@@ -62,9 +129,19 @@ public final class ContainerCarrier {
      * tidy is not a trade worth making.
      */
     public static void drain(ServerLevel level, BlockPos anchorPos,
-                             ItemStacksResourceHandler inventory, FakePlayer player) {
-        Inventory source = player.getInventory();
+                             ItemStacksResourceHandler inventory, FakePlayer player,
+                             @Nullable AbstractContainerMenu menu) {
+        // The cursor first. removed() normally hands it back to the inventory, but only vanilla's
+        // implementation promises that, and a stack left on a cursor nobody can see is gone.
+        if (menu != null) {
+            ItemStack carried = menu.getCarried();
+            if (!carried.isEmpty()) {
+                menu.setCarried(ItemStack.EMPTY);
+                give(level, anchorPos, inventory, carried);
+            }
+        }
 
+        Inventory source = player.getInventory();
         for (int slot = 0; slot < source.getContainerSize(); slot++) {
             ItemStack stack = source.getItem(slot);
             if (stack.isEmpty()) {
@@ -72,12 +149,6 @@ public final class ContainerCarrier {
             }
             source.setItem(slot, ItemStack.EMPTY);
             give(level, anchorPos, inventory, stack);
-        }
-
-        ItemStack carried = player.containerMenu.getCarried();
-        if (!carried.isEmpty()) {
-            player.containerMenu.setCarried(ItemStack.EMPTY);
-            give(level, anchorPos, inventory, carried);
         }
     }
 

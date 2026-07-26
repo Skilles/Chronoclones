@@ -123,9 +123,17 @@ public final class RecordingCodecs {
             CONTAINER_INPUT.fieldOf("input").forGetter(ChronoAction.UseContainer.Click::input)
     ).apply(i, ChronoAction.UseContainer.Click::new));
 
+    static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
+            Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item")
+                    .forGetter(ChronoAction.UseContainer.CarrierSlot::item),
+            Codec.INT.fieldOf("count").forGetter(ChronoAction.UseContainer.CarrierSlot::count)
+    ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
+
     static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.UseContainer::localPos),
             Codec.INT.fieldOf("menu_size").forGetter(ChronoAction.UseContainer::menuSize),
+            CARRIER_SLOT.listOf().fieldOf("carrier").forGetter(ChronoAction.UseContainer::carrier),
             CLICK.listOf().fieldOf("clicks").forGetter(ChronoAction.UseContainer::clicks)
     ).apply(i, ChronoAction.UseContainer::new));
 
@@ -203,10 +211,19 @@ public final class RecordingCodecs {
                     ContainerInput.STREAM_CODEC.cast(), ChronoAction.UseContainer.Click::input,
                     ChronoAction.UseContainer.Click::new);
 
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.VAR_INT, ChronoAction.UseContainer.CarrierSlot::menuSlot,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseContainer.CarrierSlot::item,
+                    ByteBufCodecs.VAR_INT, ChronoAction.UseContainer.CarrierSlot::count,
+                    ChronoAction.UseContainer.CarrierSlot::new);
+
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer> USE_CONTAINER_STREAM =
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC.cast(), ChronoAction.UseContainer::localPos,
                     ByteBufCodecs.VAR_INT, ChronoAction.UseContainer::menuSize,
+                    CARRIER_SLOT_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ChronoAction.UseContainer::carrier,
                     CLICK_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
                     ChronoAction.UseContainer::clicks,
                     ChronoAction.UseContainer::new);

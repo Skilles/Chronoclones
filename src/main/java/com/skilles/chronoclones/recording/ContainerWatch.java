@@ -9,8 +9,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,7 +33,8 @@ public final class ContainerWatch {
     private ContainerWatch() {}
 
     /** An open container and the clicks made in it so far. */
-    private record Watch(BlockPos pos, List<ChronoAction.UseContainer.Click> clicks, int menuSize) {}
+    private record Watch(BlockPos pos, List<ChronoAction.UseContainer.Click> clicks, int menuSize,
+                         List<ChronoAction.UseContainer.CarrierSlot> carrier) {}
 
     /** A block right-clicked this tick, held only until we learn whether it opened a menu. */
     private record Pending(BlockPos pos, int actionIndex) {}
@@ -75,7 +80,36 @@ public final class ContainerWatch {
 
         session.dropActionAt(pending.actionIndex());
         OPEN.put(player.getUUID(), new Watch(pending.pos(), new ArrayList<>(),
-                player.containerMenu.slots.size()));
+                player.containerMenu.slots.size(), carrierLayout(player)));
+    }
+
+    /**
+     * The player's own half of the menu, as they opened it.
+     *
+     * <p>Recorded because a click on a player slot names a place whose contents are pure accident —
+     * wherever that player keeps things. Replay has to put the anchor's supply in the same squares or
+     * every deposit clicks an empty one.
+     *
+     * <p>Slots are identified by whether they are backed by the player's inventory, which is true of
+     * vanilla menus and of any mod menu that builds its player rows the normal way.
+     */
+    private static List<ChronoAction.UseContainer.CarrierSlot> carrierLayout(ServerPlayer player) {
+        List<ChronoAction.UseContainer.CarrierSlot> layout = new ArrayList<>();
+        AbstractContainerMenu menu = player.containerMenu;
+
+        for (int index = 0; index < menu.slots.size(); index++) {
+            Slot slot = menu.slots.get(index);
+            if (slot.container != player.getInventory()) {
+                continue;
+            }
+            ItemStack stack = slot.getItem();
+            if (stack.isEmpty()) {
+                continue;
+            }
+            layout.add(new ChronoAction.UseContainer.CarrierSlot(
+                    index, BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()), stack.getCount()));
+        }
+        return layout;
     }
 
     /**
@@ -103,7 +137,7 @@ public final class ContainerWatch {
             return null;
         }
         return new ChronoAction.UseContainer(
-                session.toLocal(watch.pos()), watch.menuSize(), watch.clicks());
+                session.toLocal(watch.pos()), watch.menuSize(), watch.carrier(), watch.clicks());
     }
 
     /** The world position of the container currently open for this player, if any. */

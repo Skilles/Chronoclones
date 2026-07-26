@@ -56,8 +56,30 @@ public final class RecordingTooltips {
                         String.format("%.1f", recording.reach()))
                 .withStyle(ChatFormatting.GRAY));
 
+        // The summary says how destructive a routine is; the detail says destructive to what. Behind
+        // shift because it can run to dozens of lines, and because the summary is what you want when
+        // sorting a chest full of shards.
+        if (recording.actions().isEmpty()) {
+            return lines;
+        }
+        if (detailRequested.getAsBoolean()) {
+            lines.addAll(RecordingDetail.describe(recording.actions()));
+        } else {
+            lines.add(Component.translatable("tooltip.chronoclones.recording.hold_shift")
+                    .withStyle(ChatFormatting.DARK_GRAY));
+        }
+
         return lines;
     }
+
+    /**
+     * Whether the detailed listing should be shown — in practice, whether shift is held.
+     *
+     * <p>Installed by the client entrypoint rather than reading {@code Screen.hasShiftDown()} here.
+     * This class is common code, and 26.x removed the runtime member-stripping that used to make
+     * naming a client type from common code safe, so side isolation has to be structural.
+     */
+    public static volatile java.util.function.BooleanSupplier detailRequested = () -> false;
 
     /** Destructive action types read hotter, so a dangerous routine is obvious at a glance. */
     private static ChatFormatting colourFor(ChronoActionType type) {

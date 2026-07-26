@@ -487,7 +487,10 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            ContainerCarrier.load(inventory, owner);
+            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier())) {
+                ContainerCarrier.drain(level, anchorPos, inventory, owner, menu);
+                return Result.fail(FailureReason.NO_ITEM, action.localPos());
+            }
             try {
                 for (ChronoAction.UseContainer.Click click : action.clicks()) {
                     if (click.slot() >= menu.slots.size()) {
@@ -500,7 +503,7 @@ public final class ActionExecutor {
                 // holding to the anchor — in a finally, because a mod's slot throwing mid-session
                 // must not leave a routine's items inside a fake player nobody can open.
                 menu.removed(owner);
-                ContainerCarrier.drain(level, anchorPos, inventory, owner);
+                ContainerCarrier.drain(level, anchorPos, inventory, owner, menu);
             }
             return Result.OK;
         } finally {

@@ -137,13 +137,31 @@ public sealed interface ChronoAction {
      *
      * <p>{@code menuSize} is recorded so a session can refuse to run against a menu of a different
      * shape. Slot indices only mean anything relative to the menu that produced them.
+     *
+     * <p>{@code carrier} is what the player's own half of the menu held when they opened it, and it
+     * is what makes depositing work at all. A click on a container slot names a place that exists on
+     * both sides; a click on a player slot names a place whose contents depend entirely on where
+     * that player happened to be keeping things. Without this, replay stocked the anchor's items
+     * from index zero, the recorded click pointed at some other slot, and every deposit silently
+     * clicked an empty square.
      */
-    record UseContainer(BlockPos localPos, int menuSize, List<Click> clicks) implements ChronoAction {
+    record UseContainer(BlockPos localPos, int menuSize, List<CarrierSlot> carrier, List<Click> clicks)
+            implements ChronoAction {
 
         /** One click: which slot, which button, and what kind of click it was. */
         public record Click(int slot, int button, ContainerInput input) {}
 
+        /**
+         * One slot of the player's own inventory as the session found it.
+         *
+         * <p>The count is a target for staging, not a promise. Clicks still operate on whatever is
+         * actually in the slot — that is the whole point of recording buttons — so a session that
+         * splits a stack splits whatever the anchor could supply.
+         */
+        public record CarrierSlot(int menuSlot, Holder<Item> item, int count) {}
+
         public UseContainer {
+            carrier = List.copyOf(carrier);
             clicks = List.copyOf(clicks);
         }
 

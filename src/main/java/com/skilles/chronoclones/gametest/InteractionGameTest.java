@@ -49,6 +49,8 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("container_shift_clicks_out", InteractionGameTest::shiftClicksOut);
         ChronoclonesGameTests.add("container_moves_within_itself", InteractionGameTest::movesWithinContainer);
         ChronoclonesGameTests.add("container_refuses_another_menu", InteractionGameTest::refusesAnotherMenu);
+        ChronoclonesGameTests.add("container_deposits_into_a_container", InteractionGameTest::depositsIntoAContainer);
+        ChronoclonesGameTests.add("container_needs_its_carried_items", InteractionGameTest::needsItsCarriedItems);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -189,6 +191,7 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(FURNACE_MENU_SIZE,
+                        List.of(carrying(FURNACE_CARRIER_SLOT, Items.OAK_LOG, 2)),
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
@@ -302,6 +305,75 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
+
+    /**
+     * Depositing, which is the case the carrier layout exists for.
+     *
+     * <p>The recorded click names a player-inventory slot, and which one is pure accident — wherever
+     * that player kept the stack. The anchor stores from index zero, which a chest menu shows in a
+     * completely different square, so without the recorded layout this session clicked an empty slot
+     * and did nothing at all, silently.
+     *
+     * <p>The layout here deliberately names a main-inventory slot rather than the first hotbar one,
+     * because a mapping that happened to line up would prove nothing.
+     */
+    private static void depositsIntoAContainer(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int carrierSlot = CHEST_MAIN_INVENTORY_START + 4;
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        List.of(carrying(carrierSlot, Items.DIAMOND, 5)),
+                        click(carrierSlot, LEFT, ContainerInput.QUICK_MOVE))));
+        AnchorTestFixture.unlockAllActions(anchor);
+        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 5);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
+                    if (countIn(barrel, Items.DIAMOND) != 5) {
+                        helper.fail("expected 5 diamonds deposited, barrel holds "
+                                + countIn(barrel, Items.DIAMOND)
+                                + " - the anchor's stock was not staged into the slot the click names");
+                    }
+                    if (countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+                        helper.fail("the anchor kept the diamonds it was supposed to deposit");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** A session that needs something the anchor has none of says so, rather than clicking air. */
+    private static void needsItsCarriedItems(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
+                        click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
+        AnchorTestFixture.unlockAllActions(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
+                        helper.fail("expected NO_ITEM for a session whose items are not stocked, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
     // ------------------------------------------------------------------ menu geometry
 
     // Vanilla menus lay out container slots first, then the player's main inventory, then the
@@ -310,6 +382,7 @@ final class InteractionGameTest {
     // click scripts by hand, which is exactly what a recording does for real.
     private static final int CHEST_MENU_SIZE = 27 + 36;
     private static final int CHEST_CARRIER_SLOT = 27 + 27;
+    private static final int CHEST_MAIN_INVENTORY_START = 27;
     private static final int FURNACE_MENU_SIZE = 3 + 36;
     private static final int FURNACE_CARRIER_SLOT = 3 + 27;
     private static final int FURNACE_INPUT = 0;
@@ -325,7 +398,17 @@ final class InteractionGameTest {
     }
 
     private static ChronoAction session(int menuSize, ChronoAction.UseContainer.Click... clicks) {
-        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, List.of(clicks));
+        return session(menuSize, List.of(), clicks);
+    }
+
+    private static ChronoAction session(int menuSize, List<ChronoAction.UseContainer.CarrierSlot> carrier,
+                                      ChronoAction.UseContainer.Click... clicks) {
+        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, carrier, List.of(clicks));
+    }
+
+    private static ChronoAction.UseContainer.CarrierSlot carrying(int menuSlot, Item item, int count) {
+        return new ChronoAction.UseContainer.CarrierSlot(
+                menuSlot, BuiltInRegistries.ITEM.wrapAsHolder(item), count);
     }
 
     /** Right-click the top face, dead centre - the geometry a player clicking a floor block produces. */
