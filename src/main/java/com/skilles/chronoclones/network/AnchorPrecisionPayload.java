@@ -61,7 +61,7 @@ public record AnchorPrecisionPayload(BlockPos anchorPos, int packed) implements 
         if (!(player.level().getBlockEntity(payload.anchorPos()) instanceof ChronoAnchorBlockEntity anchor)) {
             return;
         }
-        if (anchor.getOwnerId() != null && !player.getUUID().equals(anchor.getOwnerId())) {
+        if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
             return;
         }
 

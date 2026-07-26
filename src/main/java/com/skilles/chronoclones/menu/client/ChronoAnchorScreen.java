@@ -1,14 +1,20 @@
 package com.skilles.chronoclones.menu.client;
 
+import java.util.function.BooleanSupplier;
+
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
+import com.skilles.chronoclones.network.AnchorPrecisionPayload;
+import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * The Chrono Anchor screen: storage, fuel, upgrades, charge, and the diagnostic line.
@@ -29,21 +35,124 @@ import net.minecraft.world.entity.player.Inventory;
  */
 public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu> {
 
-    private static final int PANEL_BG = 0xFF2B2B33;
-    private static final int PANEL_EDGE = 0xFF5A5A6E;
-    private static final int SLOT_BG = 0xFF8B8B8B;
-    private static final int TEXT = 0xFFE0E0E8;
-    private static final int ACCENT = 0xFF7FD4C1;
-    private static final int MUTED = 0xFF8A8A99;
+    // Package-private: the drawer widgets draw themselves in the same palette, and a second copy of
+    // these numbers is a second thing to forget when one of them changes.
+    static final int PANEL_BG = 0xFF2B2B33;
+    static final int PANEL_EDGE = 0xFF5A5A6E;
+    static final int SLOT_BG = 0xFF8B8B8B;
+    static final int TEXT = 0xFFE0E0E8;
+    static final int ACCENT = 0xFF7FD4C1;
+    static final int MUTED = 0xFF8A8A99;
     private static final int WARNING = 0xFFE0B860;
     private static final int HALTED = 0xFFE06060;
     private static final int CHARGE_FULL = 0xFF7FD4C1;
     private static final int CHARGE_EMPTY = 0xFF3A3A45;
 
+    /** A quarter per tick: five frames of movement, enough to read as a drawer and not as a stutter. */
+    private static final float DRAWER_STEP = 0.25f;
+    private static final int DRAWER_TAB_Y = 16;
+    private static final int DRAWER_PADDING = 6;
+    private static final int DRAWER_TITLE_Y = 6;
+    private static final int DRAWER_FIRST_ROW_Y = 20;
+    private static final int DRAWER_ROW_SPACING = 16;
+    private static final int DRAWER_HEIGHT =
+            DRAWER_FIRST_ROW_Y + DRAWER_ROW_SPACING * 2 + PrecisionToggle.HEIGHT + DRAWER_PADDING;
+
+    /** How far the drawer is open, 0 to 1. Advanced a step per tick, so it slides rather than snaps. */
+    private float openness;
+    private float previousOpenness;
+    private boolean drawerOpen;
+    private boolean drawerOnLeft;
+    private final PrecisionToggle[] toggles = new PrecisionToggle[3];
+
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x — they must go through the 5-arg constructor.
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
         this.inventoryLabelY = Layout.PLAYER_LABEL_Y;
+    }
+
+    @Override
+    protected void init() {
+        super.init();
+
+        drawerOnLeft = DrawerLayout.opensLeft(width, leftPos, imageWidth);
+
+        addRenderableWidget(new DrawerTab(font,
+                Component.translatable("gui.chronoclones.anchor.precision"),
+                drawerOnLeft, () -> drawerOpen, () -> drawerOpen = !drawerOpen))
+                .setPosition(DrawerLayout.tabX(drawerOnLeft, leftPos, imageWidth),
+                        topPos + DRAWER_TAB_Y);
+
+        addToggle(0, "slot", () -> menu.getPrecision().slot(),
+                on -> send(new TransferPrecision(on, menu.getPrecision().item(),
+                        menu.getPrecision().quantity())));
+        addToggle(1, "item", () -> menu.getPrecision().item(),
+                on -> send(new TransferPrecision(menu.getPrecision().slot(), on,
+                        menu.getPrecision().quantity())));
+        addToggle(2, "quantity", () -> menu.getPrecision().quantity(),
+                on -> send(new TransferPrecision(menu.getPrecision().slot(),
+                        menu.getPrecision().item(), on)));
+
+        // init runs again on resize, and the drawer's own state survives it. Without this the
+        // toggles would blink out for a tick every time the window changed size.
+        updateToggles();
+    }
+
+    private void addToggle(int row, String axis, BooleanSupplier state,
+                           PrecisionToggle.Toggle onToggle) {
+        String key = "gui.chronoclones.anchor.precision." + axis;
+        PrecisionToggle toggle = new PrecisionToggle(font, Component.translatable(key),
+                DrawerLayout.WIDTH - DRAWER_PADDING * 2, state, onToggle);
+        toggle.setTooltip(Tooltip.create(Component.translatable(key + ".tip")));
+        // Positioned where it will be once open, and hidden until then — see containerTick. The y is
+        // measured from the drawer's own top edge, not the window's: the two differ by the tab
+        // offset, and taking it from the window put the first row through the title.
+        toggle.setPosition(
+                DrawerLayout.bodyX(drawerOnLeft, leftPos, imageWidth, DrawerLayout.WIDTH)
+                        + DRAWER_PADDING,
+                topPos + DRAWER_TAB_Y + DRAWER_FIRST_ROW_Y + row * DRAWER_ROW_SPACING);
+        toggle.visible = false;
+        toggle.active = false;
+        addRenderableWidget(toggle);
+        toggles[row] = toggle;
+    }
+
+    /**
+     * Tells the server the new setting and says nothing locally.
+     *
+     * <p>The toggles read straight from the synced value rather than from a local copy, so a packet
+     * the server declines — someone else's anchor — simply never changes what is on screen. An
+     * optimistic widget would tick itself and then untick a moment later, which looks like a bug
+     * rather than like a refusal.
+     */
+    private void send(TransferPrecision precision) {
+        ClientPacketDistributor.sendToServer(
+                new AnchorPrecisionPayload(menu.anchorPos(), precision.pack()));
+    }
+
+    @Override
+    protected void containerTick() {
+        super.containerTick();
+
+        previousOpenness = openness;
+        openness = Math.clamp(openness + (drawerOpen ? DRAWER_STEP : -DRAWER_STEP), 0f, 1f);
+        updateToggles();
+    }
+
+    /**
+     * Toggles exist only while the drawer is all the way out.
+     *
+     * <p>A widget you can click while it is still sliding is a widget whose hitbox is somewhere other
+     * than where it is drawn — the panel animates, the widgets do not.
+     */
+    private void updateToggles() {
+        boolean usable = drawerOpen && openness >= 1f;
+        for (PrecisionToggle toggle : toggles) {
+            if (toggle != null) {
+                toggle.visible = usable;
+                toggle.active = usable;
+            }
+        }
     }
 
     /**
@@ -57,6 +166,9 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         int xo = (this.width - this.imageWidth) / 2;
         int yo = (this.height - this.imageHeight) / 2;
+
+        // Before the window, so a drawer still sliding out passes behind it rather than over it.
+        drawer(extractor, xo, yo, partialTick);
 
         extractor.fill(xo - 1, yo - 1, xo + imageWidth + 1, yo + imageHeight + 1, PANEL_EDGE);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, PANEL_BG);
@@ -82,6 +194,33 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
         for (int col = 0; col < 9; col++) {
             slotBox(extractor, xo + 8 + col * 18, yo + Layout.HOTBAR_Y);
+        }
+    }
+
+    /**
+     * The precision drawer, as wide as it has slid so far.
+     *
+     * <p>Interpolated across the tick rather than stepped with it: the state advances twenty times a
+     * second and this runs rather more often than that, so without the partial tick a five-frame
+     * slide is five visible jumps.
+     */
+    private void drawer(GuiGraphicsExtractor extractor, int xo, int yo, float partialTick) {
+        float eased = previousOpenness + (openness - previousOpenness) * partialTick;
+        int open = Math.round(DrawerLayout.WIDTH * eased);
+        if (open <= 0) {
+            return;
+        }
+
+        int x = DrawerLayout.bodyX(drawerOnLeft, xo, imageWidth, open);
+        int top = yo + DRAWER_TAB_Y;
+
+        extractor.fill(x - 1, top - 1, x + open + 1, top + DRAWER_HEIGHT + 1, PANEL_EDGE);
+        extractor.fill(x, top, x + open, top + DRAWER_HEIGHT, PANEL_BG);
+
+        // The title only once there is room for it, rather than sliding in clipped from the edge.
+        if (open >= DrawerLayout.WIDTH) {
+            extractor.text(font, Component.translatable("gui.chronoclones.anchor.precision"),
+                    x + DRAWER_PADDING, top + DRAWER_TITLE_Y, ACCENT);
         }
     }
 

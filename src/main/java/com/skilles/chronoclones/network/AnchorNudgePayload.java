@@ -38,9 +38,7 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
     /**
      * Applies a nudge, if the sender has any business nudging that anchor.
      *
-     * <p>Ownership is the check that matters once there is an owner. Without it, anyone who can see your
-     * anchor can walk up and redirect its routine into your walls — which is worse than breaking the
-     * anchor, because it keeps running and it is your name on every block it touches.
+     * <p>Ownership is the check that matters once there is an owner — see {@link AnchorAuthority}.
      *
      * <p>Refusals are silent. There is nothing a legitimate client can do about them, and a message
      * would only tell someone probing for anchors that they found one.
@@ -58,9 +56,7 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
                 || !(player.level().getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor)) {
             return;
         }
-        // An anchor nobody has imprinted has no owner yet, and aiming one before committing to it is
-        // the whole point of nudging early. Once imprinted, only the owner may move it.
-        if (anchor.getOwnerId() != null && !player.getUUID().equals(anchor.getOwnerId())) {
+        if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
             return;
         }
 
