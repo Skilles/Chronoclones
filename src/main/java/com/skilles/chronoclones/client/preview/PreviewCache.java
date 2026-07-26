@@ -5,6 +5,7 @@ import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.network.AnchorPreviewPayloads;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.replay.Placement;
+import com.skilles.chronoclones.replay.TransferPrecision;
 import com.skilles.chronoclones.registry.ModDataComponents;
 
 import net.minecraft.client.Minecraft;
@@ -42,6 +43,7 @@ public final class PreviewCache {
     private static @Nullable Recording cached;
     private static DiagnosticState cachedFailure = DiagnosticState.NONE;
     private static BlockPos cachedOffset = BlockPos.ZERO;
+    private static TransferPrecision cachedPrecision = TransferPrecision.NONE;
     private static long cachedAtTick = Long.MIN_VALUE;
     private static final RequestClock CLOCK = new RequestClock();
 
@@ -52,7 +54,8 @@ public final class PreviewCache {
      *                a shard has never run anywhere, so it has nothing to be stuck on.
      */
     public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
-                         DiagnosticState failure, BlockPos originOffset) {
+                         DiagnosticState failure, BlockPos originOffset,
+                         TransferPrecision precision) {
 
         /** Where the routine is actually drawn from, which is the anchor plus its nudge. */
         public Placement placement() {
@@ -90,17 +93,20 @@ public final class PreviewCache {
         // commit possible at all. Zero until the reply lands, which is also the right answer for an
         // anchor nobody has nudged.
         BlockPos offset = fresh ? cachedOffset : BlockPos.ZERO;
+        // Same argument as the offset: it belongs to the anchor rather than to the routine, so a
+        // shard being lined up is shown the settings of the anchor it would go into.
+        TransferPrecision precision = fresh ? cachedPrecision : TransferPrecision.NONE;
 
         // A routine in hand wins: the player is asking "what would this do here", and answering with
         // what the anchor already holds would be a different question.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
-            return new Target(pos, facing, held, true, DiagnosticState.NONE, offset);
+            return new Target(pos, facing, held, true, DiagnosticState.NONE, offset, precision);
         }
 
         if (fresh) {
             return cached == null ? null
-                    : new Target(pos, facing, cached, false, cachedFailure, offset);
+                    : new Target(pos, facing, cached, false, cachedFailure, offset, precision);
         }
         // Nothing to draw until the reply lands. One frame of nothing beats a stale routine drawn
         // over a different anchor.
@@ -114,6 +120,7 @@ public final class PreviewCache {
         cached = reply.recording().orElse(null);
         cachedFailure = reply.failure();
         cachedOffset = reply.originOffset();
+        cachedPrecision = TransferPrecision.unpack(reply.precision());
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
@@ -122,6 +129,7 @@ public final class PreviewCache {
         cached = null;
         cachedFailure = DiagnosticState.NONE;
         cachedOffset = BlockPos.ZERO;
+        cachedPrecision = TransferPrecision.NONE;
         cachedAtTick = Long.MIN_VALUE;
     }
 

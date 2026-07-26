@@ -1,16 +1,21 @@
 package com.skilles.chronoclones.client;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.TimedAction;
+import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
@@ -30,8 +35,21 @@ public final class GoggleSlots {
 
     private GoggleSlots() {}
 
-    /** The slots one routine touches in one container. */
-    public record Session(Set<Integer> touched, Set<Integer> carried) {}
+    /**
+     * The slots one routine touches in one container.
+     *
+     * @param touched the squares its clicks name
+     * @param carried the squares it stocks, and what it expects to find in each
+     */
+    public record Session(Set<Integer> touched, Map<Integer, Expect> carried) {}
+
+    /**
+     * What a routine expects of one square, and how much of that it insists on.
+     *
+     * <p>The flags come from the anchor rather than the recording, so two anchors running the same
+     * routine can be marked up differently — which is the point of them being per anchor.
+     */
+    public record Expect(ItemStack stack, TransferPrecision precision) {}
 
     /**
      * The session for the container the player has open, or null if nothing nearby uses it.
@@ -44,12 +62,21 @@ public final class GoggleSlots {
         if (open == null) {
             return null;
         }
+        return collect(GoggleCache.current(), open, screen.getMenu().slots.size());
+    }
 
+    /**
+     * The same answer, from the anchors and the container rather than from the game's state.
+     *
+     * <p>Split out because this is the part with rules in it — which routines count, and what happens
+     * when two of them want the same square — and because a screen and a live hit result are a great
+     * deal of world to stand up in order to ask a question about a list.
+     */
+    static @Nullable Session collect(List<PreviewCache.Target> anchors, BlockPos open, int menuSize) {
         Set<Integer> touched = new HashSet<>();
-        Set<Integer> carried = new HashSet<>();
-        int menuSize = screen.getMenu().slots.size();
+        Map<Integer, Expect> carried = new HashMap<>();
 
-        for (PreviewCache.Target target : GoggleCache.current()) {
+        for (PreviewCache.Target target : anchors) {
             for (TimedAction timed : target.recording().actions()) {
                 if (!(timed.action() instanceof ChronoAction.UseContainer session)) {
                     continue;
@@ -66,7 +93,10 @@ public final class GoggleSlots {
                     touched.add(click.slot());
                 }
                 for (ChronoAction.UseContainer.CarrierSlot slot : session.carrier()) {
-                    carried.add(slot.menuSlot());
+                    // First anchor to claim a square wins. Two of them stocking the same one is a
+                    // conflict the player should sort out, and averaging the marks would hide it.
+                    carried.putIfAbsent(slot.menuSlot(),
+                            new Expect(slot.stack(), target.precision()));
                 }
             }
         }
