@@ -67,16 +67,39 @@ public final class RecordingHighlights {
     @SubscribeEvent
     static void render(ContainerScreenEvent.Render.Foreground event) {
         AbstractContainerScreen<?> screen = event.getContainerScreen();
+        Set<Integer> touched;
+        Set<Integer> carried;
+
         // A highlight that outlives the menu it describes would be pointing at the wrong squares, so
         // it is scoped to the container it arrived for rather than cleared on some close event.
-        if (containerId < 0 || screen.getMenu().containerId != containerId) {
-            return;
+        if (containerId >= 0 && screen.getMenu().containerId == containerId) {
+            touched = TOUCHED;
+            carried = CARRIED;
+        } else {
+            // Not recording, but the goggles may still know a routine that works this container.
+            GoggleSlots.Session session = GoggleSlots.sessionFor(screen);
+            if (session == null) {
+                return;
+            }
+            touched = session.touched();
+            carried = session.carried();
         }
 
-        GuiGraphicsExtractor graphics = event.getGuiGraphics();
+        paint(event.getGuiGraphics(), screen, touched, carried);
+    }
+
+    /**
+     * The drawing, independent of where the slot numbers came from.
+     *
+     * <p>Two sources feed this: a live recording pushed from the server, and a routine the goggles
+     * already know about. They answer the same question — which squares does this task touch — so
+     * they had better look identical, and the only way to guarantee that is one painter.
+     */
+    private static void paint(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen,
+                              Set<Integer> touched, Set<Integer> carried) {
         for (int index = 0; index < screen.getMenu().slots.size(); index++) {
-            int tint = CARRIED.contains(index) ? CARRIED_TINT
-                    : TOUCHED.contains(index) ? TOUCHED_TINT
+            int tint = carried.contains(index) ? CARRIED_TINT
+                    : touched.contains(index) ? TOUCHED_TINT
                     : 0;
             if (tint == 0) {
                 continue;

@@ -2,12 +2,17 @@ package com.skilles.chronoclones.registry;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.CreativeChargeCellItem;
+import com.skilles.chronoclones.item.ChronoGogglesItem;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.item.ChronoShardItem;
 import com.skilles.chronoclones.item.UpgradeItem;
 
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.equipment.Equippable;
 import net.minecraft.world.item.Rarity;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -42,6 +47,24 @@ public final class ModItems {
 
     /** Loosens block matching: strict -> tag-compatible -> adaptive retargeting. */
     public static final DeferredItem<UpgradeItem> CHRONO_LENS = upgrade("chrono_lens");
+
+    /**
+     * Worn on the head: shows every anchor's routine in range, not just the one you are staring at.
+     *
+     * <p>Not an upgrade — it goes on the player rather than into a slot, because what it changes is
+     * what <em>you</em> can see rather than what an anchor can do.
+     */
+    public static final DeferredItem<ChronoGogglesItem> CHRONO_GOGGLES = ITEMS.registerItem(
+            "chrono_goggles",
+            ChronoGogglesItem::new,
+            (Item.Properties props) -> props.stacksTo(1).rarity(Rarity.RARE)
+                    .component(DataComponents.EQUIPPABLE,
+                            Equippable.builder(EquipmentSlot.HEAD)
+                                    .setEquipSound(SoundEvents.ARMOR_EQUIP_GENERIC)
+                                    // No asset: nothing renders on the head. A model would be an art
+                                    // task for a debug tool, and an unset asset is simply invisible.
+                                    .setSwappable(true)
+                                    .build()));
 
     /** Creative-only: keeps an anchor charged so the rest of the system can be observed. */
     public static final DeferredItem<CreativeChargeCellItem> CREATIVE_CHARGE_CELL = ITEMS.registerItem(

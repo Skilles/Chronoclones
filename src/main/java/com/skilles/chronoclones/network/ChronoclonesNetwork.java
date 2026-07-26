@@ -29,6 +29,9 @@ public final class ChronoclonesNetwork {
     /** Likewise, for the slot highlights drawn over an open container while recording. */
     public static volatile Consumer<RecordingHighlightPayload> clientHighlightHandler = highlight -> { };
 
+    /** And for the anchors the goggles reveal. */
+    public static volatile Consumer<GogglePayloads.Reply> clientGoggleHandler = reply -> { };
+
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
@@ -48,5 +51,13 @@ public final class ChronoclonesNetwork {
         registrar.playToClient(RecordingHighlightPayload.TYPE,
                 RecordingHighlightPayload.STREAM_CODEC,
                 (payload, context) -> clientHighlightHandler.accept(payload));
+
+        registrar.playToServer(GogglePayloads.Request.TYPE,
+                GogglePayloads.Request.STREAM_CODEC,
+                GogglePayloads::handleRequest);
+
+        registrar.playToClient(GogglePayloads.Reply.TYPE,
+                GogglePayloads.Reply.STREAM_CODEC,
+                (payload, context) -> clientGoggleHandler.accept(payload));
     }
 }

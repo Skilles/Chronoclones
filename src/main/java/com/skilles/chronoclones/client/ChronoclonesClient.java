@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.client;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.item.RecordingTooltips;
 import com.skilles.chronoclones.menu.client.ChronoAnchorScreen;
@@ -32,6 +33,7 @@ public class ChronoclonesClient {
         // ChronoclonesNetwork for why that matters on 26.x.
         ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
         ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
+        ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
         // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask. This
         // is what Screen used to do underneath.
         RecordingTooltips.detailRequested = () -> {
@@ -61,6 +63,7 @@ public class ChronoclonesClient {
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         PreviewCache.forget();
+        GoggleCache.forget();
         RecordingHighlights.forget();
     }
 }

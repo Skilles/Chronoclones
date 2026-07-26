@@ -100,5 +100,9 @@
   "key.chronoclones.nudge.up": "Nudge routine up",
   "key.chronoclones.nudge.down": "Nudge routine down",
   "key.chronoclones.nudge.reset": "Reset routine origin",
-  "gui.chronoclones.anchor.origin": "Origin %s, %s, %s"
+  "gui.chronoclones.anchor.origin": "Origin %s, %s, %s",
+  "item.chronoclones.chrono_goggles": "Chrono Goggles",
+  "tooltip.chronoclones.chrono_goggles": "Worn: reveals every anchor's routine nearby",
+  "chronoclones.configuration.goggleRadius": "Goggle Radius",
+  "chronoclones.configuration.gogglesShowOthers": "Goggles Show Others' Anchors"
 }

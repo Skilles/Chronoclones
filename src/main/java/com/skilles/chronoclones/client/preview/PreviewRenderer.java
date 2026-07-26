@@ -38,20 +38,16 @@ public final class PreviewRenderer {
     private static final int PATH_COLOUR = 0xCC_86FFE7;
     /** Segments per ring of a reach sphere. Twelve is round enough at the distances involved. */
     private static final int RING_SEGMENTS = 12;
+    /** Goggle anchors are drawn faint. Nine routines at full strength is a wall of colour. */
+    private static final int GOGGLE_ALPHA = 0x55;
     /** Boxes are inset slightly so they sit inside the block rather than fighting its faces. */
     private static final double INSET = 0.002;
 
     @SubscribeEvent
     public static void onSubmitGeometry(SubmitCustomGeometryEvent event) {
-        PreviewCache.Target target = PreviewCache.current();
-        if (target == null) {
-            return;
-        }
-
-        // Drawn from the nudged origin, so what you see is where the work actually lands.
-        PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
-                target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
-        if (shape.isEmpty()) {
+        PreviewCache.Target hovered = PreviewCache.current();
+        List<PreviewCache.Target> worn = GoggleCache.current();
+        if (hovered == null && worn.isEmpty()) {
             return;
         }
 
@@ -64,19 +60,45 @@ public final class PreviewRenderer {
         // camera space rather than each piece doing its own subtraction.
         poseStack.translate(-camera.x, -camera.y, -camera.z);
 
-        for (PreviewShape.Mark mark : shape.marks()) {
-            submitBox(collector, poseStack, mark);
+        // Goggle anchors first and dimmer, so the one you are actually pointing at still reads as
+        // the subject rather than as one of nine equally loud outlines.
+        for (PreviewCache.Target target : worn) {
+            if (hovered == null || !target.anchorPos().equals(hovered.anchorPos())) {
+                submit(collector, poseStack, target, GOGGLE_ALPHA);
+            }
         }
-        for (PreviewShape.Volume volume : shape.volumes()) {
-            submitVolume(collector, poseStack, volume);
+        if (hovered != null) {
+            submit(collector, poseStack, hovered, 0xFF);
         }
-        submitPath(collector, poseStack, shape.path());
 
         poseStack.popPose();
     }
 
+    private static void submit(SubmitNodeCollector collector, PoseStack poseStack,
+                               PreviewCache.Target target, int alpha) {
+        // Drawn from the nudged origin, so what you see is where the work actually lands.
+        PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
+                target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
+        if (shape.isEmpty()) {
+            return;
+        }
+
+        for (PreviewShape.Mark mark : shape.marks()) {
+            submitBox(collector, poseStack, mark, alpha);
+        }
+        for (PreviewShape.Volume volume : shape.volumes()) {
+            submitVolume(collector, poseStack, volume, alpha);
+        }
+        submitPath(collector, poseStack, shape.path(), alpha);
+    }
+
+    /** Replaces the alpha byte of an ARGB colour, leaving the hue alone. */
+    private static int fade(int colour, int alpha) {
+        return (colour & 0x00FFFFFF) | (alpha << 24);
+    }
+
     private static void submitBox(SubmitNodeCollector collector, PoseStack poseStack,
-                                  PreviewShape.Mark mark) {
+                                  PreviewShape.Mark mark, int alpha) {
         BlockPos pos = mark.pos();
         poseStack.pushPose();
         poseStack.translate(pos.getX() + INSET, pos.getY() + INSET, pos.getZ() + INSET);
@@ -84,7 +106,7 @@ public final class PreviewRenderer {
 
         // The failing step overrides its own colour and draws heavier. Otherwise "which of these
         // fourteen breaks is the one that is stuck" is a question you answer by counting.
-        int colour = mark.failing() ? PreviewShape.FAILING_COLOUR : mark.kind().colour;
+        int colour = fade(mark.failing() ? PreviewShape.FAILING_COLOUR : mark.kind().colour, alpha);
         float width = mark.failing() ? FAILING_LINE_WIDTH : BOX_LINE_WIDTH;
 
         // afterTerrain = true so the outline shows through the very blocks it describes. A preview
@@ -103,7 +125,7 @@ public final class PreviewRenderer {
      * attack routine is usually many swings from one spot.
      */
     private static void submitVolume(SubmitNodeCollector collector, PoseStack poseStack,
-                                     PreviewShape.Volume volume) {
+                                     PreviewShape.Volume volume, int alpha) {
         collector.submitCustomGeometry(poseStack, RenderTypes.lines(), (pose, buffer) -> {
             Vector3f normal = new Vector3f();
             for (int axis = 0; axis < 3; axis++) {
@@ -118,9 +140,9 @@ public final class PreviewRenderer {
                         default -> volume.centre().add(0.0, a, b);
                     };
                     if (previous != null) {
-                        emitLine(buffer, pose, normal, previous, point, volume.failing()
+                        emitLine(buffer, pose, normal, previous, point, fade(volume.failing()
                                 ? PreviewShape.FAILING_COLOUR
-                                : volume.kind().colour);
+                                : volume.kind().colour, alpha));
                     }
                     previous = point;
                 }
@@ -128,7 +150,8 @@ public final class PreviewRenderer {
         });
     }
 
-    private static void submitPath(SubmitNodeCollector collector, PoseStack poseStack, List<Vec3> path) {
+    private static void submitPath(SubmitNodeCollector collector, PoseStack poseStack,
+                                   List<Vec3> path, int alpha) {
         if (path.size() < 2) {
             return;
         }
@@ -137,7 +160,7 @@ public final class PreviewRenderer {
             for (int i = 0; i < path.size() - 1; i++) {
                 Vec3 from = path.get(i);
                 Vec3 to = path.get(i + 1);
-                emitLine(buffer, pose, normal, from, to, PATH_COLOUR);
+                emitLine(buffer, pose, normal, from, to, fade(PATH_COLOUR, alpha));
             }
         });
     }

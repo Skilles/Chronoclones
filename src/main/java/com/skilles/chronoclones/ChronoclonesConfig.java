@@ -18,6 +18,15 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue MAX_ACTIONS_PER_TICK;
     public static final ModConfigSpec.BooleanValue ALLOW_PVP;
     public static final ModConfigSpec.ConfigValue<List<? extends String>> COHERENCE_GROUPS;
+    public static final ModConfigSpec.IntValue GOGGLE_RADIUS;
+    /**
+     * Whether Chrono Goggles show anchors somebody else imprinted.
+     *
+     * <p>A server-side policy rather than a client toggle, and enforced in the reply rather than by
+     * asking the client to look away: what a routine does is information about its owner, and the
+     * decision about who may see it belongs to whoever runs the server.
+     */
+    public static final ModConfigSpec.BooleanValue GOGGLES_SHOW_OTHERS;
 
     /**
      * Block tags that count as "the same kind of thing" to an anchor fitted with an Chrono Lens.
@@ -54,6 +63,13 @@ public final class ChronoclonesConfig {
         b.push("gameplay");
         ALLOW_PVP = b.comment("If false, clones never target players.")
                 .define("allowPvp", false);
+        GOGGLE_RADIUS = b.comment("How far Chrono Goggles reveal anchors, in blocks.")
+                .defineInRange("goggleRadius", 24, 4, 64);
+        GOGGLES_SHOW_OTHERS = b.comment(
+                        "Whether Chrono Goggles reveal anchors owned by other players.",
+                        "Turning this off keeps a routine private to whoever imprinted it; leaving it",
+                        "on lets anyone with goggles inspect what an anchor near them will do.")
+                .define("gogglesShowOthers", true);
         COHERENCE_GROUPS = b.comment(
                         "Block tags an Chrono Lens treats as interchangeable. A break whose recorded",
                         "block and actual block share one of these tags goes ahead. Keep these",
