@@ -171,25 +171,43 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     public static final class Layout {
         public static final int WIDTH = 176;
-        public static final int HEIGHT = 208;
+        public static final int HEIGHT = 229;
 
+        /**
+         * The readout lines, each on its own row.
+         *
+         * <p>They used to share: the origin was tucked ten pixels above the status line, which meant
+         * directly on top of the title, and the matching text sat on the end of the upgrades line
+         * where it ran off the right edge of the window and into whatever was beside it. Both were
+         * invisible until a routine had actually been nudged or the wording grew, which is the
+         * argument for giving each line room of its own rather than fitting them together.
+         */
         public static final int STATUS_Y = 18;
         public static final int UPGRADE_INFO_Y = 28;
+        public static final int MATCHING_Y = 38;
 
-        public static final int STORAGE_Y = 40;
-        public static final int MODULE_Y = 82;
+        public static final int STORAGE_Y = 50;
+
+        /** "Fuel", "Charge" and "Modules", above the row they describe. */
+        public static final int SECTION_LABEL_Y = 88;
+
+        /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
+        public static final int LINE_HEIGHT = 9;
+        public static final int SLOT_BORDER = 1;
+
+        public static final int MODULE_Y = 100;
         public static final int FUEL_X = 8;
         public static final int UPGRADE_X = 116;
 
         public static final int CHARGE_X = 30;
-        public static final int CHARGE_Y = 86;
+        public static final int CHARGE_Y = 104;
         public static final int CHARGE_WIDTH = 78;
         public static final int CHARGE_HEIGHT = 8;
 
-        public static final int DIAGNOSTIC_Y = 104;
-        public static final int PLAYER_LABEL_Y = 114;
-        public static final int PLAYER_Y = 126;
-        public static final int HOTBAR_Y = 184;
+        public static final int DIAGNOSTIC_Y = 122;
+        public static final int PLAYER_LABEL_Y = 134;
+        public static final int PLAYER_Y = 146;
+        public static final int HOTBAR_Y = 204;
 
         private Layout() {}
     }

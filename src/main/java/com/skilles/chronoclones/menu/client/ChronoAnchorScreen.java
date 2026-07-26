@@ -251,6 +251,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     protected void extractLabels(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         extractor.text(font, title, titleLabelX, titleLabelY, TEXT);
         extractor.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, TEXT);
+        sectionLabels(extractor);
 
         if (menu.getLengthTicks() <= 0) {
             extractor.text(font, Component.translatable("gui.chronoclones.anchor.no_recording"),
@@ -264,23 +265,14 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                         menu.getPlayhead() / 20, menu.getLengthTicks() / 20, menu.getActionCount()),
                 8, Layout.STATUS_Y, ACCENT);
 
-        // Matching is on the same line as the other axes: a routine that skips everything because
-        // the stone became deepslate is otherwise indistinguishable from one that is simply broken.
         extractor.text(font, Component.translatable("gui.chronoclones.anchor.upgrades",
-                        menu.getActiveClones(), menu.getTicksPerStep(),
-                        Component.translatable(menu.getCoherenceTier() >= 1
-                                ? "gui.chronoclones.anchor.matching.exact"
-                                : "gui.chronoclones.anchor.matching.lenient")),
+                        menu.getActiveClones(), menu.getTicksPerStep()),
                 8, Layout.UPGRADE_INFO_Y, MUTED);
 
-        // Only when it has been moved. A permanent "Origin 0, 0, 0" line would be noise on every
-        // anchor to explain a feature most of them are not using.
-        net.minecraft.core.BlockPos offset = menu.getOriginOffset();
-        if (!offset.equals(net.minecraft.core.BlockPos.ZERO)) {
-            extractor.text(font, Component.translatable("gui.chronoclones.anchor.origin",
-                            offset.getX(), offset.getY(), offset.getZ()),
-                    8, Layout.STATUS_Y - 10, MUTED);
-        }
+        // Matching gets a line rather than the end of the one above: a routine that skips everything
+        // because the stone became deepslate is otherwise indistinguishable from one that is simply
+        // broken, so it must be readable, and it did not fit.
+        extractor.text(font, matchingLine(), 8, Layout.MATCHING_Y, MUTED);
 
         // The diagnostic line the spec insists on: not just what failed, but where, in
         // anchor-local coordinates, so the failing block can actually be found.
@@ -291,6 +283,90 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             extractor.text(font, Component.translatable(reason.translationKey(), where),
                     8, Layout.DIAGNOSTIC_Y, reason.halts() ? HALTED : WARNING);
         }
+    }
+
+    /**
+     * How this anchor matches, and where its routine is aimed if that has been moved.
+     *
+     * <p>Together on one line because the origin only appears when it is not zero — a permanent
+     * "Origin 0, 0, 0" would be noise on every anchor to explain a feature most of them are not
+     * using — and a line that is usually one short phrase has room for the other when it is there.
+     */
+    private Component matchingLine() {
+        Component matching = Component.translatable(matchingKey());
+
+        BlockPos offset = menu.getOriginOffset();
+        if (offset.equals(BlockPos.ZERO)) {
+            return matching;
+        }
+        return Component.translatable("gui.chronoclones.anchor.matching_and_origin", matching,
+                offset.getX(), offset.getY(), offset.getZ());
+    }
+
+    /**
+     * Which matching the anchor is doing, as a key so the readout and its tooltip cannot disagree.
+     *
+     * <p>The readout is two words because it shares its line with the origin and the pair has to fit
+     * inside 160 pixels; the sentence that explains it lives in the tooltip, where there is room.
+     */
+    private String matchingKey() {
+        return menu.getCoherenceTier() >= 1
+                ? "gui.chronoclones.anchor.matching.exact"
+                : "gui.chronoclones.anchor.matching.lenient";
+    }
+
+    /** The three section labels, naming what the row below each one is for. */
+    private void sectionLabels(GuiGraphicsExtractor extractor) {
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.section.fuel"),
+                Layout.FUEL_X, Layout.SECTION_LABEL_Y, MUTED);
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.section.charge"),
+                Layout.CHARGE_X, Layout.SECTION_LABEL_Y, MUTED);
+        extractor.text(font, Component.translatable("gui.chronoclones.anchor.section.modules"),
+                Layout.UPGRADE_X, Layout.SECTION_LABEL_Y, MUTED);
+    }
+
+    /**
+     * Tooltips for the parts of the window that are not slots.
+     *
+     * <p>Runs outside the window's translation — {@code extractContents} pops the matrix before
+     * {@code extractTooltip} — so the mouse and the regions here are both in screen coordinates,
+     * unlike everything in {@code extractLabels}.
+     */
+    @Override
+    protected void extractTooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        super.extractTooltip(extractor, mouseX, mouseY);
+        // A slot under the pointer has already claimed the tooltip, and two at once is one too many.
+        if (hoveredSlot != null) {
+            return;
+        }
+
+        if (within(mouseX, mouseY, Layout.CHARGE_X, Layout.CHARGE_Y,
+                Layout.CHARGE_WIDTH, Layout.CHARGE_HEIGHT)) {
+            // The bar answers "roughly how full", which is the question at a glance. This answers
+            // "will it finish the routine", which needs the actual numbers.
+            extractor.setTooltipForNextFrame(font,
+                    Component.translatable("gui.chronoclones.anchor.charge.detail",
+                            menu.getCharge(), menu.getChargeCapacity()),
+                    mouseX, mouseY);
+        } else if (within(mouseX, mouseY, Layout.FUEL_X, Layout.MODULE_Y, 16, 16)) {
+            extractor.setTooltipForNextFrame(font,
+                    Component.translatable("gui.chronoclones.anchor.section.fuel.tip"), mouseX, mouseY);
+        } else if (within(mouseX, mouseY, Layout.UPGRADE_X, Layout.MODULE_Y, 16 + 2 * 18, 16)) {
+            extractor.setTooltipForNextFrame(font,
+                    Component.translatable("gui.chronoclones.anchor.section.modules.tip"), mouseX, mouseY);
+        } else if (menu.getLengthTicks() > 0
+                && within(mouseX, mouseY, 8, Layout.MATCHING_Y,
+                        font.width(matchingLine()), font.lineHeight)) {
+            extractor.setTooltipForNextFrame(font,
+                    Component.translatable(matchingKey() + ".tip"), mouseX, mouseY);
+        }
+    }
+
+    /** Whether the mouse is over a window-local rectangle, both in screen coordinates. */
+    private boolean within(int mouseX, int mouseY, int x, int y, int width, int height) {
+        int left = leftPos + x;
+        int top = topPos + y;
+        return mouseX >= left && mouseX < left + width && mouseY >= top && mouseY < top + height;
     }
 
     private static DiagnosticState.FailureReason reasonOf(int ordinal) {
