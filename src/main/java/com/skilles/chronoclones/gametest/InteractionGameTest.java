@@ -1,5 +1,7 @@
 package com.skilles.chronoclones.gametest;
 
+import java.util.List;
+
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
@@ -17,6 +19,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -42,6 +45,8 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("use_returns_what_it_borrowed", InteractionGameTest::returnsWhatItBorrowed);
         ChronoclonesGameTests.add("transfer_withdraws_from_a_container", InteractionGameTest::withdraws);
         ChronoclonesGameTests.add("transfer_deposits_into_a_container", InteractionGameTest::deposits);
+        ChronoclonesGameTests.add("transfer_respects_which_slot", InteractionGameTest::respectsSlots);
+        ChronoclonesGameTests.add("transfer_moves_within_one_container", InteractionGameTest::movesWithinContainer);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -144,7 +149,7 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(new ChronoAction.TransferItems(
                         new BlockPos(0, 0, -1),
                         BuiltInRegistries.ITEM.wrapAsHolder(Items.COBBLESTONE),
-                        32, true)));
+                        32, 0, ChronoAction.TransferItems.CARRIER)));
         AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
@@ -166,7 +171,7 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(new ChronoAction.TransferItems(
                         new BlockPos(0, 0, -1),
                         BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND),
-                        5, false)));
+                        5, ChronoAction.TransferItems.CARRIER, 0)));
         AnchorTestFixture.unlockAllActions(anchor);
         anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 5);
 
@@ -189,7 +194,104 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
+    /**
+     * The reason transfers carry slots at all: loading a furnace.
+     *
+     * <p>One log into the input and one into the fuel slot. Both slots accept a log, so a transfer
+     * that only knew "the furnace gained two logs" would put both wherever they first fit and smelt
+     * nothing — the failure would be silent, and the routine would look like it was working.
+     */
+    private static void respectsSlots(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.FURNACE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(
+                        List.of(
+                                transfer(Items.OAK_LOG, 1, ChronoAction.TransferItems.CARRIER, FURNACE_INPUT),
+                                transfer(Items.OAK_LOG, 1, ChronoAction.TransferItems.CARRIER, FURNACE_FUEL))));
+        AnchorTestFixture.unlockAllActions(anchor);
+        anchor.getInventoryHandler().set(0, ItemResource.of(Items.OAK_LOG), 2);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> furnace =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (furnace == null) {
+                        helper.fail("the furnace exposes no item handler");
+                        return;
+                    }
+                    assertSlotHolds(helper, furnace, FURNACE_INPUT, Items.OAK_LOG, "input");
+
+                    // The fuel slot is asserted through the furnace being lit rather than by reading
+                    // it, because a furnace that receives fuel consumes it on the same tick — an
+                    // empty fuel slot here means the log arrived and burned, which is the point.
+                    if (!helper.getBlockState(target).getValue(BlockStateProperties.LIT)) {
+                        helper.fail("the furnace never lit - the second log did not reach the fuel "
+                                + "slot, so both went to the input and nothing smelts");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Slot to slot inside one container, with the anchor never holding the items. */
+    private static void movesWithinContainer(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+        ResourceHandler<ItemResource> barrel =
+                level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+        if (barrel == null) {
+            helper.fail("the barrel exposes no item handler");
+            return;
+        }
+        try (Transaction tx = Transaction.openRoot()) {
+            barrel.insert(3, ItemResource.of(Items.COBBLESTONE), 16, tx);
+            tx.commit();
+        }
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(transfer(Items.COBBLESTONE, 16, 3, 7)));
+        AnchorTestFixture.unlockAllActions(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    assertSlotHolds(helper, barrel, 7, Items.COBBLESTONE, "destination");
+                    if (!barrel.getResource(3).isEmpty()) {
+                        helper.fail("slot 3 still holds items - the move did not come out of it");
+                    }
+                    if (countIn(anchor.getInventory(), Items.COBBLESTONE) != 0) {
+                        helper.fail("the anchor ended up holding the items - a slot-to-slot move "
+                                + "must not route through the carrier");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Vanilla furnace slot meanings, which this mod knows nothing about — the test supplies them. */
+    private static final int FURNACE_INPUT = 0;
+    private static final int FURNACE_FUEL = 1;
+
     // ------------------------------------------------------------------ helpers
+
+    private static ChronoAction transfer(Item item, int amount, int fromSlot, int toSlot) {
+        return new ChronoAction.TransferItems(new BlockPos(0, 0, -1),
+                BuiltInRegistries.ITEM.wrapAsHolder(item), amount, fromSlot, toSlot);
+    }
+
+    private static void assertSlotHolds(GameTestHelper helper, ResourceHandler<ItemResource> handler,
+                                        int slot, Item expected, String label) {
+        ItemResource resource = handler.getResource(slot);
+        if (resource.isEmpty() || resource.getItem() != expected) {
+            helper.fail("expected " + expected + " in the " + label + " slot (" + slot + "), found "
+                    + (resource.isEmpty() ? "nothing" : resource.getItem()));
+        }
+    }
 
     /** Right-click the top face, dead centre — the geometry a player clicking a floor block produces. */
     private static ChronoAction useOnBlock(BlockPos localPos, Item item) {

@@ -107,7 +107,8 @@ public final class RecordingCodecs {
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.TransferItems::localPos),
             BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.TransferItems::item),
             Codec.INT.fieldOf("amount").forGetter(ChronoAction.TransferItems::amount),
-            Codec.BOOL.fieldOf("withdraw").forGetter(ChronoAction.TransferItems::withdraw)
+            Codec.INT.fieldOf("from_slot").forGetter(ChronoAction.TransferItems::fromSlot),
+            Codec.INT.fieldOf("to_slot").forGetter(ChronoAction.TransferItems::toSlot)
     ).apply(i, ChronoAction.TransferItems::new));
 
     private static MapCodec<? extends ChronoAction> mapCodecFor(ChronoActionType type) {
@@ -180,7 +181,9 @@ public final class RecordingCodecs {
                     BlockPos.STREAM_CODEC.cast(), ChronoAction.TransferItems::localPos,
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.TransferItems::item,
                     ByteBufCodecs.VAR_INT, ChronoAction.TransferItems::amount,
-                    ByteBufCodecs.BOOL.cast(), ChronoAction.TransferItems::withdraw,
+                    // Not VAR_INT: the carrier is -1, which zigzag-free varints encode in five bytes.
+                    ByteBufCodecs.INT, ChronoAction.TransferItems::fromSlot,
+                    ByteBufCodecs.INT, ChronoAction.TransferItems::toSlot,
                     ChronoAction.TransferItems::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoActionType> ACTION_TYPE_STREAM =

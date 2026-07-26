@@ -63,9 +63,18 @@ final class AnchorTestFixture {
 
     /** A one-action routine, for exercising a single executor path. */
     static Recording routine(ChronoAction action) {
+        return routine(List.of(action));
+    }
+
+    /** Several actions on consecutive ticks, for paths whose point is that they happen in sequence. */
+    static Recording routine(List<ChronoAction> actions) {
+        List<TimedAction> timed = new java.util.ArrayList<>(actions.size());
+        for (int i = 0; i < actions.size(); i++) {
+            timed.add(new TimedAction(1 + i, actions.get(i)));
+        }
         return new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
-                List.of(new TimedAction(1, action)),
+                List.copyOf(timed),
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 

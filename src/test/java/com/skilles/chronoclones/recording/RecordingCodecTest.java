@@ -98,8 +98,7 @@ class RecordingCodecTest {
                         new TimedAction(13, new ChronoAction.TransferItems(
                                 new BlockPos(2, 0, -3),
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.COBBLESTONE),
-                                32,
-                                true))),
+                                32, 4, ChronoAction.TransferItems.CARRIER))),
                 200,
                 "Bilal",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
@@ -282,7 +281,8 @@ class RecordingCodecTest {
                 assertEquals(e.localPos(), a.localPos());
                 assertEquals(e.item().value(), a.item().value());
                 assertEquals(e.amount(), a.amount());
-                assertEquals(e.withdraw(), a.withdraw());
+                assertEquals(e.fromSlot(), a.fromSlot());
+                assertEquals(e.toSlot(), a.toSlot());
             }
         }
     }

@@ -1,7 +1,6 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -10,25 +9,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Turns "the player rummaged in a chest" into a net movement of items.
+ * Watches an open container and records what the player did in it.
  *
- * <p>Recording slot clicks was never an option. Clicks are raw input — the thing the whole action
- * model exists to avoid — and replaying them means driving a real {@code AbstractContainerMenu},
- * whose behaviour every mod may override and which does not exist server-side without a client
- * driving it. What a routine is actually <em>for</em> is the net effect: this run takes 32
- * cobblestone out of that barrel. That statement survives the player having shuffled the stack
- * around three times while deciding, and it replays through the item-handler capability, which every
- * vanilla container and every automatable mod machine already exposes.
+ * <p>Snapshots the block's item handler slot by slot on open, and the player's own totals alongside
+ * it; on close, {@link ContainerDiff} turns the two pairs of snapshots into moves. The judgement all
+ * lives there — this class only decides when to look and what to look at.
  *
  * <p>Matching is by item, not by components. The rest of the action model works the same way, and an
  * anchor sorting enchanted books by their enchantment is not a thing this mod is trying to be.
@@ -37,8 +33,9 @@ public final class ContainerWatch {
 
     private ContainerWatch() {}
 
-    /** What was in the container when it was opened, and where it is. */
-    private record Watch(BlockPos pos, Map<Item, Integer> contents) {}
+    /** What was where when the container was opened. */
+    private record Watch(BlockPos pos, List<ContainerDiff.SlotContent> contents,
+                         Map<Item, Integer> carrier) {}
 
     /** A block right-clicked this tick, held only until we learn whether it opened a menu. */
     private record Pending(BlockPos pos, int actionIndex) {}
@@ -49,6 +46,9 @@ public final class ContainerWatch {
     /**
      * Notes a block the player just right-clicked, along with the index of the action recorded for
      * it, so that {@link #onContainerOpened} can retract it if a menu opens.
+     *
+     * <p>{@code actionIndex} may be -1, or point past the end, when no use action was recorded for
+     * the click. Both retract nothing.
      */
     public static void noteInteraction(ServerPlayer player, BlockPos pos, int actionIndex) {
         PENDING.put(player.getUUID(), new Pending(pos, actionIndex));
@@ -80,10 +80,10 @@ public final class ContainerWatch {
         }
 
         session.dropActionAt(pending.actionIndex());
-        OPEN.put(player.getUUID(), new Watch(pending.pos(), snapshot(handler)));
+        OPEN.put(player.getUUID(), new Watch(pending.pos(), snapshot(handler), carrierTotals(player)));
     }
 
-    /** Everything the player took out or put in, as actions. Empty if nothing moved. */
+    /** Everything the player moved, as actions. Empty if nothing moved. */
     public static List<ChronoAction.TransferItems> onContainerClosed(ServerPlayer player,
                                                                   RecordingSession session) {
         PENDING.remove(player.getUUID());
@@ -98,32 +98,10 @@ public final class ContainerWatch {
             return List.of();
         }
 
-        return diff(watch.contents(), snapshot(handler), session.toLocal(watch.pos()));
-    }
-
-    /**
-     * The net movement between two snapshots, as actions.
-     *
-     * <p>Pure, and separated from everything that needs a world, because the sign convention is the
-     * one thing here that can be silently backwards: the container <em>losing</em> items is the
-     * player withdrawing them, and a routine that hauls the wrong way empties the chest it was
-     * supposed to fill.
-     */
-    public static List<ChronoAction.TransferItems> diff(Map<Item, Integer> before, Map<Item, Integer> after,
-                                                      BlockPos localPos) {
-        List<ChronoAction.TransferItems> actions = new ArrayList<>();
-        for (Item item : union(before, after)) {
-            int delta = after.getOrDefault(item, 0) - before.getOrDefault(item, 0);
-            if (delta == 0) {
-                continue;
-            }
-            actions.add(new ChronoAction.TransferItems(
-                    localPos,
-                    BuiltInRegistries.ITEM.wrapAsHolder(item),
-                    Math.abs(delta),
-                    delta < 0));
-        }
-        return actions;
+        return ContainerDiff.between(
+                watch.contents(), snapshot(handler),
+                watch.carrier(), carrierTotals(player),
+                session.toLocal(watch.pos()));
     }
 
     /** The world position of the container currently open for this player, if any. */
@@ -149,27 +127,45 @@ public final class ContainerWatch {
         if (!(level instanceof ServerLevel serverLevel) || !serverLevel.isLoaded(pos)) {
             return null;
         }
+        // Unsided, deliberately, and the executor reads it the same way. A furnace's sided handlers
+        // expose different subsets per face with their own indices, so capturing through one face and
+        // replaying through another would silently renumber every slot in the recording.
         return serverLevel.getCapability(Capabilities.Item.BLOCK, pos, null);
     }
 
-    private static Map<Item, Integer> snapshot(ResourceHandler<ItemResource> handler) {
-        Map<Item, Integer> totals = new HashMap<>();
+    private static List<ContainerDiff.SlotContent> snapshot(ResourceHandler<ItemResource> handler) {
+        List<ContainerDiff.SlotContent> slots = new ArrayList<>(handler.size());
         for (int slot = 0; slot < handler.size(); slot++) {
             ItemResource resource = handler.getResource(slot);
-            if (resource.isEmpty()) {
-                continue;
-            }
             int amount = handler.getAmountAsInt(slot);
-            if (amount > 0) {
-                totals.merge(resource.getItem(), amount, Integer::sum);
-            }
+            slots.add(resource.isEmpty() || amount <= 0
+                    ? ContainerDiff.SlotContent.EMPTY
+                    : new ContainerDiff.SlotContent(resource.getItem(), amount));
         }
-        return totals;
+        return slots;
     }
 
-    private static Iterable<Item> union(Map<Item, Integer> before, Map<Item, Integer> after) {
-        Map<Item, Integer> all = new HashMap<>(before);
-        all.putAll(after);
-        return all.keySet();
+    /**
+     * The player's own totals per item.
+     *
+     * <p>Totals rather than slots: a player has thirty-six slots and an anchor eighteen, so which
+     * one an item sat in is not a fact that survives the trip.
+     */
+    private static Map<Item, Integer> carrierTotals(ServerPlayer player) {
+        Inventory inventory = player.getInventory();
+        List<ContainerDiff.SlotContent> slots = new ArrayList<>(inventory.getContainerSize());
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            slots.add(stack.isEmpty()
+                    ? ContainerDiff.SlotContent.EMPTY
+                    : new ContainerDiff.SlotContent(stack.getItem(), stack.getCount()));
+        }
+        // What is on the cursor mid-drag belongs to the player as much as anything in a slot, and
+        // leaving it out would make a stack picked up but not yet placed look like it vanished.
+        ItemStack carried = player.containerMenu.getCarried();
+        if (!carried.isEmpty()) {
+            slots.add(new ContainerDiff.SlotContent(carried.getItem(), carried.getCount()));
+        }
+        return ContainerDiff.totals(slots);
     }
 }

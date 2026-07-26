@@ -121,18 +121,46 @@ public sealed interface ChronoAction {
     }
 
     /**
-     * Moving items between a container and the player, recorded as net intent.
+     * Moving items from one slot to another, recorded as net intent.
      *
      * <p>Deliberately not a replay of slot clicks. Clicks are raw input — the thing this model
      * exists to avoid — and simulating them would mean driving a real {@code AbstractContainerMenu},
-     * whose behaviour every mod is free to override. Capturing the net change and replaying it
+     * whose behaviour every mod is free to override. Capturing where items ended up and replaying it
      * through the block's item-handler capability instead works for anything that exposes one,
      * which is every vanilla container and every mod machine that wanted to be automatable.
      *
-     * @param withdraw true if items moved container → player, false for player → container
+     * <p><b>Slots, not totals.</b> "The furnace gained two logs" is not enough to reproduce what the
+     * player did: one goes in the input and one in the fuel slot, and an insert that just looks for
+     * room puts both in the first slot that accepts them and smelts nothing. A slot in a machine is
+     * a meaning, and the routine has to carry it.
+     *
+     * <p>Both endpoints use the same encoding, so the three interesting cases are one shape:
+     * container slot → carrier is a withdrawal, carrier → container slot is a deposit, and slot →
+     * slot is a move within the container.
+     *
+     * @param fromSlot source slot in the container at {@code localPos}, or {@link #CARRIER}
+     * @param toSlot   destination slot in that container, or {@link #CARRIER}
      */
-    record TransferItems(BlockPos localPos, Holder<Item> item, int amount, boolean withdraw)
+    record TransferItems(BlockPos localPos, Holder<Item> item, int amount, int fromSlot, int toSlot)
             implements ChronoAction {
+
+        /**
+         * The player's own inventory at record time; the anchor's at replay.
+         *
+         * <p>Unindexed on purpose. A player has thirty-six slots and an anchor eighteen, so a
+         * remembered index would mean nothing on the other side — and unlike a machine's slots, they
+         * carry no meaning worth preserving.
+         */
+        public static final int CARRIER = -1;
+
+        public boolean isWithdrawal() {
+            return toSlot == CARRIER && fromSlot != CARRIER;
+        }
+
+        public boolean isDeposit() {
+            return fromSlot == CARRIER && toSlot != CARRIER;
+        }
+
         @Override
         public ChronoActionType type() {
             return ChronoActionType.TRANSFER_ITEMS;

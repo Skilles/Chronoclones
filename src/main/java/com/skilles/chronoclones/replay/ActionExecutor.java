@@ -464,27 +464,58 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_TARGET, action.localPos());
         }
 
-        ResourceHandler<ItemResource> from = action.withdraw() ? container : inventory;
-        ResourceHandler<ItemResource> to = action.withdraw() ? inventory : container;
+        // A recorded slot index is only meaningful against the block that was there. If something
+        // smaller has replaced it, refuse rather than fall back to "anywhere that fits" — a routine
+        // that quietly stops respecting which slot is the fuel slot is worse than one that stops.
+        if (!slotExists(container, action.fromSlot()) || !slotExists(container, action.toSlot())) {
+            return Result.fail(FailureReason.NO_TARGET, action.localPos());
+        }
+
         ItemResource resource = ItemResource.of(action.item().value());
 
         try (Transaction tx = Transaction.openRoot()) {
-            int available = from.extract(resource, action.amount(), tx);
+            int available = extract(container, inventory, action.fromSlot(), resource, action.amount(), tx);
             if (available <= 0) {
-                return Result.fail(action.withdraw() ? FailureReason.NO_ITEM : FailureReason.NO_ITEM,
-                        action.localPos());
+                return Result.fail(FailureReason.NO_ITEM, action.localPos());
             }
-            int moved = to.insert(resource, available, tx);
+
+            int moved = insert(container, inventory, action.toSlot(), resource, available, tx);
             if (moved < available) {
                 // Partial moves are refused outright rather than committed. A transfer that half
                 // happens leaves the routine's next loop working from a different world than the one
                 // it was recorded in, and the failure is exactly the one the player needs to see.
-                return Result.fail(action.withdraw()
+                return Result.fail(action.isWithdrawal()
                         ? FailureReason.INVENTORY_FULL : FailureReason.OBSTRUCTED, action.localPos());
             }
             tx.commit();
         }
 
         return Result.OK;
+    }
+
+    /**
+     * Takes from a specific container slot, or from anywhere in the anchor.
+     *
+     * <p>Partial extraction is accepted. A routine that hauls eight logs and finds three should move
+     * the three — a hopper would, and refusing turns a slightly-short chest into a halted farm.
+     */
+    private static int extract(ResourceHandler<ItemResource> container,
+                               ResourceHandler<ItemResource> inventory,
+                               int slot, ItemResource resource, int amount, Transaction tx) {
+        return slot == ChronoAction.TransferItems.CARRIER
+                ? inventory.extract(resource, amount, tx)
+                : container.extract(slot, resource, amount, tx);
+    }
+
+    private static int insert(ResourceHandler<ItemResource> container,
+                              ResourceHandler<ItemResource> inventory,
+                              int slot, ItemResource resource, int amount, Transaction tx) {
+        return slot == ChronoAction.TransferItems.CARRIER
+                ? inventory.insert(resource, amount, tx)
+                : container.insert(slot, resource, amount, tx);
+    }
+
+    private static boolean slotExists(ResourceHandler<ItemResource> container, int slot) {
+        return slot == ChronoAction.TransferItems.CARRIER || slot < container.size();
     }
 }
