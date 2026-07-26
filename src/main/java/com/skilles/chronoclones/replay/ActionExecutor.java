@@ -67,7 +67,8 @@ public final class ActionExecutor {
     public static Result executeBreak(ServerLevel level, ChronoAction.BreakBlock action,
                                       BlockPos anchorPos, Direction anchorFacing,
                                       java.util.UUID ownerId, String ownerName,
-                                      ResourceHandler<ItemResource> inventory) {
+                                      ResourceHandler<ItemResource> inventory,
+                                      int coherenceTier) {
 
         BlockPos worldPos = LocalSpace.toWorld(action.localPos(), anchorPos, anchorFacing);
 
@@ -88,8 +89,9 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. Coherence. STRICT for now; LOOSE and ADAPTIVE are the upgrade axis.
-        if (!state.getBlock().equals(action.expectedBlock().value())) {
+        // 3. Coherence, from the anchor's Chrono Lenses. See Coherence for why LOOSE is a
+        //    short named list of tags rather than "any tag these two share".
+        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier)) {
             return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
 

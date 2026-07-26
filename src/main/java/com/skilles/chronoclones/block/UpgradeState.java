@@ -25,7 +25,12 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, i
     public static final int MAX_CLONES = 4;
     public static final int MAX_RATE = 3;
     public static final int MAX_FIDELITY = 3;
-    public static final int MAX_COHERENCE = 2;
+    /**
+     * STRICT and LOOSE. Spec  describes a third tier, ADAPTIVE, which retargets an action to a
+     * matching block nearby — not implemented, and the cap is 1 rather than 2 so a second lens
+     * cannot be sunk into a tier that does nothing.
+     */
+    public static final int MAX_COHERENCE = 1;
 
     /** The four independent upgrade axes. */
     public enum Axis {

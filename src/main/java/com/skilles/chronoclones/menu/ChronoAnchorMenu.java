@@ -133,6 +133,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return data.get(10);
     }
 
+    public int getCoherenceTier() {
+        return data.get(14);
+    }
+
     /** Anchor-local position of the last failure, for the diagnostic line. */
     public net.minecraft.core.BlockPos getFailurePos() {
         return new net.minecraft.core.BlockPos(data.get(11), data.get(12), data.get(13));

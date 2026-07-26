@@ -78,6 +78,7 @@ public final class ChronoclonesGameTests {
         CaptureGameTest.register();
         AnchorDropsGameTest.register();
         InteractionGameTest.register();
+        CoherenceGameTest.register();
     }
 
     /** Declares a test. The name becomes both the function id and the instance id. */

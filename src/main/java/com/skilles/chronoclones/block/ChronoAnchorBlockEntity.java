@@ -111,6 +111,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case 11 -> lastFailure.localPos().getX();
                 case 12 -> lastFailure.localPos().getY();
                 case 13 -> lastFailure.localPos().getZ();
+                case 14 -> upgrades.coherenceTier();
                 default -> 0;
             };
         }
@@ -120,7 +121,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return 14;
+            return 15;
         }
     };
 
@@ -346,7 +347,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> ActionExecutor.executeBreak(
-                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
+                        serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory,
+                        upgrades.coherenceTier());
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
                         serverLevel, a, worldPosition, facing, ownerId, ownerName, inventory);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
