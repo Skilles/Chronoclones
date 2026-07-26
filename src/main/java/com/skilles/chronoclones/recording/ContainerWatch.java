@@ -1,8 +1,10 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -32,9 +34,16 @@ public final class ContainerWatch {
 
     private ContainerWatch() {}
 
-    /** An open container and the clicks made in it so far. */
+    /**
+     * An open container and the clicks made in it so far.
+     *
+     * @param snapshot every occupied player slot as the menu opened — a working set, narrowed to what
+     *                 the session actually touches when it closes
+     * @param touched  the player slots the clicks name, collected as they happen because resolving a
+     *                 swap's hotbar button needs the live menu
+     */
     private record Watch(BlockPos pos, List<ChronoAction.UseContainer.Click> clicks, int menuSize,
-                         List<ChronoAction.UseContainer.CarrierSlot> carrier) {}
+                         List<ChronoAction.UseContainer.CarrierSlot> snapshot, Set<Integer> touched) {}
 
     /** A block right-clicked this tick, held only until we learn whether it opened a menu. */
     private record Pending(BlockPos pos, int actionIndex) {}
@@ -80,20 +89,20 @@ public final class ContainerWatch {
 
         session.dropActionAt(pending.actionIndex());
         OPEN.put(player.getUUID(), new Watch(pending.pos(), new ArrayList<>(),
-                player.containerMenu.slots.size(), carrierLayout(player)));
+                player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>()));
     }
 
     /**
-     * The player's own half of the menu, as they opened it.
+     * Every occupied player slot as the menu opened.
      *
-     * <p>Recorded because a click on a player slot names a place whose contents are pure accident —
-     * wherever that player keeps things. Replay has to put the anchor's supply in the same squares or
-     * every deposit clicks an empty one.
+     * <p>Taken at open rather than at close because the clicks are about to change it, and what
+     * matters is the state the clicks were made against. Most of it will be thrown away — see
+     * {@link #carried}, which keeps only the squares the session reaches for.
      *
      * <p>Slots are identified by whether they are backed by the player's inventory, which is true of
      * vanilla menus and of any mod menu that builds its player rows the normal way.
      */
-    private static List<ChronoAction.UseContainer.CarrierSlot> carrierLayout(ServerPlayer player) {
+    private static List<ChronoAction.UseContainer.CarrierSlot> snapshot(ServerPlayer player) {
         List<ChronoAction.UseContainer.CarrierSlot> layout = new ArrayList<>();
         AbstractContainerMenu menu = player.containerMenu;
 
@@ -123,9 +132,57 @@ public final class ContainerWatch {
             return;
         }
         Watch watch = OPEN.get(player.getUUID());
-        if (watch != null) {
-            watch.clicks().add(new ChronoAction.UseContainer.Click(slot, button, input));
+        if (watch == null) {
+            return;
         }
+        watch.clicks().add(new ChronoAction.UseContainer.Click(slot, button, input));
+
+        // A slot index of -1 means outside the window, and a click can name a container slot, which
+        // the carrier has nothing to say about. Both are filtered out by the snapshot anyway.
+        watch.touched().add(slot);
+        if (input == ContainerInput.SWAP) {
+            // The only click whose target is not the slot it names: the button is a hotbar index, and
+            // the item it exchanges with lives there rather than under the pointer.
+            int swapped = menuSlotOf(player, button);
+            if (swapped >= 0) {
+                watch.touched().add(swapped);
+            }
+        }
+    }
+
+    /** Where a player-inventory index sits in the open menu, or -1 if this menu does not show it. */
+    private static int menuSlotOf(ServerPlayer player, int inventorySlot) {
+        AbstractContainerMenu menu = player.containerMenu;
+        for (int index = 0; index < menu.slots.size(); index++) {
+            Slot slot = menu.slots.get(index);
+            if (slot.container == player.getInventory() && slot.getContainerSlot() == inventorySlot) {
+                return index;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * The player's own items that this session actually depends on.
+     *
+     * <p>Recorded because a click on a player slot names a place whose contents are pure accident —
+     * wherever that player keeps things. Replay has to put the anchor's supply in the same squares or
+     * every deposit clicks an empty one.
+     *
+     * <p>Only the squares the clicks reach for, though. A recording is a description of a task, and
+     * the forty-odd stacks a player happened to be carrying are not part of one: listing them makes
+     * the tooltip unreadable, and — worse — makes the routine demand items it never touches, since
+     * replay refuses a session whose carried items the anchor is not stocked with.
+     */
+    static List<ChronoAction.UseContainer.CarrierSlot> carried(
+            List<ChronoAction.UseContainer.CarrierSlot> snapshot, Set<Integer> touched) {
+        List<ChronoAction.UseContainer.CarrierSlot> carried = new ArrayList<>();
+        for (ChronoAction.UseContainer.CarrierSlot slot : snapshot) {
+            if (touched.contains(slot.menuSlot())) {
+                carried.add(slot);
+            }
+        }
+        return carried;
     }
 
     /** The session, or null if nothing was clicked. */
@@ -136,8 +193,8 @@ public final class ContainerWatch {
         if (watch == null || watch.clicks().isEmpty()) {
             return null;
         }
-        return new ChronoAction.UseContainer(
-                session.toLocal(watch.pos()), watch.menuSize(), watch.carrier(), watch.clicks());
+        return new ChronoAction.UseContainer(session.toLocal(watch.pos()), watch.menuSize(),
+                carried(watch.snapshot(), watch.touched()), watch.clicks());
     }
 
     /** The world position of the container currently open for this player, if any. */

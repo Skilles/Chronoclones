@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.StringRepresentable;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -71,6 +72,7 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         }
 
         @Override
+        @NonNull
         public String getSerializedName() {
             return name;
         }
