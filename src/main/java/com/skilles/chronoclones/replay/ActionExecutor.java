@@ -64,11 +64,19 @@ public final class ActionExecutor {
 
     private ActionExecutor() {}
 
-    public static Result executeBreak(ServerLevel level, ChronoAction.BreakBlock action,
-                                      Placement placement,
-                                      java.util.UUID ownerId, String ownerName,
-                                      ResourceHandler<ItemResource> inventory,
-                                      int coherenceTier) {
+    /**
+     * Whether a break may begin, without beginning it.
+     *
+     * <p>Split from the break itself because breaking is no longer instantaneous: a clone mines a
+     * block over several ticks, and these are the conditions that must hold before it starts and be
+     * re-checked while it does. Something that was true when mining began — the block still being
+     * there, the chunk still being loaded — is exactly the sort of thing that stops being true
+     * halfway through.
+     *
+     * @return the failure, or {@code null} if mining may proceed
+     */
+    public static @org.jspecify.annotations.Nullable Result canBreak(
+            ServerLevel level, ChronoAction.BreakBlock action, Placement placement, int coherenceTier) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -89,9 +97,9 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. Coherence, from the anchor's Chrono Lenses. See Coherence for why LOOSE is a
-        //    short named list of tags rather than "any tag these two share".
-        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier)) {
+        // 3. Coherence, from the anchor's Chrono Lenses. The recorded tool decides what it
+        //    may substitute into — see Coherence.
+        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier, action.toolTemplate())) {
             return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
 
@@ -105,6 +113,43 @@ public final class ActionExecutor {
         if (state.getDestroySpeed(level, worldPos) < 0.0f) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
+        return null;
+    }
+
+    /**
+     * How much of a block one tick of mining removes, as a fraction of the whole.
+     *
+     * <p>The game's own calculation, asked through the owner's fake player holding the recorded
+     * tool — so haste, efficiency, the right pickaxe and the wrong one all behave exactly as they
+     * did for the player who recorded it.
+     */
+    public static float breakProgressPerTick(ServerLevel level, ChronoAction.BreakBlock action,
+                                             Placement placement, java.util.UUID ownerId,
+                                             String ownerName) {
+        BlockPos worldPos = placement.toWorld(action.localPos());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
+                Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
+        try {
+            return level.getBlockState(worldPos).getDestroyProgress(owner, level, worldPos);
+        } finally {
+            AnchorFakePlayer.release(owner);
+        }
+    }
+
+    /**
+     * Finishes a break whose mining is complete: permission, drops, removal.
+     *
+     * <p>Callers must have satisfied {@link #canBreak} on this same tick. Re-checking it here would
+     * be cheap, but it would also hide the fact that the caller is responsible for noticing when a
+     * block it was halfway through mining stops being there.
+     */
+    public static Result finishBreak(ServerLevel level, ChronoAction.BreakBlock action,
+                                     Placement placement,
+                                     java.util.UUID ownerId, String ownerName,
+                                     ResourceHandler<ItemResource> inventory) {
+
+        BlockPos worldPos = placement.toWorld(action.localPos());
+        BlockState state = level.getBlockState(worldPos);
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
                 Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());

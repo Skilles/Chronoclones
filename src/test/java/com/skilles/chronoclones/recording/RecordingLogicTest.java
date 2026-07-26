@@ -142,8 +142,12 @@ class RecordingLogicTest {
 
         // ownership lives on the block entity. If a setter or field for it ever appears
         // on Recording, the author/owner split has been collapsed and attribution is a griefing bug.
-        assertEquals(5, Recording.class.getRecordComponents().length,
-                "Recording gained a component — make sure it is not an owner field");
+        // Naming the components rather than counting them says what the guard is actually for: a
+        // count tells you something changed, this tells you whether what changed was ownership.
+        assertEquals(List.of("motion", "actions", "lengthTicks", "authorName", "authorId", "creative"),
+                java.util.Arrays.stream(Recording.class.getRecordComponents())
+                        .map(java.lang.reflect.RecordComponent::getName).toList(),
+                "Recording's fields changed — make sure the new one is not an owner");
     }
 
     private static Recording recording(int lengthTicks) {

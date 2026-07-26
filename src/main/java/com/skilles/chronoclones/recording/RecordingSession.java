@@ -36,6 +36,7 @@ public final class RecordingSession {
     private final String authorName;
     private final BlockPos origin;
     private final Direction originFacing;
+    private final boolean creative;
 
     private final List<MotionSample> motion = new ArrayList<>();
     private final List<TimedAction> actions = new ArrayList<>();
@@ -49,6 +50,10 @@ public final class RecordingSession {
         this.origin = player.blockPosition();
         // Snapping to a cardinal is mandatory — see LocalSpace for why arbitrary yaw cannot work.
         this.originFacing = LocalSpace.snapToCardinal(player.getYRot());
+        // Captured at the start, not at the finish: the routine describes how the player was
+        // playing while they performed it, and switching to survival to stop the recorder should
+        // not retroactively make an instant-break routine into a mining one.
+        this.creative = player.isCreative();
     }
 
     public UUID sessionId() {
@@ -170,6 +175,7 @@ public final class RecordingSession {
     }
 
     public Recording finish() {
-        return new Recording(List.copyOf(motion), List.copyOf(actions), Math.max(tick, 1), authorName, authorId);
+        return new Recording(List.copyOf(motion), List.copyOf(actions), Math.max(tick, 1),
+                authorName, authorId, creative);
     }
 }

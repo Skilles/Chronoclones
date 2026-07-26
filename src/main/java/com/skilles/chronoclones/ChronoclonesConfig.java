@@ -1,8 +1,5 @@
 package com.skilles.chronoclones;
 
-import java.util.List;
-
-import net.minecraft.resources.Identifier;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 /**
@@ -17,7 +14,6 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue MAX_ACTIONS;
     public static final ModConfigSpec.IntValue MAX_ACTIONS_PER_TICK;
     public static final ModConfigSpec.BooleanValue ALLOW_PVP;
-    public static final ModConfigSpec.ConfigValue<List<? extends String>> COHERENCE_GROUPS;
     public static final ModConfigSpec.IntValue GOGGLE_RADIUS;
     /**
      * Whether Chrono Goggles show anchors somebody else imprinted.
@@ -27,24 +23,6 @@ public final class ChronoclonesConfig {
      * decision about who may see it belongs to whoever runs the server.
      */
     public static final ModConfigSpec.BooleanValue GOGGLES_SHOW_OTHERS;
-
-    /**
-     * Block tags that count as "the same kind of thing" to an anchor fitted with an Chrono Lens.
-     *
-     * <p>Deliberately a short named list rather than every tag two blocks happen to share. Every
-     * stone-like block is in {@code #minecraft:mineable/pickaxe}, so accepting any shared tag would
-     * turn a routine recorded to clear stone into one that accepts the walls of your base. See
-     * {@code Coherence} for the rest of that argument, including why this is config and not a tag.
-     */
-    public static final List<String> DEFAULT_COHERENCE_GROUPS = List.of(
-            "minecraft:base_stone_overworld",
-            "minecraft:logs",
-            "minecraft:dirt",
-            "minecraft:sand",
-            "minecraft:terracotta",
-            "minecraft:leaves",
-            "minecraft:planks",
-            "minecraft:wool");
 
     static {
         ModConfigSpec.Builder b = new ModConfigSpec.Builder();
@@ -70,13 +48,6 @@ public final class ChronoclonesConfig {
                         "Turning this off keeps a routine private to whoever imprinted it; leaving it",
                         "on lets anyone with goggles inspect what an anchor near them will do.")
                 .define("gogglesShowOthers", true);
-        COHERENCE_GROUPS = b.comment(
-                        "Block tags an Chrono Lens treats as interchangeable. A break whose recorded",
-                        "block and actual block share one of these tags goes ahead. Keep these",
-                        "narrow: a broad tag like minecraft:mineable/pickaxe would let a routine",
-                        "recorded to clear stone accept almost any block.")
-                .defineList("coherenceGroups", DEFAULT_COHERENCE_GROUPS,
-                        () -> "", entry -> entry instanceof String id && Identifier.tryParse(id) != null);
         b.pop();
 
         SPEC = b.build();

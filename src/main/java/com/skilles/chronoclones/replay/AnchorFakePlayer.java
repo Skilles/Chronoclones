@@ -54,6 +54,12 @@ public final class AnchorFakePlayer {
         player.setXRot(pitch);
         player.setYHeadRot(yaw);
 
+        // Standing, as far as mining speed is concerned. Vanilla divides digging speed by five while
+        // a player is off the ground, to stop people mining mid-jump — but a fake player teleported
+        // to a block is always technically falling, so without this every clone mines at a fifth
+        // speed for a reason that has nothing to do with what was recorded.
+        player.setOnGround(true);
+
         // The recorded template is a copy; the fake player must never consume or damage it.
         player.setItemInHand(InteractionHand.MAIN_HAND, held.copy());
 

@@ -17,6 +17,12 @@ import net.minecraft.world.phys.Vec3;
  * recording would otherwise break blocks attributed to someone who never consented. This record
  * therefore carries no owner field at all, so the mistake is not expressible here.
  *
+ * <p>{@code creative} records how the author was playing, not how the anchor runs. A routine
+ * recorded in creative breaks blocks instantly on replay, because that is what the player did; one
+ * recorded in survival mines them at the speed the recorded tool actually manages. Storing it on the
+ * recording rather than reading the owner's game mode keeps a routine the same wherever it is
+ * imprinted — a shard does not become slower because you handed it to somebody in survival.
+ *
  * <p>Serialization lives in {@link RecordingCodecs}.
  */
 public record Recording(
@@ -24,11 +30,23 @@ public record Recording(
         List<TimedAction> actions,
         int lengthTicks,
         String authorName,
-        UUID authorId) {
+        UUID authorId,
+        boolean creative) {
 
     public Recording {
         motion = List.copyOf(motion);
         actions = List.copyOf(actions);
+    }
+
+    /**
+     * A survival recording, which is nearly all of them.
+     *
+     * <p>Creative is the exception worth spelling out at the call site, so it is the one that has to
+     * name the field.
+     */
+    public Recording(List<MotionSample> motion, List<TimedAction> actions, int lengthTicks,
+                     String authorName, UUID authorId) {
+        this(motion, actions, lengthTicks, authorName, authorId, false);
     }
 
     public boolean isEmpty() {

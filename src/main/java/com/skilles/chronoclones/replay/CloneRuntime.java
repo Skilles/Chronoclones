@@ -1,6 +1,8 @@
 package com.skilles.chronoclones.replay;
 
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
+
+import net.minecraft.core.BlockPos;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -52,6 +54,50 @@ public final class CloneRuntime {
 
     public void consumeAction() {
         actionCursor++;
+        // Whatever was being mined belonged to the action being left behind.
+        clearMining();
+    }
+
+    // ------------------------------------------------------------------ mining
+
+    /**
+     * How far through the block it is currently breaking, 0 to 1.
+     *
+     * <p>Mining is the one action that spans ticks, so it is the one that needs state between them.
+     * Kept on the runtime rather than the anchor because each clone mines its own block: four clones
+     * strung along a quarry are four separate holes in progress.
+     *
+     * <p>Deliberately not persisted. A half-mined block on chunk unload simply starts again, which
+     * matches the rest of replay — playheads are not saved either.
+     */
+    private float miningProgress;
+    private @Nullable BlockPos miningPos;
+
+    public float miningProgress() {
+        return miningProgress;
+    }
+
+    public @Nullable BlockPos miningPos() {
+        return miningPos;
+    }
+
+    /**
+     * Adds one tick of progress, restarting if the target moved.
+     *
+     * @return the new total
+     */
+    public float mine(BlockPos pos, float perTick) {
+        if (!pos.equals(miningPos)) {
+            miningPos = pos;
+            miningProgress = 0.0f;
+        }
+        miningProgress += perTick;
+        return miningProgress;
+    }
+
+    public void clearMining() {
+        miningProgress = 0.0f;
+        miningPos = null;
     }
 
     /** Wraps back to the start of the routine, resetting the action cursor with it. */

@@ -358,6 +358,94 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    /**
+     * One tick of mining, or the whole break at once for a creative routine.
+     *
+     * <p>The player did not remove a block; they held a button until it gave way, and everything
+     * else they were doing waited. Replaying that as an instant deletion loses the only part of a
+     * mining routine you can actually watch, and loses the constraint that makes tool choice mean
+     * anything — a wooden pickaxe on obsidian should be a bad idea, not merely a slower way to the
+     * same result.
+     *
+     * <p>A creative recording breaks instantly, because that is what the author did. It is a
+     * property of the recording rather than of the anchor, so a creative-built routine stays
+     * instant wherever it is imprinted, and a survival one stays slow.
+     *
+     * @return true if the action finished this tick and the cursor has moved on
+     */
+    private boolean mineOneTick(ServerLevel serverLevel, CloneRuntime runtime,
+                                ChronoAction.BreakBlock action, Placement placement,
+                                Direction facing, int cost) {
+        ActionExecutor.Result refusal =
+                ActionExecutor.canBreak(serverLevel, action, placement, upgrades.coherenceTier());
+        if (refusal != null) {
+            // Includes the block vanishing mid-dig: somebody else got there first, so stop digging
+            // at nothing and move on.
+            stopMining(serverLevel, runtime);
+            runtime.consumeAction();
+            recordFailure(serverLevel, refusal.reason(), refusal.localPos(), runtime.playhead(), facing);
+            return true;
+        }
+
+        BlockPos worldPos = placement.toWorld(action.localPos());
+        boolean instant = recording != null && recording.creative();
+
+        if (!instant) {
+            // Rate upgrades speed mining too. An accelerated clone replays more of the routine per
+            // real tick, and swinging is part of the routine.
+            float perTick = ActionExecutor.breakProgressPerTick(serverLevel, action, placement,
+                    ownerId, ownerName) * upgrades.ticksPerStep();
+            float progress = runtime.mine(worldPos, perTick);
+
+            if (progress < 1.0f) {
+                showCracks(serverLevel, runtime, worldPos, progress);
+                return false;
+            }
+        }
+
+        stopMining(serverLevel, runtime);
+        runtime.consumeAction();
+
+        ActionExecutor.Result result =
+                ActionExecutor.finishBreak(serverLevel, action, placement, ownerId, ownerName, inventory);
+        if (result.succeeded()) {
+            charge = charge.spend(cost);
+            setChanged();
+        } else {
+            recordFailure(serverLevel, result.reason(), result.localPos(), runtime.playhead(), facing);
+        }
+        return true;
+    }
+
+    /**
+     * The cracking overlay, keyed to the ghost doing the digging.
+     *
+     * <p>Vanilla identifies a destruction animation by the entity id of whoever is breaking, which
+     * is what keeps four clones mining four blocks from overwriting each other's cracks. Falling
+     * back to the anchor's own hash covers the tick before a ghost exists.
+     */
+    private void showCracks(ServerLevel serverLevel, CloneRuntime runtime, BlockPos worldPos,
+                            float progress) {
+        int stage = Math.min((int) (progress * 10.0f), 9);
+        serverLevel.destroyBlockProgress(breakerIdOf(runtime), worldPos, stage);
+    }
+
+    /** Takes the cracks back off, whether the block was finished or abandoned. */
+    private void stopMining(ServerLevel serverLevel, CloneRuntime runtime) {
+        BlockPos was = runtime.miningPos();
+        if (was != null) {
+            // -1 is vanilla's "no longer breaking this", and without it the cracks stay on screen
+            // until a chunk reload.
+            serverLevel.destroyBlockProgress(breakerIdOf(runtime), was, -1);
+        }
+        runtime.clearMining();
+    }
+
+    private int breakerIdOf(CloneRuntime runtime) {
+        ChronoCloneEntity ghost = runtime.ghost();
+        return ghost != null ? ghost.getId() : worldPosition.hashCode();
+    }
+
     private void runDueActions(ServerLevel serverLevel, CloneRuntime runtime) {
         if (recording == null || ownerId == null) {
             return;
@@ -395,12 +483,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 return;
             }
 
+            // Breaking is the one action that takes time. It keeps the cursor until the block is
+            // gone, so the rest of the routine waits for it exactly as the player did.
+            if (action instanceof ChronoAction.BreakBlock breaking) {
+                if (!mineOneTick(serverLevel, runtime, breaking, placement, facing, cost)) {
+                    return;
+                }
+                continue;
+            }
+
             runtime.consumeAction();
 
             ActionExecutor.Result result = switch (action) {
-                case ChronoAction.BreakBlock a -> ActionExecutor.executeBreak(
-                        serverLevel, a, placement, ownerId, ownerName, inventory,
-                        upgrades.coherenceTier());
+                case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
                         serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(

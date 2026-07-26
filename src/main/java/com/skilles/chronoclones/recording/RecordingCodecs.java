@@ -270,7 +270,8 @@ public final class RecordingCodecs {
             TIMED_ACTION.listOf().fieldOf("actions").forGetter(Recording::actions),
             Codec.INT.fieldOf("length").forGetter(Recording::lengthTicks),
             Codec.STRING.fieldOf("author_name").forGetter(Recording::authorName),
-            UUIDUtil.CODEC.fieldOf("author_id").forGetter(Recording::authorId)
+            UUIDUtil.CODEC.fieldOf("author_id").forGetter(Recording::authorId),
+            Codec.BOOL.optionalFieldOf("creative", false).forGetter(Recording::creative)
     ).apply(i, Recording::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, Recording> RECORDING_STREAM =
@@ -280,5 +281,6 @@ public final class RecordingCodecs {
                     ByteBufCodecs.VAR_INT, Recording::lengthTicks,
                     ByteBufCodecs.STRING_UTF8, Recording::authorName,
                     UUIDUtil.STREAM_CODEC.cast(), Recording::authorId,
+                    ByteBufCodecs.BOOL, Recording::creative,
                     Recording::new);
 }
