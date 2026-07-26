@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.skilles.chronoclones.registry.ModTags;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
@@ -66,6 +68,12 @@ public final class ContainerWatch {
             return;
         }
 
+        // An anchor's own slots are machinery, not part of the task. Replay refuses to reach into
+        // one anyway, so recording the attempt would only bake in a step that can never run.
+        if (player.level().getBlockState(pending.pos()).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
+            return;
+        }
+
         ResourceHandler<ItemResource> handler = handlerAt(player.level(), pending.pos());
         if (handler == null) {
             return;
@@ -90,12 +98,22 @@ public final class ContainerWatch {
             return List.of();
         }
 
-        Map<Item, Integer> after = snapshot(handler);
-        BlockPos localPos = session.toLocal(watch.pos());
+        return diff(watch.contents(), snapshot(handler), session.toLocal(watch.pos()));
+    }
 
+    /**
+     * The net movement between two snapshots, as actions.
+     *
+     * <p>Pure, and separated from everything that needs a world, because the sign convention is the
+     * one thing here that can be silently backwards: the container <em>losing</em> items is the
+     * player withdrawing them, and a routine that hauls the wrong way empties the chest it was
+     * supposed to fill.
+     */
+    public static List<ChronoAction.TransferItems> diff(Map<Item, Integer> before, Map<Item, Integer> after,
+                                                      BlockPos localPos) {
         List<ChronoAction.TransferItems> actions = new ArrayList<>();
-        for (Item item : union(watch.contents(), after)) {
-            int delta = after.getOrDefault(item, 0) - watch.contents().getOrDefault(item, 0);
+        for (Item item : union(before, after)) {
+            int delta = after.getOrDefault(item, 0) - before.getOrDefault(item, 0);
             if (delta == 0) {
                 continue;
             }

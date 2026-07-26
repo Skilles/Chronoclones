@@ -1,5 +1,7 @@
 package com.skilles.chronoclones.recording;
 
+import java.util.List;
+
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.registry.ModDataComponents;
@@ -163,37 +165,51 @@ public final class RecordingCapture {
             return;
         }
 
-        ItemStack stack = event.getItemStack();
-        // Using the recorder itself is control input, not part of the routine.
-        if (stack.is(ModItems.CHRONO_RECORDER.get())) {
-            return;
-        }
-
-        // Placing a block fires this event AND EntityPlaceEvent. Recording both would capture every
-        // placement twice — once as a place, once as a spurious use — so block items are left
-        // entirely to the place handler.
-        if (stack.getItem() instanceof BlockItem) {
-            return;
-        }
-
         BlockPos pos = event.getPos();
-        BlockHitResult hit = event.getHitVec();
-        // Stored relative to the block centre so it rotates with the anchor, like every other
-        // position in a recording.
-        Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+        ItemStack stack = event.getItemStack();
 
-        // Noted before capturing, so that if this click turns out to open a container the index
-        // points at the action we are about to add and the open handler can retract it.
-        ContainerWatch.noteInteraction(player, pos, session.nextActionIndex());
+        // Whether this click is worth recording as a use, and whether it might open a container, are
+        // two independent questions, and this handler must answer the second one for every click.
+        //
+        // Arming the watch below the item filters was a real bug: you start a recording by using the
+        // recorder, so you are still holding it when you walk over and open the first chest — the
+        // one click most likely to open a container was the one click guaranteed to be filtered out,
+        // and a whole hauling routine recorded as nothing at all.
+        int recordedIndex = -1;
 
-        capture(player, session, new ChronoAction.UseOnBlock(
-                        session.toLocal(pos),
-                        session.toLocal(hit.getDirection()),
-                        LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
-                        hit.isInside(),
-                        event.getHand(),
-                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
-                Vec3.atCenterOf(pos));
+        if (!isControlInput(stack) && !(stack.getItem() instanceof BlockItem)) {
+            BlockHitResult hit = event.getHitVec();
+            // Stored relative to the block centre so it rotates with the anchor, like every other
+            // position in a recording.
+            Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+
+            recordedIndex = session.nextActionIndex();
+            capture(player, session, new ChronoAction.UseOnBlock(
+                            session.toLocal(pos),
+                            session.toLocal(hit.getDirection()),
+                            LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
+                            hit.isInside(),
+                            event.getHand(),
+                            BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
+                    Vec3.atCenterOf(pos));
+        }
+
+        // Armed last, and always. The index is what the open handler retracts if a menu appears; -1,
+        // or an index past the end when the action was dropped for range, simply retracts nothing.
+        ContainerWatch.noteInteraction(player, pos, recordedIndex);
+    }
+
+    /**
+     * True for items whose use is us, not the routine.
+     *
+     * <p>The recorder starts and stops recording, and a shard is inspected and imprinted — neither
+     * is a step in the task being taught.
+     *
+     * <p>Block items are excluded elsewhere for a different reason: placing one fires this event
+     * <em>and</em> {@code EntityPlaceEvent}, so recording both captures every placement twice.
+     */
+    private static boolean isControlInput(ItemStack stack) {
+        return stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get());
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -207,8 +223,7 @@ public final class RecordingCapture {
         }
 
         ItemStack stack = event.getItemStack();
-        if (stack.isEmpty() || stack.is(ModItems.CHRONO_RECORDER.get())
-                || stack.getItem() instanceof BlockItem) {
+        if (stack.isEmpty() || isControlInput(stack) || stack.getItem() instanceof BlockItem) {
             return;
         }
 
@@ -229,7 +244,7 @@ public final class RecordingCapture {
         }
 
         ItemStack stack = event.getItemStack();
-        if (stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get())) {
+        if (isControlInput(stack)) {
             return;
         }
 
@@ -274,8 +289,13 @@ public final class RecordingCapture {
             return;
         }
 
+        // Read before closing the watch, which clears it.
         BlockPos containerPos = ContainerWatch.openPosition(player);
-        for (ChronoAction.TransferItems transfer : ContainerWatch.onContainerClosed(player, session)) {
+        List<ChronoAction.TransferItems> transfers = ContainerWatch.onContainerClosed(player, session);
+        if (containerPos == null) {
+            return;
+        }
+        for (ChronoAction.TransferItems transfer : transfers) {
             capture(player, session, transfer, Vec3.atCenterOf(containerPos));
         }
     }
