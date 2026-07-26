@@ -141,4 +141,35 @@ final class AnchorTestFixture {
     static BlockState stateAt(GameTestHelper helper, BlockPos relative) {
         return helper.getBlockState(relative);
     }
+
+    /**
+     * Puts a stack straight into a container slot, past any face restrictions.
+     *
+     * <p>The capability route respects sidedness — a furnace refuses most things through most faces
+     * — which is right for gameplay and wrong for a test that just needs a slot to start out full.
+     */
+    static void fillSlot(GameTestHelper helper, BlockPos relative, int slot,
+                         net.minecraft.world.item.ItemStack stack) {
+        // Through the level rather than helper.getBlockEntity, which wants an exact class and this
+        // wants any container.
+        if (helper.getLevel().getBlockEntity(helper.absolutePos(relative))
+                instanceof net.minecraft.world.Container container) {
+            container.setItem(slot, stack);
+        } else {
+            helper.fail("no container at " + relative);
+        }
+    }
+
+    /** Total of one item across a handler, for asserting what ended up where. */
+    static int countIn(net.neoforged.neoforge.transfer.ResourceHandler<
+            net.neoforged.neoforge.transfer.item.ItemResource> handler, net.minecraft.world.item.Item item) {
+        int total = 0;
+        for (int slot = 0; slot < handler.size(); slot++) {
+            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
+            if (!resource.isEmpty() && resource.getItem() == item) {
+                total += handler.getAmountAsInt(slot);
+            }
+        }
+        return total;
+    }
 }

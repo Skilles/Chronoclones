@@ -45,7 +45,7 @@ public final class ModItems {
     /** Unlocks action types: break -> +place -> +attack -> +use. */
     public static final DeferredItem<UpgradeItem> CHRONO_FOCUS = upgrade("chrono_focus");
 
-    /** Loosens block matching: strict -> tag-compatible -> adaptive retargeting. */
+    /** Tightens matching: a lenient anchor becomes exact about blocks, slots and items. */
     public static final DeferredItem<UpgradeItem> CHRONO_LENS = upgrade("chrono_lens");
 
     /**

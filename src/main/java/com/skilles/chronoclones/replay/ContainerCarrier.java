@@ -88,18 +88,29 @@ public final class ContainerCarrier {
             if (staged.isEmpty()) {
                 // The routine needs something the anchor is not stocked with. Report it rather than
                 // running a session whose clicks will land on empty squares and quietly do nothing.
+                //
+                // The anchor has already been emptied into the pool by this point, so bailing out
+                // without this line destroyed everything it was holding — a routine that was merely
+                // missing one ingredient would eat the other seventeen stacks. Spilling into the
+                // player hands them to the drain in the caller's finally, which puts them back.
+                spill(pool, target);
                 return false;
             }
             target.setItem(slot.getContainerSlot(), staged);
         }
 
         // Everything the layout did not claim, wherever it fits.
+        spill(pool, target);
+        return true;
+    }
+
+    /** Moves whatever is left of the pool into the player, where {@link #drain} can find it. */
+    private static void spill(List<ItemStack> pool, Inventory target) {
         for (ItemStack leftover : pool) {
             if (!leftover.isEmpty()) {
                 target.add(leftover);
             }
         }
-        return true;
     }
 
     /** Takes up to {@code count} of {@code item} out of the pool. */

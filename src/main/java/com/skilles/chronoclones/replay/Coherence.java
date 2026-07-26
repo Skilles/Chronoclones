@@ -6,7 +6,20 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 /**
- * How closely the world has to match the recording for a break to go ahead.
+ * How closely the world has to match the recording for an action to go ahead.
+ *
+ * <h2>Lenient by default; the lens buys precision</h2>
+ *
+ * <p>The tiers run the other way round from the spec's. A bare anchor is <em>lenient</em>: it breaks
+ * what its tool can harvest, and it will use a different slot of the same kind if the one it
+ * remembers is occupied. Fitting an Chrono Lens makes it <em>exact</em>: that block, that slot, that
+ * item, or nothing.
+ *
+ * <p>Which way round matters more than it looks. The failure mode of a lenient default is a routine
+ * that keeps working when the world moved slightly — the failure mode of a strict default is a
+ * routine that silently does nothing and a player who concludes the mod is broken. Precision is the
+ * thing worth asking for on purpose, because the only reason to want it is that you are relying on
+ * exactly one block being exactly where you left it.
  *
  * <h2>The tool decides, not a list</h2>
  *
@@ -28,10 +41,15 @@ public final class Coherence {
 
     private Coherence() {}
 
-    /** Exact match only. What a bare anchor does. */
-    public static final int STRICT = 0;
-    /** Anything the recorded tool can harvest. One Chrono Lens. */
-    public static final int LOOSE = 1;
+    /** Anything the recorded tool can harvest, and any slot of the right kind. The default. */
+    public static final int LENIENT = 0;
+    /** That block, that slot, that item. One Chrono Lens. */
+    public static final int EXACT = 1;
+
+    /** Whether this tier insists on the recorded block and slot rather than an equivalent. */
+    public static boolean isExact(int tier) {
+        return tier >= EXACT;
+    }
 
     /**
      * Whether the block that is actually there is one this routine may break.
@@ -42,7 +60,7 @@ public final class Coherence {
         if (candidate.getBlock().equals(expected.value())) {
             return true;
         }
-        if (tier < LOOSE) {
+        if (isExact(tier)) {
             return false;
         }
         return canHarvest(candidate, tool);

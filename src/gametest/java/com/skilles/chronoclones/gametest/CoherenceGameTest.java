@@ -22,7 +22,7 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
- * What an Chrono Lens lets a routine break, and what it still refuses.
+ * What a routine will break, and what an Chrono Lens stops it breaking.
  *
  * <p>These live here rather than in JUnit because the answer runs through
  * {@code requiresCorrectToolForDrops} and the tool's harvest tier, both datapack-driven — outside a
@@ -39,15 +39,15 @@ final class CoherenceGameTest {
     private CoherenceGameTest() {}
 
     static void register() {
-        ChronoclonesGameTests.add("coherence_strict_refuses_another_block",
-                CoherenceGameTest::strictRefusesAnother);
+        ChronoclonesGameTests.add("coherence_lens_refuses_another_block",
+                CoherenceGameTest::lensRefusesAnother);
         // Obsidian with a diamond pickaxe is genuinely ~190 ticks of mining, so this one needs a
         // window that fits the thing it is asserting.
         ChronoclonesGameTests.add("break_takes_time_in_survival", 400, CoherenceGameTest::survivalBreakTakesTime);
-        ChronoclonesGameTests.add("coherence_lens_reaches_what_the_tool_reaches", 400,
-                CoherenceGameTest::lensFollowsTheTool);
-        ChronoclonesGameTests.add("coherence_lens_refuses_what_the_tool_cannot_harvest",
-                CoherenceGameTest::lensRefusesTooHard);
+        ChronoclonesGameTests.add("coherence_reaches_what_the_tool_reaches", 400,
+                CoherenceGameTest::followsTheTool);
+        ChronoclonesGameTests.add("coherence_refuses_what_the_tool_cannot_harvest",
+                CoherenceGameTest::refusesTooHard);
         ChronoclonesGameTests.add("coherence_bare_hands_clear_soft_blocks",
                 CoherenceGameTest::bareHandsClearSoftBlocks);
         ChronoclonesGameTests.add("break_is_instant_from_a_creative_recording",
@@ -106,19 +106,20 @@ final class CoherenceGameTest {
                 20, AnchorTestFixture.AUTHOR_NAME, AnchorTestFixture.AUTHOR_ID);
     }
 
-    /** A bare anchor. Anything but the recorded block is left alone. */
-    private static void strictRefusesAnother(GameTestHelper helper) {
+    /** With a lens fitted, anything but the recorded block is left alone. */
+    private static void lensRefusesAnother(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DEEPSLATE);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE)));
+        fitLens(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
                     helper.assertBlockPresent(Blocks.DEEPSLATE, target);
                     if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
-                        helper.fail("expected WRONG_BLOCK without a lens, got "
+                        helper.fail("expected WRONG_BLOCK with a lens fitted, got "
                                 + anchor.getLastFailure().reason());
                     }
                 })
@@ -129,13 +130,12 @@ final class CoherenceGameTest {
      * The rule in one assertion: a diamond pickaxe reaches obsidian, so a routine recorded with one
      * reaches obsidian — no tag list, no config, just what the tool can do.
      */
-    private static void lensFollowsTheTool(GameTestHelper helper) {
+    private static void followsTheTool(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+        AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE)));
-        fitLens(anchor);
 
         // Obsidian with a diamond pickaxe is over nine seconds of mining, which is the point.
         helper.startSequence()
@@ -144,19 +144,18 @@ final class CoherenceGameTest {
     }
 
     /** A wooden pickaxe never harvested obsidian, so a routine holding one does not either. */
-    private static void lensRefusesTooHard(GameTestHelper helper) {
+    private static void refusesTooHard(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, new ItemStack(Items.WOODEN_PICKAXE)));
-        fitLens(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
                     helper.assertBlockPresent(Blocks.OBSIDIAN, target);
                     if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
-                        helper.fail("a lens must not let a wooden pickaxe reach obsidian — got "
+                        helper.fail("lenience must not stretch to blocks the tool cannot harvest — got "
                                 + anchor.getLastFailure().reason());
                     }
                 })
@@ -173,9 +172,8 @@ final class CoherenceGameTest {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
 
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+        AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.GRASS_BLOCK, ItemStack.EMPTY));
-        fitLens(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(60, () -> helper.assertBlockPresent(Blocks.AIR, target))

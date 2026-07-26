@@ -21,7 +21,8 @@ final class ReplayGameTest {
     static void register() {
         ChronoclonesGameTests.add("break_stores_drops_in_anchor", ReplayGameTest::breakStoresDropsInAnchor);
         ChronoclonesGameTests.add("blacklisted_block_survives", ReplayGameTest::blacklistedBlockSurvives);
-        ChronoclonesGameTests.add("wrong_block_is_skipped", ReplayGameTest::wrongBlockIsSkipped);
+        ChronoclonesGameTests.add("lenient_substitutes_a_harvestable_block",
+                ReplayGameTest::lenientSubstitutesAHarvestableBlock);
         ChronoclonesGameTests.add("full_inventory_does_not_destroy", ReplayGameTest::fullInventoryDoesNotDestroy);
         ChronoclonesGameTests.add("block_entities_are_never_broken", ReplayGameTest::blockEntitiesAreNeverBroken);
     }
@@ -67,20 +68,30 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** Coherence is STRICT: a block that is not what was recorded is left alone. */
-    private static void wrongBlockIsSkipped(GameTestHelper helper) {
+    /**
+     * The default is forgiving: a block the recorded tool can harvest is broken even though it is
+     * not the block that was recorded.
+     *
+     * <p>The refusal half — an anchor with an Chrono Lens leaving it alone — lives in
+     * {@code CoherenceGameTest}, alongside the rest of the matching rules.
+     */
+    private static void lenientSubstitutesAHarvestableBlock(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        helper.setBlock(target, Blocks.OAK_PLANKS);
+        // The canonical drift: you recorded against stone and it is cobblestone now. A pickaxe
+        // harvests both, so the routine carries on.
+        helper.setBlock(target, Blocks.COBBLESTONE);
 
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
-                    helper.assertBlockPresent(Blocks.OAK_PLANKS, target);
-
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
-                        helper.fail("expected WRONG_BLOCK, got " + anchor.getLastFailure().reason());
+                    helper.assertBlockNotPresent(Blocks.COBBLESTONE, target);
+                    // The drops prove it was mined rather than merely replaced. The diagnostic is
+                    // not asserted: a one-action routine loops every second, so by now it has come
+                    // round again and is correctly reporting nothing left to break.
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.COBBLESTONE) != 1) {
+                        helper.fail("expected the substituted block's drop in the anchor");
                     }
                 })
                 .thenSucceed();

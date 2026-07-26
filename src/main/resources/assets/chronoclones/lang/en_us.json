@@ -41,13 +41,11 @@
   "tooltip.chronoclones.chrono_splitter": "+1 clone, spaced along the routine",
   "tooltip.chronoclones.chrono_accelerator": "Replays the routine faster",
   "tooltip.chronoclones.chrono_focus": "Unlocks more kinds of action",
-  "tooltip.chronoclones.chrono_lens": "Breaks anything the recorded tool could harvest",
+  "tooltip.chronoclones.chrono_lens": "Exact matching — only the recorded block and slot",
   "tooltip.chronoclones.upgrade.slot": "Slot into an Chrono Anchor",
   "gui.chronoclones.anchor.no_recording": "No routine imprinted",
   "gui.chronoclones.anchor.progress": "%ss / %ss  ·  %s actions",
   "gui.chronoclones.anchor.upgrades": "Clones %s  ·  Rate ×%s  ·  %s",
-  "gui.chronoclones.anchor.matching.strict": "Exact match",
-  "gui.chronoclones.anchor.matching.loose": "Tool-matched",
   "hud.chronoclones.recording": "● REC  %s  ·  %s actions",
   "tooltip.chronoclones.recorder.idle": "Right-click to begin recording",
   "tooltip.chronoclones.recorder.recording": "Recording — %ss, %s actions",
@@ -103,5 +101,7 @@
   "item.chronoclones.chrono_goggles": "Chrono Goggles",
   "tooltip.chronoclones.chrono_goggles": "Worn: reveals every anchor's routine nearby",
   "chronoclones.configuration.goggleRadius": "Goggle Radius",
-  "chronoclones.configuration.gogglesShowOthers": "Goggles Show Others' Anchors"
+  "chronoclones.configuration.gogglesShowOthers": "Goggles Show Others' Anchors",
+  "gui.chronoclones.anchor.matching.lenient": "Lenient",
+  "gui.chronoclones.anchor.matching.exact": "Exact"
 }

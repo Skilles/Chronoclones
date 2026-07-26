@@ -130,8 +130,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.text(font, Component.translatable("gui.chronoclones.anchor.upgrades",
                         menu.getActiveClones(), menu.getTicksPerStep(),
                         Component.translatable(menu.getCoherenceTier() >= 1
-                                ? "gui.chronoclones.anchor.matching.loose"
-                                : "gui.chronoclones.anchor.matching.strict")),
+                                ? "gui.chronoclones.anchor.matching.exact"
+                                : "gui.chronoclones.anchor.matching.lenient")),
                 8, Layout.UPGRADE_INFO_Y, MUTED);
 
         // Only when it has been moved. A permanent "Origin 0, 0, 0" line would be noise on every

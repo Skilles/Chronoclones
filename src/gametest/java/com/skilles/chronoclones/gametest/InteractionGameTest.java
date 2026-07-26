@@ -50,6 +50,10 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("container_moves_within_itself", InteractionGameTest::movesWithinContainer);
         ChronoclonesGameTests.add("container_refuses_another_menu", InteractionGameTest::refusesAnotherMenu);
         ChronoclonesGameTests.add("container_deposits_into_a_container", InteractionGameTest::depositsIntoAContainer);
+        ChronoclonesGameTests.add("container_lenient_skips_a_full_slot",
+                InteractionGameTest::lenientSkipsAFullSlot);
+        ChronoclonesGameTests.add("container_failed_staging_keeps_the_inventory",
+                InteractionGameTest::failedStagingKeepsTheInventory);
         ChronoclonesGameTests.add("container_needs_its_carried_items", InteractionGameTest::needsItsCarriedItems);
     }
 
@@ -391,6 +395,86 @@ final class InteractionGameTest {
     private static final int LEFT = 0;
     private static final int RIGHT = 1;
 
+    /**
+     * A full slot must not spill into a different part of the machine.
+     *
+     * <p>The routine puts coal in the furnace's fuel slot, which is already full. A lenient anchor
+     * looks for another slot of the same kind — and a furnace has exactly one fuel slot, so there is
+     * none, and the coal comes home. What it must never do is fall back to the <em>input</em> slot,
+     * which would accept it: a furnace will happily try to smelt coal, so the menu's own
+     * {@code mayPlace} is not enough of a guard on its own.
+     */
+    private static void lenientSkipsAFullSlot(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.FURNACE);
+        // A full fuel slot with nothing to smelt just sits there, so it stays full for the test.
+        AnchorTestFixture.fillSlot(helper, target, FURNACE_FUEL, new ItemStack(Items.COAL, 64));
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(FURNACE_MENU_SIZE,
+                        List.of(carrying(FURNACE_CARRIER_SLOT, Items.COAL, 1)),
+                        click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
+                        click(FURNACE_FUEL, LEFT, ContainerInput.PICKUP))));
+        AnchorTestFixture.unlockAllActions(anchor);
+        anchor.getInventoryHandler().set(0, ItemResource.of(Items.COAL), 1);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> furnace =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (furnace == null) {
+                        helper.fail("the furnace exposes no item handler");
+                        return;
+                    }
+                    if (!furnace.getResource(FURNACE_INPUT).isEmpty()) {
+                        helper.fail("coal reached the smelting slot: a full fuel slot fell back to a "
+                                + "slot of a different kind, got "
+                                + furnace.getResource(FURNACE_INPUT).getItem());
+                    }
+                    // And it is not lost either — a click with nowhere to go returns its item.
+                    if (countIn(anchor.getInventory(), Items.COAL) != 1) {
+                        helper.fail("the coal went nowhere and was not returned to the anchor");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * A session that cannot be stocked leaves the anchor's contents alone.
+     *
+     * <p>Staging empties the anchor before it knows whether the layout can be satisfied, so bailing
+     * out used to destroy everything it was holding — a routine missing one ingredient would eat the
+     * other seventeen stacks. This is the assertion that stops that coming back.
+     */
+    private static void failedStagingKeepsTheInventory(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
+                        click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
+        AnchorTestFixture.unlockAllActions(anchor);
+
+        // Stocked with something else entirely, so the layout cannot be satisfied.
+        anchor.getInventoryHandler().set(0, ItemResource.of(Items.GOLD_INGOT), 12);
+        anchor.getInventoryHandler().set(1, ItemResource.of(Items.IRON_INGOT), 7);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    int gold = countIn(anchor.getInventory(), Items.GOLD_INGOT);
+                    int iron = countIn(anchor.getInventory(), Items.IRON_INGOT);
+                    if (gold != 12 || iron != 7) {
+                        helper.fail("a session that could not be stocked ate the anchor's inventory: "
+                                + gold + " gold and " + iron + " iron left of 12 and 7");
+                    }
+                })
+                .thenSucceed();
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private static ChronoAction.UseContainer.Click click(int slot, int button, ContainerInput input) {
@@ -450,13 +534,6 @@ final class InteractionGameTest {
     }
 
     private static int countIn(ResourceHandler<ItemResource> handler, Item item) {
-        int total = 0;
-        for (int slot = 0; slot < handler.size(); slot++) {
-            ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                total += handler.getAmountAsInt(slot);
-            }
-        }
-        return total;
+        return AnchorTestFixture.countIn(handler, item);
     }
 }

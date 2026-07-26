@@ -507,7 +507,8 @@ public final class ActionExecutor {
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
                                              Placement placement,
                                              java.util.UUID ownerId, String ownerName,
-                                             ItemStacksResourceHandler inventory) {
+                                             ItemStacksResourceHandler inventory,
+                                             int coherenceTier) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -551,7 +552,13 @@ public final class ActionExecutor {
                     if (click.slot() >= menu.slots.size()) {
                         return Result.fail(FailureReason.NO_TARGET, action.localPos());
                     }
-                    menu.clicked(click.slot(), click.button(), click.input(), owner);
+                    // The item about to move is whatever is on the cursor. When there is one, a
+                    // lenient anchor may put it in another slot of the same kind if the remembered
+                    // square is occupied; picking something up is always from the square named.
+                    ItemStack carried = menu.getCarried();
+                    int slot = carried.isEmpty() ? click.slot()
+                            : SlotChoice.resolve(menu, click.slot(), carried, coherenceTier);
+                    menu.clicked(slot, click.button(), click.input(), owner);
                 }
             } finally {
                 // Returns whatever is on the cursor to the player, then everything the player is

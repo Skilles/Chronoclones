@@ -19,16 +19,15 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
  */
 public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, int coherenceTier) {
 
-    /** A bare anchor: one clone, one tick per step, mining only, exact block matching. */
+    /** A bare anchor: one clone, one tick per step, mining only, lenient matching. */
     public static final UpgradeState BASE = new UpgradeState(1, 1, 0, 0);
 
     public static final int MAX_CLONES = 4;
     public static final int MAX_RATE = 3;
     public static final int MAX_FIDELITY = 3;
     /**
-     * STRICT and LOOSE. Spec  describes a third tier, ADAPTIVE, which retargets an action to a
-     * matching block nearby — not implemented, and the cap is 1 rather than 2 so a second lens
-     * cannot be sunk into a tier that does nothing.
+     * Lenient and exact. There is nothing above exact to buy, so one lens is the whole axis — a
+     * second would be a slot spent on nothing.
      */
     public static final int MAX_COHERENCE = 1;
 
