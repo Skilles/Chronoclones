@@ -94,7 +94,10 @@ public final class RecordingDetail {
 
         for (ChronoAction.UseContainer.CarrierSlot carried : session.carrier()) {
             lines.add(indent(Component.translatable("tooltip.chronoclones.detail.container.needs",
-                            carried.count(), itemName(carried.item().value()))
+                            // getHoverName rather than the item's description id, so a routine that
+                            // wants the pickaxe you named "Tunneler" says so — which is the point of
+                            // recording the components in the first place.
+                            carried.stack().getCount(), name(carried.stack().getHoverName()))
                     .withStyle(ChatFormatting.DARK_AQUA)));
             added++;
         }

@@ -11,15 +11,21 @@ import net.minecraft.world.level.block.state.BlockState;
  * <h2>Lenient by default; the lens buys precision</h2>
  *
  * <p>The tiers run the other way round from the spec's. A bare anchor is <em>lenient</em>: it breaks
- * what its tool can harvest, and it will use a different slot of the same kind if the one it
- * remembers is occupied. Fitting an Chrono Lens makes it <em>exact</em>: that block, that slot, that
- * item, or nothing.
+ * whatever its tool can harvest. Fitting an Chrono Lens makes it <em>exact</em>: that block, or nothing.
  *
  * <p>Which way round matters more than it looks. The failure mode of a lenient default is a routine
  * that keeps working when the world moved slightly — the failure mode of a strict default is a
  * routine that silently does nothing and a player who concludes the mod is broken. Precision is the
  * thing worth asking for on purpose, because the only reason to want it is that you are relying on
  * exactly one block being exactly where you left it.
+ *
+ * <h2>Blocks only</h2>
+ *
+ * <p>This governs what a break accepts at its target square, and nothing else. How specific a
+ * routine is about the <em>item transfers</em> it performs is {@link TransferPrecision}, which is set
+ * per anchor rather than bought — because lenient block matching makes an anchor able to do more,
+ * which is worth charging an upgrade slot for, whereas transfer precision only ever narrows what a
+ * routine will touch and charging for a restriction is backwards.
  *
  * <h2>The tool decides, not a list</h2>
  *
@@ -41,12 +47,12 @@ public final class Coherence {
 
     private Coherence() {}
 
-    /** Anything the recorded tool can harvest, and any slot of the right kind. The default. */
+    /** Anything the recorded tool can harvest. The default. */
     public static final int LENIENT = 0;
-    /** That block, that slot, that item. One Chrono Lens. */
+    /** That block. One Chrono Lens. */
     public static final int EXACT = 1;
 
-    /** Whether this tier insists on the recorded block and slot rather than an equivalent. */
+    /** Whether this tier insists on the recorded block rather than an equivalent. */
     public static boolean isExact(int tier) {
         return tier >= EXACT;
     }

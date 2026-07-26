@@ -41,7 +41,7 @@
   "tooltip.chronoclones.chrono_splitter": "+1 clone, spaced along the routine",
   "tooltip.chronoclones.chrono_accelerator": "Replays the routine faster",
   "tooltip.chronoclones.chrono_focus": "Unlocks more kinds of action",
-  "tooltip.chronoclones.chrono_lens": "Exact matching — only the recorded block and slot",
+  "tooltip.chronoclones.chrono_lens": "Exact matching — breaks only the recorded block",
   "tooltip.chronoclones.upgrade.slot": "Slot into an Chrono Anchor",
   "gui.chronoclones.anchor.no_recording": "No routine imprinted",
   "gui.chronoclones.anchor.progress": "%ss / %ss  ·  %s actions",
@@ -102,6 +102,6 @@
   "tooltip.chronoclones.chrono_goggles": "Worn: reveals every anchor's routine nearby",
   "chronoclones.configuration.goggleRadius": "Goggle Radius",
   "chronoclones.configuration.gogglesShowOthers": "Goggles Show Others' Anchors",
-  "gui.chronoclones.anchor.matching.lenient": "Lenient",
-  "gui.chronoclones.anchor.matching.exact": "Exact"
+  "gui.chronoclones.anchor.matching.lenient": "Any block the tool suits",
+  "gui.chronoclones.anchor.matching.exact": "Recorded block only"
 }

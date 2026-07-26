@@ -59,20 +59,21 @@ class RecordingDetailTest {
     }
 
     @Test
-    @DisplayName("a container session lists what it brings and which button each click uses")
+    @DisplayName("a container session lists which button each click uses")
     void containerSessionIsExpanded() {
+        // No carrier entries: naming one means naming its stack, and a carrier line renders through
+        // getHoverName, which reads an item's default components — unbound without a loaded datapack.
+        // That the "needs" line appears, and names the right thing, is asserted in PrecisionGameTest.
         List<Component> lines = RecordingDetail.describe(List.of(
                 new TimedAction(20, new ChronoAction.UseContainer(
                         new BlockPos(0, 0, -1), 63,
-                        List.of(new ChronoAction.UseContainer.CarrierSlot(
-                                31, BuiltInRegistries.ITEM.wrapAsHolder(Items.OAK_LOG), 8)),
+                        List.of(),
                         List.of(
                                 new ChronoAction.UseContainer.Click(0, 1, ContainerInput.PICKUP),
                                 new ChronoAction.UseContainer.Click(31, 0, ContainerInput.QUICK_MOVE))))));
 
         String text = keysOf(lines);
         assertTrue(text.contains("tooltip.chronoclones.detail.container"), text);
-        assertTrue(text.contains("tooltip.chronoclones.detail.container.needs"), text);
         // Take-half versus take-all is the distinction the whole click model exists to preserve, so
         // it had better be the distinction a reader can see.
         assertTrue(text.contains("tooltip.chronoclones.detail.click.pickup_half"), text);

@@ -12,7 +12,6 @@ import com.skilles.chronoclones.network.RecordingHighlightPayload;
 import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
@@ -137,8 +136,7 @@ public final class ContainerWatch {
             if (stack.isEmpty()) {
                 continue;
             }
-            layout.add(new ChronoAction.UseContainer.CarrierSlot(
-                    index, BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()), stack.getCount()));
+            layout.add(new ChronoAction.UseContainer.CarrierSlot(index, stack));
         }
         return layout;
     }

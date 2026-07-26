@@ -11,7 +11,6 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -54,11 +53,16 @@ public final class ContainerCarrier {
      * <p>Emptying the anchor is deliberate: if it kept a copy, a session that consumed items would
      * duplicate them on the way back.
      *
-     * @return false if the layout named an item the anchor does not have at all
+     * <p>How closely the staged items have to match what was recorded is
+     * {@link TransferPrecision} — see {@link #choose} and {@link #draw} for the two axes it governs
+     * here.
+     *
+     * @return false if a layout entry found nothing at all to stage
      */
     public static boolean load(ItemStacksResourceHandler inventory, FakePlayer player,
                                AbstractContainerMenu menu,
-                               List<ChronoAction.UseContainer.CarrierSlot> layout) {
+                               List<ChronoAction.UseContainer.CarrierSlot> layout,
+                               TransferPrecision precision) {
         Inventory target = player.getInventory();
         target.clearContent();
         menu.setCarried(ItemStack.EMPTY);
@@ -75,6 +79,12 @@ public final class ContainerCarrier {
             inventory.set(slot, ItemResource.EMPTY, 0);
         }
 
+        // Which squares staging has spoken for, so the leftovers below cannot land in one. Vanilla's
+        // Inventory.add merges into the first partial stack it finds, which for a routine staging
+        // five diamonds into a slot and holding twenty-seven more meant the slot quietly became
+        // thirty-two — undoing the count that was just decided and shift-clicking the lot away.
+        boolean[] claimed = new boolean[Inventory.INVENTORY_SIZE];
+
         for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
             if (wanted.menuSlot() >= menu.slots.size()) {
                 continue;
@@ -84,44 +94,93 @@ public final class ContainerCarrier {
                 continue;
             }
 
-            ItemStack staged = draw(pool, wanted.item().value(), wanted.count());
+            ItemStack staged = draw(pool, wanted.stack(), precision);
             if (staged.isEmpty()) {
                 // The routine needs something the anchor is not stocked with. Report it rather than
                 // running a session whose clicks will land on empty squares and quietly do nothing.
+                //
+                // This is the only failure the precision flags can produce, and it survives all eight
+                // of them: an empty square is not a less specific transfer, it is no transfer.
                 //
                 // The anchor has already been emptied into the pool by this point, so bailing out
                 // without this line destroyed everything it was holding — a routine that was merely
                 // missing one ingredient would eat the other seventeen stacks. Spilling into the
                 // player hands them to the drain in the caller's finally, which puts them back.
-                spill(pool, target);
+                spill(pool, target, claimed);
                 return false;
             }
             target.setItem(slot.getContainerSlot(), staged);
+            if (slot.getContainerSlot() < claimed.length) {
+                claimed[slot.getContainerSlot()] = true;
+            }
         }
 
         // Everything the layout did not claim, wherever it fits.
-        spill(pool, target);
+        spill(pool, target, claimed);
         return true;
     }
 
-    /** Moves whatever is left of the pool into the player, where {@link #drain} can find it. */
-    private static void spill(List<ItemStack> pool, Inventory target) {
+    /**
+     * Moves whatever is left of the pool into the player, where {@link #drain} can find it.
+     *
+     * <p>Into squares staging is not using, and without merging. Both of those matter: a leftover
+     * that topped up a staged slot would change the amount the session goes on to move, which is the
+     * one thing staging had just finished deciding.
+     */
+    private static void spill(List<ItemStack> pool, Inventory target, boolean[] claimed) {
         for (ItemStack leftover : pool) {
-            if (!leftover.isEmpty()) {
-                target.add(leftover);
+            if (leftover.isEmpty()) {
+                continue;
             }
+            int free = firstFree(target, claimed);
+            if (free < 0) {
+                // Every free square is spoken for. Topping up a staged slot is wrong; losing the
+                // stack is worse, and drain hands it all back to the anchor either way.
+                target.add(leftover);
+                continue;
+            }
+            target.setItem(free, leftover);
         }
     }
 
-    /** Takes up to {@code count} of {@code item} out of the pool. */
-    private static ItemStack draw(List<ItemStack> pool, Item item, int count) {
+    private static int firstFree(Inventory target, boolean[] claimed) {
+        for (int slot = 0; slot < claimed.length; slot++) {
+            if (!claimed[slot] && target.getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Takes one slot's worth out of the pool: which item, and how much of it.
+     *
+     * <p>The two questions are the item and quantity axes of {@link TransferPrecision}, and they are
+     * answered in that order — what to take, then how much — because a slot holds one kind of thing
+     * and mixing two would satisfy neither.
+     *
+     * <p>Gathering runs across the whole pool once a kind has been settled on, since the anchor may
+     * be holding the same item spread over several of its own slots.
+     */
+    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision) {
+        ItemStack kind = choose(pool, wanted, precision);
+        if (kind.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        // Quantity off means the recorded count was incidental, so take everything available — a
+        // routine taught with a handful then runs with a stack. Either way one slot is the ceiling.
+        int limit = Math.min(
+                precision.quantity() ? wanted.getCount() : Integer.MAX_VALUE,
+                kind.getMaxStackSize());
+
         ItemStack drawn = ItemStack.EMPTY;
-        for (int i = 0; i < pool.size() && drawn.getCount() < count; i++) {
+        for (int i = 0; i < pool.size() && drawn.getCount() < limit; i++) {
             ItemStack candidate = pool.get(i);
-            if (candidate.isEmpty() || !candidate.is(item)) {
+            if (candidate.isEmpty() || !ItemStack.isSameItemSameComponents(candidate, kind)) {
                 continue;
             }
-            int take = Math.min(candidate.getCount(), count - drawn.getCount());
+            int take = Math.min(candidate.getCount(), limit - drawn.getCount());
             if (drawn.isEmpty()) {
                 drawn = candidate.copyWithCount(take);
             } else {
@@ -130,6 +189,39 @@ public final class ContainerCarrier {
             candidate.shrink(take);
         }
         return drawn;
+    }
+
+    /**
+     * Which of the anchor's items this slot gets, as a ladder from most to least specific.
+     *
+     * <p>The recorded stack, then the same item ignoring components, then anything at all — with an
+     * anchor that is specific about items stopping after the first rung.
+     *
+     * <p>The ladder matters more than the leniency does. "Take anything" implemented as "take
+     * whatever is first in the pool" would let a correctly stocked anchor stage the wrong item purely
+     * because of the order its own slots happened to be in, turning a working routine into a broken
+     * one for no reason a player could see. Leniency is a fallback, not a coin toss.
+     */
+    private static ItemStack choose(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision) {
+        for (ItemStack candidate : pool) {
+            if (!candidate.isEmpty() && ItemStack.isSameItemSameComponents(candidate, wanted)) {
+                return candidate;
+            }
+        }
+        if (precision.item()) {
+            return ItemStack.EMPTY;
+        }
+        for (ItemStack candidate : pool) {
+            if (!candidate.isEmpty() && candidate.is(wanted.getItem())) {
+                return candidate;
+            }
+        }
+        for (ItemStack candidate : pool) {
+            if (!candidate.isEmpty()) {
+                return candidate;
+            }
+        }
+        return ItemStack.EMPTY;
     }
 
     /**

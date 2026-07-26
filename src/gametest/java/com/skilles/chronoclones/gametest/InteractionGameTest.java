@@ -5,6 +5,7 @@ import java.util.List;
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -458,6 +459,10 @@ final class InteractionGameTest {
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
         AnchorTestFixture.unlockAllActions(anchor);
+        // Specific about items, which is what makes this layout unsatisfiable at all: the default
+        // anchor would shrug and deposit the gold instead. Staging can only fail when it is either
+        // told the item matters or given nothing whatsoever, and this is the first of those.
+        anchor.setPrecision(new TransferPrecision(false, true, false));
 
         // Stocked with something else entirely, so the layout cannot be satisfied.
         anchor.getInventoryHandler().set(0, ItemResource.of(Items.GOLD_INGOT), 12);
@@ -491,8 +496,7 @@ final class InteractionGameTest {
     }
 
     private static ChronoAction.UseContainer.CarrierSlot carrying(int menuSlot, Item item, int count) {
-        return new ChronoAction.UseContainer.CarrierSlot(
-                menuSlot, BuiltInRegistries.ITEM.wrapAsHolder(item), count);
+        return new ChronoAction.UseContainer.CarrierSlot(menuSlot, new ItemStack(item, count));
     }
 
     /** Right-click the top face, dead centre - the geometry a player clicking a floor block produces. */

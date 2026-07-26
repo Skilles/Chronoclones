@@ -508,7 +508,7 @@ public final class ActionExecutor {
                                              Placement placement,
                                              java.util.UUID ownerId, String ownerName,
                                              ItemStacksResourceHandler inventory,
-                                             int coherenceTier) {
+                                             TransferPrecision precision) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -543,7 +543,7 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier())) {
+            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier(), precision)) {
                 ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
                 return Result.fail(FailureReason.NO_ITEM, action.localPos());
             }
@@ -552,12 +552,13 @@ public final class ActionExecutor {
                     if (click.slot() >= menu.slots.size()) {
                         return Result.fail(FailureReason.NO_TARGET, action.localPos());
                     }
-                    // The item about to move is whatever is on the cursor. When there is one, a
-                    // lenient anchor may put it in another slot of the same kind if the remembered
-                    // square is occupied; picking something up is always from the square named.
+                    // The item about to move is whatever is on the cursor. When there is one, an
+                    // anchor that is not specific about slots may put it in another square of the
+                    // same kind if the remembered one is occupied; picking something up is always
+                    // from the square named.
                     ItemStack carried = menu.getCarried();
                     int slot = carried.isEmpty() ? click.slot()
-                            : SlotChoice.resolve(menu, click.slot(), carried, coherenceTier);
+                            : SlotChoice.resolve(menu, click.slot(), carried, precision);
                     menu.clicked(slot, click.button(), click.input(), owner);
                 }
             } finally {

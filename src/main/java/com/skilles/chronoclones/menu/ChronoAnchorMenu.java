@@ -3,6 +3,7 @@ package com.skilles.chronoclones.menu;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.registry.ModMenus;
+import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -140,6 +141,21 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** How far the routine has been nudged, so the GUI can say so. */
     public net.minecraft.core.BlockPos getOriginOffset() {
         return new net.minecraft.core.BlockPos(data.get(15), data.get(16), data.get(17));
+    }
+
+    /** How specific this anchor is about item transfers, for the precision drawer. */
+    public TransferPrecision getPrecision() {
+        return TransferPrecision.unpack(data.get(18));
+    }
+
+    /**
+     * Which anchor this menu belongs to.
+     *
+     * <p>Used server-side to check that a settings packet came from someone with this anchor's screen
+     * open — a stronger claim than "is standing near it", and one that needs no distance constant.
+     */
+    public BlockPos anchorPos() {
+        return anchor.getBlockPos();
     }
 
     /** Anchor-local position of the last failure, for the diagnostic line. */

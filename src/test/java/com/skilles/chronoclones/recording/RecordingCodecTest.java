@@ -98,8 +98,12 @@ class RecordingCodecTest {
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
                         new TimedAction(13, new ChronoAction.UseContainer(
                                 new BlockPos(2, 0, -3), 63,
-                                List.of(new ChronoAction.UseContainer.CarrierSlot(
-                                        30, BuiltInRegistries.ITEM.wrapAsHolder(Items.OAK_LOG), 8)),
+                                // No carrier entries, for the same reason the templates above are
+                                // empty: one holds a whole ItemStack, and a carrier slot may not be
+                                // empty — its codec is the strict ItemStack.CODEC precisely so that
+                                // "this session needs nothing here" cannot be encoded. A populated
+                                // carrier therefore round trips in PrecisionGameTest, with a server.
+                                List.of(),
                                 List.of(
                                         new ChronoAction.UseContainer.Click(4, 1, ContainerInput.PICKUP),
                                         new ChronoAction.UseContainer.Click(54, 0, ContainerInput.PICKUP),
@@ -289,8 +293,8 @@ class RecordingCodecTest {
                 assertEquals(e.carrier().size(), a.carrier().size());
                 for (int i = 0; i < e.carrier().size(); i++) {
                     assertEquals(e.carrier().get(i).menuSlot(), a.carrier().get(i).menuSlot());
-                    assertEquals(e.carrier().get(i).item().value(), a.carrier().get(i).item().value());
-                    assertEquals(e.carrier().get(i).count(), a.carrier().get(i).count());
+                    assertTrue(ItemStack.matches(e.carrier().get(i).stack(), a.carrier().get(i).stack()),
+                            "carrier stack at " + index + "/" + i);
                 }
             }
         }

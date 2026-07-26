@@ -13,8 +13,10 @@ import net.minecraft.world.item.ItemStack;
  * sensible square and carry on. An anchor that instead reported "slot occupied" and stopped is
  * technically correct and useless.
  *
- * <p>So a lenient anchor may substitute a slot; an anchor with an Chrono Lens may not. See
- * {@link Coherence} for why lenience is the default.
+ * <p>So an anchor may substitute a slot unless it has been told the square itself is the point — a
+ * sorting system, where landing one row over is the whole failure. That is the slot axis of
+ * {@link TransferPrecision}, set per anchor rather than bought, because pinning a square only ever
+ * narrows what a routine will touch.
  *
  * <h2>What "the same kind of slot" means</h2>
  *
@@ -41,15 +43,15 @@ public final class SlotChoice {
      *
      * @param stack what is about to go in, for the menu's own {@code mayPlace} check
      * @return the index to click, which is {@code recordedIndex} unless that one is unusable and the
-     *         tier allows looking elsewhere
+     *         anchor allows looking elsewhere
      */
     public static int resolve(AbstractContainerMenu menu, int recordedIndex, ItemStack stack,
-                              int coherenceTier) {
+                              TransferPrecision precision) {
         if (recordedIndex < 0 || recordedIndex >= menu.slots.size()) {
             return recordedIndex;
         }
         Slot recorded = menu.slots.get(recordedIndex);
-        if (Coherence.isExact(coherenceTier) || fits(recorded, stack)) {
+        if (precision.slot() || fits(recorded, stack)) {
             return recordedIndex;
         }
 

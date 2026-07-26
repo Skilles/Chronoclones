@@ -45,7 +45,12 @@ public final class ModItems {
     /** Unlocks action types: break -> +place -> +attack -> +use. */
     public static final DeferredItem<UpgradeItem> CHRONO_FOCUS = upgrade("chrono_focus");
 
-    /** Tightens matching: a lenient anchor becomes exact about blocks, slots and items. */
+    /**
+     * Tightens block matching: a lenient anchor breaks only the block it recorded.
+     *
+     * <p>Blocks only. How specific an anchor is about item transfers is three checkboxes in its own
+     * screen, not an upgrade — see {@code TransferPrecision}.
+     */
     public static final DeferredItem<UpgradeItem> CHRONO_LENS = upgrade("chrono_lens");
 
     /**

@@ -154,11 +154,23 @@ public sealed interface ChronoAction {
         /**
          * One slot of the player's own inventory as the session found it.
          *
+         * <p>The whole stack, not just its item and count, because an anchor set to be specific about
+         * items has to be able to tell an enchanted pickaxe from a plain one — and a stack's identity
+         * lives in its components. See {@link com.skilles.chronoclones.replay.TransferPrecision}.
+         *
          * <p>The count is a target for staging, not a promise. Clicks still operate on whatever is
          * actually in the slot — that is the whole point of recording buttons — so a session that
          * splits a stack splits whatever the anchor could supply.
+         *
+         * <p>Copied on the way in. {@code ItemStack} is mutable and this record outlives every
+         * container it was taken from, so sharing the instance would let a later mutation rewrite
+         * history.
          */
-        public record CarrierSlot(int menuSlot, Holder<Item> item, int count) {}
+        public record CarrierSlot(int menuSlot, ItemStack stack) {
+            public CarrierSlot {
+                stack = stack.copy();
+            }
+        }
 
         public UseContainer {
             carrier = List.copyOf(carrier);

@@ -19,6 +19,7 @@ import com.skilles.chronoclones.replay.CloneRuntime;
 import com.skilles.chronoclones.replay.LevelActionBudget;
 import com.skilles.chronoclones.replay.MotionTrack;
 import com.skilles.chronoclones.replay.Placement;
+import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -64,7 +65,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
      * exactly this size and reads it by index. When the two drifted apart the readouts past the end
      * did not degrade — they threw, on a client, in a code path no game test reaches.
      */
-    public static final int DATA_COUNT = 18;
+    public static final int DATA_COUNT = 19;
     public static final int UPGRADE_SLOTS = 3;
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
@@ -98,6 +99,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private final List<CloneRuntime> runtimes = new ArrayList<>();
     private BlockPos originOffset = BlockPos.ZERO;
+    /** How specific this anchor is about item transfers. Set in the GUI, not bought. */
+    private TransferPrecision precision = TransferPrecision.NONE;
     private UpgradeState upgrades = UpgradeState.BASE;
     private ChargeBuffer charge = ChargeBuffer.EMPTY;
     private boolean enabled = true;
@@ -125,6 +128,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case 15 -> originOffset.getX();
                 case 16 -> originOffset.getY();
                 case 17 -> originOffset.getZ();
+                case 18 -> precision.pack();
                 default -> 0;
             };
         }
@@ -194,6 +198,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /** How far the routine has been nudged from the anchor, in anchor-local space. */
     public BlockPos getOriginOffset() {
         return originOffset;
+    }
+
+    /** How specific this anchor is about item transfers (see {@link TransferPrecision}). */
+    public TransferPrecision getPrecision() {
+        return precision;
+    }
+
+    public void setPrecision(TransferPrecision precision) {
+        this.precision = precision;
+        setChanged();
     }
 
     /**
@@ -507,8 +521,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
                         serverLevel, a, placement, ownerId, ownerName, inventory);
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
-                        serverLevel, a, placement, ownerId, ownerName, inventory,
-                        upgrades.coherenceTier());
+                        serverLevel, a, placement, ownerId, ownerName, inventory, precision);
             };
 
             if (result.succeeded()) {
@@ -787,6 +800,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (!originOffset.equals(BlockPos.ZERO)) {
             output.store("origin_offset", BlockPos.CODEC, originOffset);
         }
+        if (!precision.equals(TransferPrecision.NONE)) {
+            output.putInt("precision", precision.pack());
+        }
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
         // Playheads are deliberately NOT saved: no catch-up on chunk load.
     }
@@ -806,6 +822,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ownerName = input.getStringOr("owner_name", "");
         enabled = input.getBooleanOr("enabled", true);
         originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
+        precision = TransferPrecision.unpack(input.getIntOr("precision", 0));
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
         // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.

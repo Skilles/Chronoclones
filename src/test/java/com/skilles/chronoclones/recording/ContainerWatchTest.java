@@ -3,13 +3,11 @@ package com.skilles.chronoclones.recording;
 import java.util.List;
 import java.util.Set;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.ItemStack;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * What a container session carries.
@@ -23,20 +21,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ContainerWatchTest {
 
-    private static ChronoAction.UseContainer.CarrierSlot slot(int menuSlot,
-                                                            net.minecraft.world.item.Item item) {
-        return new ChronoAction.UseContainer.CarrierSlot(
-                menuSlot, BuiltInRegistries.ITEM.wrapAsHolder(item), 1);
+    /**
+     * One occupied square. The stack is empty because it cannot be anything else here — an item's
+     * default components are bound during datapack load, so {@code new ItemStack(Items.X)} throws in
+     * the FML JUnit bootstrap. It costs nothing: {@link ContainerWatch#carried} decides purely on slot
+     * index, and which stack survives the narrowing is asserted in {@code PrecisionGameTest}.
+     */
+    private static ChronoAction.UseContainer.CarrierSlot slot(int menuSlot) {
+        return new ChronoAction.UseContainer.CarrierSlot(menuSlot, ItemStack.EMPTY);
     }
 
     /** A full player inventory, of which any one session touches almost nothing. */
     private static List<ChronoAction.UseContainer.CarrierSlot> fullInventory() {
-        return List.of(
-                slot(54, Items.DIAMOND_PICKAXE),
-                slot(55, Items.TORCH),
-                slot(60, Items.SANDSTONE),
-                slot(31, Items.BREAD),
-                slot(42, Items.COBBLESTONE));
+        return List.of(slot(54), slot(55), slot(60), slot(31), slot(42));
     }
 
     @Test
@@ -47,7 +44,6 @@ class ContainerWatchTest {
 
         assertEquals(1, carried.size(), "carried: " + carried);
         assertEquals(60, carried.getFirst().menuSlot());
-        assertTrue(carried.getFirst().item().value() == Items.SANDSTONE);
     }
 
     @Test

@@ -125,9 +125,9 @@ public final class RecordingCodecs {
 
     static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item")
-                    .forGetter(ChronoAction.UseContainer.CarrierSlot::item),
-            Codec.INT.fieldOf("count").forGetter(ChronoAction.UseContainer.CarrierSlot::count)
+            // The whole stack, components included: an anchor set to be specific about items compares
+            // them with isSameItemSameComponents, which an item id alone cannot answer.
+            ItemStack.CODEC.fieldOf("stack").forGetter(ChronoAction.UseContainer.CarrierSlot::stack)
     ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
 
     static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -214,8 +214,7 @@ public final class RecordingCodecs {
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.VAR_INT, ChronoAction.UseContainer.CarrierSlot::menuSlot,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseContainer.CarrierSlot::item,
-                    ByteBufCodecs.VAR_INT, ChronoAction.UseContainer.CarrierSlot::count,
+                    ItemStack.STREAM_CODEC, ChronoAction.UseContainer.CarrierSlot::stack,
                     ChronoAction.UseContainer.CarrierSlot::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer> USE_CONTAINER_STREAM =
