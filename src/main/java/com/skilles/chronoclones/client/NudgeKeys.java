@@ -103,8 +103,8 @@ public final class NudgeKeys {
 
     private static void send(BlockPos anchorPos, BlockPos delta) {
         ClientPacketDistributor.sendToServer(new AnchorNudgePayload(anchorPos, delta));
-        // The cached routine is now drawn in the wrong place. Dropping it re-requests on the next
-        // frame rather than waiting out the sixty-tick TTL, which would make nudging feel broken.
-        PreviewCache.forget();
+        // Move the preview with it rather than dropping it — see PreviewCache.nudged for why
+        // waiting for the server to answer made every press flash back to the original origin.
+        PreviewCache.nudged(delta);
     }
 }

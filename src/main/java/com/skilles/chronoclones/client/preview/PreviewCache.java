@@ -117,6 +117,25 @@ public final class PreviewCache {
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
+    /**
+     * Moves the cached routine by a nudge the client has just sent.
+     *
+     * <p>The alternative was dropping the cache and waiting for the server to say where the routine
+     * went, and it looked wrong: clearing the offset drew one or more frames at the un-nudged origin
+     * before the reply landed, so every press flashed the wireframe back to where it started. The
+     * client knows the delta — it just sent it — so the drawing can be right immediately and the
+     * reply becomes a confirmation rather than the source.
+     *
+     * <p>An optimistic offset is only wrong if the server refuses the nudge, which happens for
+     * somebody else's anchor. The ordinary TTL refresh puts that right within a few seconds, and a
+     * player who cannot move an anchor is not the one watching to see whether it moved.
+     *
+     * @param delta the step, or {@link BlockPos#ZERO} for a reset
+     */
+    public static void nudged(BlockPos delta) {
+        cachedOffset = delta.equals(BlockPos.ZERO) ? BlockPos.ZERO : cachedOffset.offset(delta);
+    }
+
     public static void forget() {
         cachedFor = null;
         cached = null;
