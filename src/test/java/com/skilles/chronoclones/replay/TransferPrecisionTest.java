@@ -4,18 +4,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
- * The packing, which is the part with something to get wrong.
+ * The packed form, which is a stored format rather than an internal detail.
  *
- * <p>Three booleans travel to the client as one synced int and come back from the drawer as one
- * payload field. If the bits were to shift — a fourth axis inserted in the middle, say — an anchor
- * saved as "specific about items" would silently reload as "specific about slots" and start putting
- * things somewhere else. Nothing about that failure looks like a bug until items are in the wrong
- * chest, so the mapping is pinned here rather than left to be obvious.
+ * <p>{@code pack()} is what goes into an anchor's NBT and across the wire, so the bit layout is a
+ * promise to every anchor already saved in somebody's world. Change it and they all quietly come
+ * back set to something else — an anchor that was specific about items reloads specific about
+ * squares, and starts putting things where they do not go. Nothing about that failure looks like a
+ * version mismatch, so the layout is pinned here.
+ *
+ * <p>What an anchor <em>does</em> with each axis is asserted in {@code PrecisionGameTest}, where
+ * there is a container to move things into.
  */
 class TransferPrecisionTest {
+
+    @Test
+    @DisplayName("the stored bit layout is what it has always been")
+    void bitLayoutIsFixed() {
+        assertEquals(new TransferPrecision(true, false, false), TransferPrecision.unpack(1));
+        assertEquals(new TransferPrecision(false, true, false), TransferPrecision.unpack(2));
+        assertEquals(new TransferPrecision(false, false, true), TransferPrecision.unpack(4));
+    }
 
     @Test
     @DisplayName("all eight combinations survive the round trip")
@@ -30,31 +40,18 @@ class TransferPrecisionTest {
     }
 
     @Test
-    @DisplayName("each axis owns its own bit")
-    void axesAreIndependent() {
-        assertEquals(new TransferPrecision(true, false, false), TransferPrecision.unpack(1));
-        assertEquals(new TransferPrecision(false, true, false), TransferPrecision.unpack(2));
-        assertEquals(new TransferPrecision(false, false, true), TransferPrecision.unpack(4));
-    }
-
-    @Test
-    @DisplayName("a fresh anchor is specific about nothing")
-    void noneIsTheDefault() {
-        // The default has to be the loose end. An anchor that started out demanding the exact stack
-        // in the exact square would stop working the first time anything in the world moved, and
-        // would look broken rather than strict.
-        assertEquals(0, TransferPrecision.NONE.pack());
-        assertFalse(TransferPrecision.NONE.slot());
-        assertFalse(TransferPrecision.NONE.item());
-        assertFalse(TransferPrecision.NONE.quantity());
+    @DisplayName("an anchor with nothing stored reads as specific about nothing")
+    void absentMeansNone() {
+        // loadAdditional defaults the tag to zero, so this is what every anchor saved before the
+        // setting existed will come back as — and the loose end is the right answer for them.
+        assertEquals(TransferPrecision.NONE, TransferPrecision.unpack(0));
     }
 
     @Test
     @DisplayName("bits nobody has claimed are ignored, not rejected")
     void unknownBitsAreDropped() {
-        // unpack decodes a packet a client sent. A future fourth axis reaching an older server must
-        // read as "not set" rather than throwing a payload handler off mid-tick.
-        assertEquals(TransferPrecision.NONE, TransferPrecision.unpack(0b1000));
+        // unpack decodes a packet a client sent. A fourth axis reaching an older server must read as
+        // "not set" rather than throwing a payload handler off mid-tick.
         assertEquals(new TransferPrecision(true, true, true), TransferPrecision.unpack(0b1111));
     }
 }

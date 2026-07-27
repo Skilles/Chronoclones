@@ -4,14 +4,20 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.network.AnchorPrecisionPayload;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.util.ProblemReporter;
+import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -59,6 +65,14 @@ final class PrecisionGameTest {
                 PrecisionGameTest::exactSlotRefusesASubstitute);
         ChronoclonesGameTests.add("precision_carrier_stack_survives_an_imprint",
                 PrecisionGameTest::carrierStackSurvivesAnImprint);
+        ChronoclonesGameTests.add("precision_every_carried_square_gets_its_share",
+                PrecisionGameTest::everyCarriedSquareGetsItsShare);
+        ChronoclonesGameTests.add("precision_the_screen_can_set_it",
+                PrecisionGameTest::theScreenCanSetIt);
+        ChronoclonesGameTests.add("precision_a_stranger_cannot_set_it",
+                PrecisionGameTest::aStrangerCannotSetIt);
+        ChronoclonesGameTests.add("precision_survives_a_save_and_load",
+                PrecisionGameTest::settingSurvivesASaveAndLoad);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -391,6 +405,156 @@ final class PrecisionGameTest {
             helper.fail("the carrier stack changed across the imprint: recorded "
                     + recorded.getHoverName().getString() + " x" + recorded.getCount()
                     + ", kept " + kept.getHoverName().getString() + " x" + kept.getCount());
+        }
+        helper.succeed();
+    }
+
+    // ------------------------------------------------------------------- staging
+
+    /**
+     * A session that stocks two squares stocks both of them.
+     *
+     * <p>The case that went missing: every other container test carries one square, and with one
+     * square there is nothing to starve. Not being specific about quantity means taking as much as
+     * the anchor has, and taken literally that let the first square empty the stock and every square
+     * after it report the routine unstocked — so a two-square session could not run at all, which is
+     * most real ones.
+     */
+    private static void everyCarriedSquareGetsItsShare(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int first = CHEST_MAIN_INVENTORY_START;
+        int second = CHEST_MAIN_INVENTORY_START + 1;
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE,
+                        List.of(new ChronoAction.UseContainer.CarrierSlot(
+                                        first, new ItemStack(Items.DIAMOND, 2)),
+                                new ChronoAction.UseContainer.CarrierSlot(
+                                        second, new ItemStack(Items.DIAMOND, 2))),
+                        List.of(click(first, ContainerInput.QUICK_MOVE),
+                                click(second, ContainerInput.QUICK_MOVE)))));
+        AnchorTestFixture.unlockAllActions(anchor);
+        // One stack, and the routine wants it split across two squares.
+        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 8);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(target);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NONE) {
+                        helper.fail("a two-square session reported " + anchor.getLastFailure().reason()
+                                + " with the anchor stocked: the first square took the lot");
+                        return;
+                    }
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absolute, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
+                    if (countIn(barrel, Items.DIAMOND) != 8) {
+                        helper.fail("expected all 8 deposited across both squares, barrel holds "
+                                + countIn(barrel, Items.DIAMOND));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    // -------------------------------------------------------------------- the screen
+
+    /**
+     * The path from the checkbox to the anchor.
+     *
+     * <p>Everything else here sets the flags on the block entity directly, which proves replay reads
+     * them and proves nothing whatsoever about whether clicking one ever gets that far. This drives
+     * the packet handler with a real player and a real open menu, which is every link in that chain
+     * except the click itself.
+     */
+    @SuppressWarnings("removal")
+    private static void theScreenCanSetIt(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.breakOneBlock(Blocks.STONE), player);
+
+        player.openMenu(anchor);
+
+        TransferPrecision wanted = new TransferPrecision(true, false, true);
+        if (!AnchorPrecisionPayload.apply(player, anchor.getBlockPos(), wanted.pack())) {
+            helper.fail("the anchor refused a setting from the player who has its screen open");
+            return;
+        }
+        if (!anchor.getPrecision().equals(wanted)) {
+            helper.fail("expected " + wanted + ", anchor holds " + anchor.getPrecision());
+            return;
+        }
+
+        // And the gate is real: the same packet with no menu open changes nothing. Without this the
+        // test above would pass just as well against a handler that accepted anything.
+        player.containerMenu = player.inventoryMenu;
+        if (AnchorPrecisionPayload.apply(player, anchor.getBlockPos(), 0)) {
+            helper.fail("the anchor accepted a setting from a player with no menu open");
+            return;
+        }
+        if (!anchor.getPrecision().equals(wanted)) {
+            helper.fail("the refused packet changed the setting anyway");
+            return;
+        }
+        helper.succeed();
+    }
+
+    /** An anchor somebody else imprinted is not yours to retune, screen open or not. */
+    @SuppressWarnings("removal")
+    private static void aStrangerCannotSetIt(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        // placeAndImprint takes ownership as OWNER_ID; the mock player is somebody else entirely.
+        ServerPlayer stranger = helper.makeMockServerPlayerInLevel();
+        stranger.openMenu(anchor);
+
+        if (AnchorPrecisionPayload.apply(stranger, anchor.getBlockPos(),
+                new TransferPrecision(true, true, true).pack())) {
+            helper.fail("a stranger retuned somebody else's anchor");
+            return;
+        }
+        if (!anchor.getPrecision().equals(TransferPrecision.NONE)) {
+            helper.fail("the anchor's setting changed anyway: " + anchor.getPrecision());
+            return;
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The setting survives the anchor being saved and loaded again.
+     *
+     * <p>A setting that did not persist would look exactly like one that never applied: you tick a
+     * box, walk away, the chunk unloads, and the anchor goes back to what it was. That is
+     * indistinguishable from the packet never arriving, and it is the difference between a bug in
+     * the GUI and a bug in the block entity.
+     */
+    private static void settingSurvivesASaveAndLoad(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        TransferPrecision wanted = new TransferPrecision(true, false, true);
+        anchor.setPrecision(wanted);
+
+        HolderLookup.Provider registries = helper.getLevel().registryAccess();
+        CompoundTag saved = anchor.saveCustomOnly(registries);
+
+        ChronoAnchorBlockEntity reloaded =
+                new ChronoAnchorBlockEntity(anchor.getBlockPos(), anchor.getBlockState());
+        reloaded.loadCustomOnly(
+                TagValueInput.create(ProblemReporter.DISCARDING, registries, saved));
+
+        if (!reloaded.getPrecision().equals(wanted)) {
+            helper.fail("the setting did not survive a save and load: saved " + wanted
+                    + ", loaded " + reloaded.getPrecision());
+            return;
         }
         helper.succeed();
     }

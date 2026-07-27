@@ -85,6 +85,13 @@ public final class ContainerCarrier {
         // thirty-two — undoing the count that was just decided and shift-clicking the lot away.
         boolean[] claimed = new boolean[Inventory.INVENTORY_SIZE];
 
+        // Two passes, and the order is the whole point. The first gives every square the amount the
+        // recording used, so each one gets its share; only then does the second hand out what is
+        // left over. Doing it in one pass let the first square take the entire stock — "quantity is
+        // incidental" means take as much as there is — and every square after it found an empty
+        // pool and reported the routine unstocked. A session with two carried squares could not run
+        // at all, which is most of them.
+        List<Staged> staged = new ArrayList<>(layout.size());
         for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
             if (wanted.menuSlot() >= menu.slots.size()) {
                 continue;
@@ -94,8 +101,8 @@ public final class ContainerCarrier {
                 continue;
             }
 
-            ItemStack staged = draw(pool, wanted.stack(), precision);
-            if (staged.isEmpty()) {
+            ItemStack share = draw(pool, wanted.stack(), precision, wanted.stack().getCount());
+            if (share.isEmpty()) {
                 // The routine needs something the anchor is not stocked with. Report it rather than
                 // running a session whose clicks will land on empty squares and quietly do nothing.
                 //
@@ -109,9 +116,19 @@ public final class ContainerCarrier {
                 spill(pool, target, claimed);
                 return false;
             }
-            target.setItem(slot.getContainerSlot(), staged);
-            if (slot.getContainerSlot() < claimed.length) {
-                claimed[slot.getContainerSlot()] = true;
+            staged.add(new Staged(slot.getContainerSlot(), share));
+        }
+
+        for (Staged entry : staged) {
+            ItemStack stack = entry.stack();
+            if (!precision.quantity()) {
+                // Every square has had its share by now, so the surplus can go out without starving
+                // one. A single square is still the ceiling.
+                stack = gather(pool, stack, stack, stack.getMaxStackSize());
+            }
+            target.setItem(entry.inventorySlot(), stack);
+            if (entry.inventorySlot() < claimed.length) {
+                claimed[entry.inventorySlot()] = true;
             }
         }
 
@@ -162,19 +179,25 @@ public final class ContainerCarrier {
      * <p>Gathering runs across the whole pool once a kind has been settled on, since the anchor may
      * be holding the same item spread over several of its own slots.
      */
-    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision) {
+    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision,
+                                  int limit) {
         ItemStack kind = choose(pool, wanted, precision);
         if (kind.isEmpty()) {
             return ItemStack.EMPTY;
         }
 
-        // Quantity off means the recorded count was incidental, so take everything available — a
-        // routine taught with a handful then runs with a stack. Either way one slot is the ceiling.
-        int limit = Math.min(
-                precision.quantity() ? wanted.getCount() : Integer.MAX_VALUE,
-                kind.getMaxStackSize());
+        return gather(pool, kind, ItemStack.EMPTY, Math.min(limit, kind.getMaxStackSize()));
+    }
 
-        ItemStack drawn = ItemStack.EMPTY;
+    /**
+     * Moves up to {@code limit} of {@code kind} out of the pool, adding it to {@code sofar}.
+     *
+     * <p>{@code kind} is passed separately rather than read off {@code sofar} because an empty stack
+     * reports its item as air however it was built, so a running total cannot describe what it is a
+     * total of until it has something in it.
+     */
+    private static ItemStack gather(List<ItemStack> pool, ItemStack kind, ItemStack sofar, int limit) {
+        ItemStack drawn = sofar;
         for (int i = 0; i < pool.size() && drawn.getCount() < limit; i++) {
             ItemStack candidate = pool.get(i);
             if (candidate.isEmpty() || !ItemStack.isSameItemSameComponents(candidate, kind)) {
@@ -190,6 +213,9 @@ public final class ContainerCarrier {
         }
         return drawn;
     }
+
+    /** One square's worth, decided but not yet written into the player. */
+    private record Staged(int inventorySlot, ItemStack stack) {}
 
     /**
      * Which of the anchor's items this slot gets, as a ladder from most to least specific.

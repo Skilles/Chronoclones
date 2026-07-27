@@ -51,20 +51,32 @@ public record AnchorPrecisionPayload(BlockPos anchorPos, int packed) implements 
      * <p>Refusals are silent — there is nothing a legitimate client can do about one.
      */
     public static void handle(AnchorPrecisionPayload payload, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
+        if (context.player() instanceof ServerPlayer player) {
+            apply(player, payload.anchorPos(), payload.packed());
         }
+    }
+
+    /**
+     * The decision, separated from the packet that carries it.
+     *
+     * <p>Split out to be testable: this is the half of the feature with rules in it, and until it
+     * had a test the only way to find out whether a checkbox reached the anchor was to click one.
+     *
+     * @return whether the setting was applied, for a caller that wants to know
+     */
+    public static boolean apply(ServerPlayer player, BlockPos anchorPos, int packed) {
         if (!(player.containerMenu instanceof ChronoAnchorMenu menu)
-                || !menu.anchorPos().equals(payload.anchorPos())) {
-            return;
+                || !menu.anchorPos().equals(anchorPos)) {
+            return false;
         }
-        if (!(player.level().getBlockEntity(payload.anchorPos()) instanceof ChronoAnchorBlockEntity anchor)) {
-            return;
+        if (!(player.level().getBlockEntity(anchorPos) instanceof ChronoAnchorBlockEntity anchor)) {
+            return false;
         }
         if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
-            return;
+            return false;
         }
 
-        anchor.setPrecision(TransferPrecision.unpack(payload.packed()));
+        anchor.setPrecision(TransferPrecision.unpack(packed));
+        return true;
     }
 }

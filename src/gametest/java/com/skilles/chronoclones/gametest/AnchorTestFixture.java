@@ -92,6 +92,13 @@ final class AnchorTestFixture {
      */
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording) {
+        return placeAndImprint(helper, relativeAnchorPos, recording, owner(helper.getLevel()));
+    }
+
+    /** The same, imprinted by somebody specific — for tests about who may do what afterwards. */
+    static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
+                                                 Recording recording,
+                                                 net.minecraft.server.level.ServerPlayer imprinter) {
         helper.setBlock(relativeAnchorPos, ModBlocks.CHRONO_ANCHOR.get()
                 .defaultBlockState()
                 .setValue(ChronoAnchorBlock.FACING, Direction.NORTH));
@@ -104,7 +111,7 @@ final class AnchorTestFixture {
             throw new IllegalStateException("unreachable");
         }
 
-        anchor.imprint(recording, owner(level));
+        anchor.imprint(recording, imprinter);
         giveInfiniteCharge(anchor);
         return anchor;
     }

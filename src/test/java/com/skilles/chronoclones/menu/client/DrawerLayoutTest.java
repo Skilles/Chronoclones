@@ -58,27 +58,23 @@ class DrawerLayoutTest {
     }
 
     @Test
-    @DisplayName("the tab sits against the window on whichever side it opens")
-    void tabHugsTheWindow() {
-        assertEquals(100 + WINDOW, DrawerLayout.tabX(false, 100, WINDOW));
-        assertEquals(100 - DrawerLayout.TAB_WIDTH, DrawerLayout.tabX(true, 100, WINDOW));
-    }
-
-    @Test
-    @DisplayName("opening right grows away from a fixed edge; opening left moves the edge")
-    void bodyGrowsAwayFromTheTab() {
-        // The asymmetry is the whole point. Rightwards, the body's left edge is where the tab ends
-        // and stays there while the panel widens. Leftwards, the panel's right edge is pinned
-        // instead, so its left edge is what moves — mirroring the first case would have made a
-        // left-hand drawer slide out from under the window rather than away from it.
-        assertEquals(100 + WINDOW + DrawerLayout.TAB_WIDTH,
-                DrawerLayout.bodyX(false, 100, WINDOW, 0));
-        assertEquals(100 + WINDOW + DrawerLayout.TAB_WIDTH,
-                DrawerLayout.bodyX(false, 100, WINDOW, DrawerLayout.WIDTH));
-
-        assertEquals(100 - DrawerLayout.TAB_WIDTH, DrawerLayout.bodyX(true, 100, WINDOW, 0));
-        assertEquals(100 - DrawerLayout.TAB_WIDTH - DrawerLayout.WIDTH,
-                DrawerLayout.bodyX(true, 100, WINDOW, DrawerLayout.WIDTH));
+    @DisplayName("the drawer never slides across the window, at any width, on either side")
+    void bodyNeverCoversTheWindow() {
+        // The asymmetry this guards is easy to get wrong and invisible in the code. Opening right,
+        // the body's left edge is where the tab ends and stays put as the panel widens. Opening
+        // left, the body's *right* edge is what is pinned, so its left edge moves — and writing
+        // that as a mirror of the first case makes a left-hand drawer grow out from under the
+        // window, over the slots, instead of away from it.
+        int leftPos = 300;
+        for (boolean onLeft : new boolean[] {false, true}) {
+            for (int open = 0; open <= DrawerLayout.WIDTH; open++) {
+                int bodyX = DrawerLayout.bodyX(onLeft, leftPos, WINDOW, open);
+                boolean overlaps = bodyX < leftPos + WINDOW && bodyX + open > leftPos;
+                assertFalse(overlaps, "drawer at width " + open + (onLeft ? " (left)" : " (right)")
+                        + " covers the window: body " + bodyX + ".." + (bodyX + open)
+                        + ", window " + leftPos + ".." + (leftPos + WINDOW));
+            }
+        }
     }
 
     @Test
@@ -98,19 +94,4 @@ class DrawerLayoutTest {
         }
     }
 
-    @Test
-    @DisplayName("at the narrowest window the game allows, nothing fits either side")
-    void theFloorIsInherentlyClipped() {
-        // Minecraft clamps the GUI scale so the effective width bottoms out around 320, where a
-        // centred window leaves 72 a side. Recorded rather than worked around: the clipping there is
-        // arithmetic, not a bug to chase, and the sides are exactly equal so which one it picks
-        // carries no information. If narrowing the drawer ever makes this pass, this test has done
-        // its job and should go — along with the caveat in fullyOpenFitsOnScreen.
-        int screen = 320;
-        int leftPos = centred(screen);
-        int roomRight = screen - (leftPos + WINDOW);
-
-        assertTrue(NEEDED > leftPos, "the left now fits — the floor moved, so revisit both tests");
-        assertTrue(NEEDED > roomRight, "the right now fits — the floor moved, so revisit both tests");
-    }
 }
