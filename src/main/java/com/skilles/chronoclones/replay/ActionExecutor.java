@@ -97,9 +97,10 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. Coherence, from the anchor's Chrono Lenses. The recorded tool decides what it
-        //    may substitute into — see Coherence.
-        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier, action.toolTemplate())) {
+        // 3. Coherence, from the anchor's Chrono Lenses. Nothing to check without one: the
+        //    clone swings the recorded tool at the square and whatever is there gets what a player
+        //    would have given it. See Coherence.
+        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier)) {
             return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
 
@@ -507,8 +508,7 @@ public final class ActionExecutor {
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
                                              Placement placement,
                                              java.util.UUID ownerId, String ownerName,
-                                             ItemStacksResourceHandler inventory,
-                                             TransferPrecision precision) {
+                                             ItemStacksResourceHandler inventory) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -543,7 +543,7 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier(), precision)) {
+            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier())) {
                 ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
                 return Result.fail(FailureReason.NO_ITEM, action.localPos());
             }
@@ -552,14 +552,11 @@ public final class ActionExecutor {
                     if (click.slot() >= menu.slots.size()) {
                         return Result.fail(FailureReason.NO_TARGET, action.localPos());
                     }
-                    // The item about to move is whatever is on the cursor. When there is one, an
-                    // anchor that is not specific about slots may put it in another square of the
-                    // same kind if the remembered one is occupied; picking something up is always
-                    // from the square named.
-                    ItemStack carried = menu.getCarried();
-                    int slot = carried.isEmpty() ? click.slot()
-                            : SlotChoice.resolve(menu, click.slot(), carried, precision);
-                    menu.clicked(slot, click.button(), click.input(), owner);
+                    // The square the player clicked, whatever is in it now. An earlier version looked
+                    // for another square of the same kind when the remembered one was full, which is
+                    // a guess at intent rather than a replay of a gesture — and it meant an anchor
+                    // could put things somewhere the routine never touched.
+                    menu.clicked(click.slot(), click.button(), click.input(), owner);
                 }
             } finally {
                 // Returns whatever is on the cursor to the player, then everything the player is

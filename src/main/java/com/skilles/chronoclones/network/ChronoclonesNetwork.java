@@ -44,10 +44,6 @@ public final class ChronoclonesNetwork {
                 AnchorNudgePayload.STREAM_CODEC,
                 AnchorNudgePayload::handle);
 
-        registrar.playToServer(AnchorPrecisionPayload.TYPE,
-                AnchorPrecisionPayload.STREAM_CODEC,
-                AnchorPrecisionPayload::handle);
-
         registrar.playToClient(AnchorPreviewPayloads.Reply.TYPE,
                 AnchorPreviewPayloads.Reply.STREAM_CODEC,
                 (payload, context) -> clientReplyHandler.accept(payload));

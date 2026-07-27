@@ -56,7 +56,7 @@ public final class AnchorPreviewPayloads {
      * the part you otherwise have to work out by counting.
      */
     public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure,
-                        BlockPos originOffset, int precision) implements CustomPacketPayload {
+                        BlockPos originOffset) implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Reply> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("anchor_preview"));
@@ -67,7 +67,6 @@ public final class AnchorPreviewPayloads {
                         ByteBufCodecs.optional(RecordingCodecs.RECORDING_STREAM), Reply::recording,
                         ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Reply::failure,
                         BlockPos.STREAM_CODEC.cast(), Reply::originOffset,
-                        ByteBufCodecs.VAR_INT, Reply::precision,
                         Reply::new);
 
         @Override
@@ -97,8 +96,7 @@ public final class AnchorPreviewPayloads {
         }
 
         context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording()),
-                anchor.getLastFailure(), anchor.getOriginOffset(),
-                anchor.getPrecision().pack()));
+                anchor.getLastFailure(), anchor.getOriginOffset()));
     }
 
     /** A little beyond any reasonable reach, so a laggy client is not refused its own preview. */

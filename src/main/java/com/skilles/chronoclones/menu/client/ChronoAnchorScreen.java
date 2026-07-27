@@ -1,20 +1,14 @@
 package com.skilles.chronoclones.menu.client;
 
-import java.util.function.BooleanSupplier;
-
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
-import com.skilles.chronoclones.network.AnchorPrecisionPayload;
-import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 /**
  * The Chrono Anchor screen: storage, fuel, upgrades, charge, and the diagnostic line.
@@ -53,17 +47,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private static final int DRAWER_TAB_Y = 16;
     private static final int DRAWER_PADDING = 6;
     private static final int DRAWER_TITLE_Y = 6;
-    private static final int DRAWER_FIRST_ROW_Y = 20;
-    private static final int DRAWER_ROW_SPACING = 16;
-    private static final int DRAWER_HEIGHT =
-            DRAWER_FIRST_ROW_Y + DRAWER_ROW_SPACING * 2 + PrecisionToggle.HEIGHT + DRAWER_PADDING;
+    private static final int DRAWER_HEIGHT = 70;
 
     /** How far the drawer is open, 0 to 1. Advanced a step per tick, so it slides rather than snaps. */
     private float openness;
     private float previousOpenness;
     private boolean drawerOpen;
     private boolean drawerOnLeft;
-    private final PrecisionToggle[] toggles = new PrecisionToggle[3];
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x — they must go through the 5-arg constructor.
@@ -78,56 +68,10 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         drawerOnLeft = DrawerLayout.opensLeft(width, leftPos, imageWidth);
 
         addRenderableWidget(new DrawerTab(font,
-                Component.translatable("gui.chronoclones.anchor.precision"),
+                Component.translatable("gui.chronoclones.anchor.settings"),
                 drawerOnLeft, () -> drawerOpen, () -> drawerOpen = !drawerOpen))
                 .setPosition(DrawerLayout.tabX(drawerOnLeft, leftPos, imageWidth),
                         topPos + DRAWER_TAB_Y);
-
-        addToggle(0, "slot", () -> menu.getPrecision().slot(),
-                on -> send(new TransferPrecision(on, menu.getPrecision().item(),
-                        menu.getPrecision().quantity())));
-        addToggle(1, "item", () -> menu.getPrecision().item(),
-                on -> send(new TransferPrecision(menu.getPrecision().slot(), on,
-                        menu.getPrecision().quantity())));
-        addToggle(2, "quantity", () -> menu.getPrecision().quantity(),
-                on -> send(new TransferPrecision(menu.getPrecision().slot(),
-                        menu.getPrecision().item(), on)));
-
-        // init runs again on resize, and the drawer's own state survives it. Without this the
-        // toggles would blink out for a tick every time the window changed size.
-        updateToggles();
-    }
-
-    private void addToggle(int row, String axis, BooleanSupplier state,
-                           PrecisionToggle.Toggle onToggle) {
-        String key = "gui.chronoclones.anchor.precision." + axis;
-        PrecisionToggle toggle = new PrecisionToggle(font, Component.translatable(key),
-                DrawerLayout.WIDTH - DRAWER_PADDING * 2, state, onToggle);
-        toggle.setTooltip(Tooltip.create(Component.translatable(key + ".tip")));
-        // Positioned where it will be once open, and hidden until then — see containerTick. The y is
-        // measured from the drawer's own top edge, not the window's: the two differ by the tab
-        // offset, and taking it from the window put the first row through the title.
-        toggle.setPosition(
-                DrawerLayout.bodyX(drawerOnLeft, leftPos, imageWidth, DrawerLayout.WIDTH)
-                        + DRAWER_PADDING,
-                topPos + DRAWER_TAB_Y + DRAWER_FIRST_ROW_Y + row * DRAWER_ROW_SPACING);
-        toggle.visible = false;
-        toggle.active = false;
-        addRenderableWidget(toggle);
-        toggles[row] = toggle;
-    }
-
-    /**
-     * Tells the server the new setting and says nothing locally.
-     *
-     * <p>The toggles read straight from the synced value rather than from a local copy, so a packet
-     * the server declines — someone else's anchor — simply never changes what is on screen. An
-     * optimistic widget would tick itself and then untick a moment later, which looks like a bug
-     * rather than like a refusal.
-     */
-    private void send(TransferPrecision precision) {
-        ClientPacketDistributor.sendToServer(
-                new AnchorPrecisionPayload(menu.anchorPos(), precision.pack()));
     }
 
     @Override
@@ -136,23 +80,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         previousOpenness = openness;
         openness = Math.clamp(openness + (drawerOpen ? DRAWER_STEP : -DRAWER_STEP), 0f, 1f);
-        updateToggles();
-    }
-
-    /**
-     * Toggles exist only while the drawer is all the way out.
-     *
-     * <p>A widget you can click while it is still sliding is a widget whose hitbox is somewhere other
-     * than where it is drawn — the panel animates, the widgets do not.
-     */
-    private void updateToggles() {
-        boolean usable = drawerOpen && openness >= 1f;
-        for (PrecisionToggle toggle : toggles) {
-            if (toggle != null) {
-                toggle.visible = usable;
-                toggle.active = usable;
-            }
-        }
     }
 
     /**
@@ -219,8 +146,10 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         // The title only once there is room for it, rather than sliding in clipped from the edge.
         if (open >= DrawerLayout.WIDTH) {
-            extractor.text(font, Component.translatable("gui.chronoclones.anchor.precision"),
+            extractor.text(font, Component.translatable("gui.chronoclones.anchor.settings"),
                     x + DRAWER_PADDING, top + DRAWER_TITLE_Y, ACCENT);
+            extractor.text(font, Component.translatable("gui.chronoclones.anchor.settings.empty"),
+                    x + DRAWER_PADDING, top + DRAWER_TITLE_Y + 14, MUTED);
         }
     }
 

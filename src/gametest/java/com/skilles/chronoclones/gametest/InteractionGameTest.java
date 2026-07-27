@@ -5,7 +5,6 @@ import java.util.List;
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
-import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -51,8 +50,8 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("container_moves_within_itself", InteractionGameTest::movesWithinContainer);
         ChronoclonesGameTests.add("container_refuses_another_menu", InteractionGameTest::refusesAnotherMenu);
         ChronoclonesGameTests.add("container_deposits_into_a_container", InteractionGameTest::depositsIntoAContainer);
-        ChronoclonesGameTests.add("container_lenient_skips_a_full_slot",
-                InteractionGameTest::lenientSkipsAFullSlot);
+        ChronoclonesGameTests.add("container_full_slot_leaves_the_item_alone",
+                InteractionGameTest::fullSlotLeavesTheItemAlone);
         ChronoclonesGameTests.add("container_failed_staging_keeps_the_inventory",
                 InteractionGameTest::failedStagingKeepsTheInventory);
         ChronoclonesGameTests.add("container_needs_its_carried_items", InteractionGameTest::needsItsCarriedItems);
@@ -397,15 +396,14 @@ final class InteractionGameTest {
     private static final int RIGHT = 1;
 
     /**
-     * A full slot must not spill into a different part of the machine.
+     * A click on a full slot does nothing, and does nothing anywhere else either.
      *
-     * <p>The routine puts coal in the furnace's fuel slot, which is already full. A lenient anchor
-     * looks for another slot of the same kind — and a furnace has exactly one fuel slot, so there is
-     * none, and the coal comes home. What it must never do is fall back to the <em>input</em> slot,
-     * which would accept it: a furnace will happily try to smelt coal, so the menu's own
-     * {@code mayPlace} is not enough of a guard on its own.
+     * <p>The routine puts coal in the furnace's fuel slot, which is already full of coal, so the
+     * click has no effect and the coal comes home. What it must never do is end up in the
+     * <em>input</em> slot, which would accept it — a furnace will happily try to smelt coal, so a
+     * routine that went looking for somewhere the item fits would quietly feed the wrong hopper.
      */
-    private static void lenientSkipsAFullSlot(GameTestHelper helper) {
+    private static void fullSlotLeavesTheItemAlone(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
         // A full fuel slot with nothing to smelt just sits there, so it stays full for the test.
@@ -431,8 +429,8 @@ final class InteractionGameTest {
                         return;
                     }
                     if (!furnace.getResource(FURNACE_INPUT).isEmpty()) {
-                        helper.fail("coal reached the smelting slot: a full fuel slot fell back to a "
-                                + "slot of a different kind, got "
+                        helper.fail("coal reached the smelting slot: the click went somewhere other "
+                                + "than the square it named, got "
                                 + furnace.getResource(FURNACE_INPUT).getItem());
                     }
                     // And it is not lost either — a click with nowhere to go returns its item.
@@ -459,10 +457,6 @@ final class InteractionGameTest {
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
         AnchorTestFixture.unlockAllActions(anchor);
-        // Specific about items, which is what makes this layout unsatisfiable at all: the default
-        // anchor would shrug and deposit the gold instead. Staging can only fail when it is either
-        // told the item matters or given nothing whatsoever, and this is the first of those.
-        anchor.setPrecision(new TransferPrecision(false, true, false));
 
         // Stocked with something else entirely, so the layout cannot be satisfied.
         anchor.getInventoryHandler().set(0, ItemResource.of(Items.GOLD_INGOT), 12);

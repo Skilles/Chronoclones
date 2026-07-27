@@ -21,8 +21,8 @@ final class ReplayGameTest {
     static void register() {
         ChronoclonesGameTests.add("break_stores_drops_in_anchor", ReplayGameTest::breakStoresDropsInAnchor);
         ChronoclonesGameTests.add("blacklisted_block_survives", ReplayGameTest::blacklistedBlockSurvives);
-        ChronoclonesGameTests.add("lenient_substitutes_a_harvestable_block",
-                ReplayGameTest::lenientSubstitutesAHarvestableBlock);
+        ChronoclonesGameTests.add("carries_on_when_the_block_changed",
+                ReplayGameTest::carriesOnWhenTheBlockChanged);
         ChronoclonesGameTests.add("full_inventory_does_not_destroy", ReplayGameTest::fullInventoryDoesNotDestroy);
         ChronoclonesGameTests.add("block_entities_are_never_broken", ReplayGameTest::blockEntitiesAreNeverBroken);
     }
@@ -69,16 +69,16 @@ final class ReplayGameTest {
     }
 
     /**
-     * The default is forgiving: a block the recorded tool can harvest is broken even though it is
-     * not the block that was recorded.
+     * The default carries on when the world has drifted: the square holds a different block now, and
+     * the routine mines it and keeps its drops.
      *
-     * <p>The refusal half — an anchor with an Chrono Lens leaving it alone — lives in
-     * {@code CoherenceGameTest}, alongside the rest of the matching rules.
+     * <p>This is the everyday case the whole rule exists for, which is why it sits here with the rest
+     * of the end-to-end behaviour rather than among the matching rules. The refusal half — an anchor
+     * with an Chrono Lens leaving it alone — is in {@code CoherenceGameTest}.
      */
-    private static void lenientSubstitutesAHarvestableBlock(GameTestHelper helper) {
+    private static void carriesOnWhenTheBlockChanged(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        // The canonical drift: you recorded against stone and it is cobblestone now. A pickaxe
-        // harvests both, so the routine carries on.
+        // The canonical drift: you recorded against stone and it is cobblestone now.
         helper.setBlock(target, Blocks.COBBLESTONE);
 
         ChronoAnchorBlockEntity anchor =
@@ -91,7 +91,7 @@ final class ReplayGameTest {
                     // not asserted: a one-action routine loops every second, so by now it has come
                     // round again and is correctly reporting nothing left to break.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.COBBLESTONE) != 1) {
-                        helper.fail("expected the substituted block's drop in the anchor");
+                        helper.fail("expected the drop of the block that was actually there");
                     }
                 })
                 .thenSucceed();

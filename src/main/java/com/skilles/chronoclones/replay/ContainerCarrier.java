@@ -53,16 +53,15 @@ public final class ContainerCarrier {
      * <p>Emptying the anchor is deliberate: if it kept a copy, a session that consumed items would
      * duplicate them on the way back.
      *
-     * <p>How closely the staged items have to match what was recorded is
-     * {@link TransferPrecision} — see {@link #choose} and {@link #draw} for the two axes it governs
-     * here.
+     * <p>The recorded item, up to the recorded amount, and no substitutions. The clicks that follow
+     * are the player's own gestures replayed against whatever ends up in these squares, so the job
+     * here is only to reproduce the arrangement those gestures were made against.
      *
      * @return false if a layout entry found nothing at all to stage
      */
     public static boolean load(ItemStacksResourceHandler inventory, FakePlayer player,
                                AbstractContainerMenu menu,
-                               List<ChronoAction.UseContainer.CarrierSlot> layout,
-                               TransferPrecision precision) {
+                               List<ChronoAction.UseContainer.CarrierSlot> layout) {
         Inventory target = player.getInventory();
         target.clearContent();
         menu.setCarried(ItemStack.EMPTY);
@@ -85,13 +84,6 @@ public final class ContainerCarrier {
         // thirty-two — undoing the count that was just decided and shift-clicking the lot away.
         boolean[] claimed = new boolean[Inventory.INVENTORY_SIZE];
 
-        // Two passes, and the order is the whole point. The first gives every square the amount the
-        // recording used, so each one gets its share; only then does the second hand out what is
-        // left over. Doing it in one pass let the first square take the entire stock — "quantity is
-        // incidental" means take as much as there is — and every square after it found an empty
-        // pool and reported the routine unstocked. A session with two carried squares could not run
-        // at all, which is most of them.
-        List<Staged> staged = new ArrayList<>(layout.size());
         for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
             if (wanted.menuSlot() >= menu.slots.size()) {
                 continue;
@@ -101,13 +93,12 @@ public final class ContainerCarrier {
                 continue;
             }
 
-            ItemStack share = draw(pool, wanted.stack(), precision, wanted.stack().getCount());
-            if (share.isEmpty()) {
+            // Bounded by what the recording held, which is also what stops one square emptying the
+            // anchor and leaving the next one to report the routine unstocked.
+            ItemStack staged = draw(pool, wanted.stack());
+            if (staged.isEmpty()) {
                 // The routine needs something the anchor is not stocked with. Report it rather than
                 // running a session whose clicks will land on empty squares and quietly do nothing.
-                //
-                // This is the only failure the precision flags can produce, and it survives all eight
-                // of them: an empty square is not a less specific transfer, it is no transfer.
                 //
                 // The anchor has already been emptied into the pool by this point, so bailing out
                 // without this line destroyed everything it was holding — a routine that was merely
@@ -116,19 +107,9 @@ public final class ContainerCarrier {
                 spill(pool, target, claimed);
                 return false;
             }
-            staged.add(new Staged(slot.getContainerSlot(), share));
-        }
-
-        for (Staged entry : staged) {
-            ItemStack stack = entry.stack();
-            if (!precision.quantity()) {
-                // Every square has had its share by now, so the surplus can go out without starving
-                // one. A single square is still the ceiling.
-                stack = gather(pool, stack, stack, stack.getMaxStackSize());
-            }
-            target.setItem(entry.inventorySlot(), stack);
-            if (entry.inventorySlot() < claimed.length) {
-                claimed[entry.inventorySlot()] = true;
+            target.setItem(slot.getContainerSlot(), staged);
+            if (slot.getContainerSlot() < claimed.length) {
+                claimed[slot.getContainerSlot()] = true;
             }
         }
 
@@ -170,37 +151,22 @@ public final class ContainerCarrier {
     }
 
     /**
-     * Takes one slot's worth out of the pool: which item, and how much of it.
+     * Takes up to {@code wanted}'s count of {@code wanted}'s item out of the pool.
      *
-     * <p>The two questions are the item and quantity axes of {@link TransferPrecision}, and they are
-     * answered in that order — what to take, then how much — because a slot holds one kind of thing
-     * and mixing two would satisfy neither.
+     * <p>Matched on the item rather than the whole stack, so a routine taught with a fresh pickaxe
+     * runs on a worn one. Below that there is nothing to decide: the recording says what was in this
+     * square, and reproducing it is the entire job.
      *
-     * <p>Gathering runs across the whole pool once a kind has been settled on, since the anchor may
-     * be holding the same item spread over several of its own slots.
+     * <p>Gathering runs across the whole pool, since the anchor may hold the same item spread over
+     * several of its own slots.
      */
-    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision,
-                                  int limit) {
-        ItemStack kind = choose(pool, wanted, precision);
-        if (kind.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
+    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted) {
+        int limit = Math.min(wanted.getCount(), wanted.getMaxStackSize());
 
-        return gather(pool, kind, ItemStack.EMPTY, Math.min(limit, kind.getMaxStackSize()));
-    }
-
-    /**
-     * Moves up to {@code limit} of {@code kind} out of the pool, adding it to {@code sofar}.
-     *
-     * <p>{@code kind} is passed separately rather than read off {@code sofar} because an empty stack
-     * reports its item as air however it was built, so a running total cannot describe what it is a
-     * total of until it has something in it.
-     */
-    private static ItemStack gather(List<ItemStack> pool, ItemStack kind, ItemStack sofar, int limit) {
-        ItemStack drawn = sofar;
+        ItemStack drawn = ItemStack.EMPTY;
         for (int i = 0; i < pool.size() && drawn.getCount() < limit; i++) {
             ItemStack candidate = pool.get(i);
-            if (candidate.isEmpty() || !ItemStack.isSameItemSameComponents(candidate, kind)) {
+            if (candidate.isEmpty() || !candidate.is(wanted.getItem())) {
                 continue;
             }
             int take = Math.min(candidate.getCount(), limit - drawn.getCount());
@@ -212,42 +178,6 @@ public final class ContainerCarrier {
             candidate.shrink(take);
         }
         return drawn;
-    }
-
-    /** One square's worth, decided but not yet written into the player. */
-    private record Staged(int inventorySlot, ItemStack stack) {}
-
-    /**
-     * Which of the anchor's items this slot gets, as a ladder from most to least specific.
-     *
-     * <p>The recorded stack, then the same item ignoring components, then anything at all — with an
-     * anchor that is specific about items stopping after the first rung.
-     *
-     * <p>The ladder matters more than the leniency does. "Take anything" implemented as "take
-     * whatever is first in the pool" would let a correctly stocked anchor stage the wrong item purely
-     * because of the order its own slots happened to be in, turning a working routine into a broken
-     * one for no reason a player could see. Leniency is a fallback, not a coin toss.
-     */
-    private static ItemStack choose(List<ItemStack> pool, ItemStack wanted, TransferPrecision precision) {
-        for (ItemStack candidate : pool) {
-            if (!candidate.isEmpty() && ItemStack.isSameItemSameComponents(candidate, wanted)) {
-                return candidate;
-            }
-        }
-        if (precision.item()) {
-            return ItemStack.EMPTY;
-        }
-        for (ItemStack candidate : pool) {
-            if (!candidate.isEmpty() && candidate.is(wanted.getItem())) {
-                return candidate;
-            }
-        }
-        for (ItemStack candidate : pool) {
-            if (!candidate.isEmpty()) {
-                return candidate;
-            }
-        }
-        return ItemStack.EMPTY;
     }
 
     /**

@@ -10,7 +10,6 @@ import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.TimedAction;
-import com.skilles.chronoclones.replay.TransferPrecision;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -41,15 +40,7 @@ public final class GoggleSlots {
      * @param touched the squares its clicks name
      * @param carried the squares it stocks, and what it expects to find in each
      */
-    public record Session(Set<Integer> touched, Map<Integer, Expect> carried) {}
-
-    /**
-     * What a routine expects of one square, and how much of that it insists on.
-     *
-     * <p>The flags come from the anchor rather than the recording, so two anchors running the same
-     * routine can be marked up differently — which is the point of them being per anchor.
-     */
-    public record Expect(ItemStack stack, TransferPrecision precision) {}
+    public record Session(Set<Integer> touched, Map<Integer, ItemStack> carried) {}
 
     /**
      * The session for the container the player has open, or null if nothing nearby uses it.
@@ -74,7 +65,7 @@ public final class GoggleSlots {
      */
     static @Nullable Session collect(List<PreviewCache.Target> anchors, BlockPos open, int menuSize) {
         Set<Integer> touched = new HashSet<>();
-        Map<Integer, Expect> carried = new HashMap<>();
+        Map<Integer, ItemStack> carried = new HashMap<>();
 
         for (PreviewCache.Target target : anchors) {
             for (TimedAction timed : target.recording().actions()) {
@@ -95,8 +86,7 @@ public final class GoggleSlots {
                 for (ChronoAction.UseContainer.CarrierSlot slot : session.carrier()) {
                     // First anchor to claim a square wins. Two of them stocking the same one is a
                     // conflict the player should sort out, and averaging the marks would hide it.
-                    carried.putIfAbsent(slot.menuSlot(),
-                            new Expect(slot.stack(), target.precision()));
+                    carried.putIfAbsent(slot.menuSlot(), slot.stack());
                 }
             }
         }

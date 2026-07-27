@@ -69,7 +69,7 @@ public final class GogglePayloads {
 
     /** One anchor, as much as the preview needs to draw it. */
     public record Entry(BlockPos pos, Direction facing, BlockPos originOffset,
-                        Recording recording, DiagnosticState failure, int precision) {
+                        Recording recording, DiagnosticState failure) {
 
         public static final StreamCodec<RegistryFriendlyByteBuf, Entry> STREAM_CODEC =
                 StreamCodec.composite(
@@ -78,9 +78,6 @@ public final class GogglePayloads {
                         BlockPos.STREAM_CODEC.cast(), Entry::originOffset,
                         RecordingCodecs.RECORDING_STREAM, Entry::recording,
                         ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Entry::failure,
-                        // Packed rather than three booleans: it is one synced int everywhere else,
-                        // and unpacking it in one place keeps the bit layout in one place too.
-                        ByteBufCodecs.VAR_INT, Entry::precision,
                         Entry::new);
     }
 
@@ -174,8 +171,7 @@ public final class GogglePayloads {
         return new Entry(blockEntity.getBlockPos(),
                 anchor.getBlockState().getValue(
                         com.skilles.chronoclones.block.ChronoAnchorBlock.FACING),
-                anchor.getOriginOffset(), recording, anchor.getLastFailure(),
-                anchor.getPrecision().pack());
+                anchor.getOriginOffset(), recording, anchor.getLastFailure());
     }
 
     /**

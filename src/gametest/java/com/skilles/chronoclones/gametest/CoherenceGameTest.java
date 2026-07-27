@@ -22,15 +22,17 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
- * What a routine will break, and what an Chrono Lens stops it breaking.
+ * What a routine will break, how long it takes, and what an Chrono Lens stops it breaking.
  *
- * <p>These live here rather than in JUnit because the answer runs through
- * {@code requiresCorrectToolForDrops} and the tool's harvest tier, both datapack-driven — outside a
- * running server every tag is empty and an assertion about a diamond pickaxe reaching obsidian would
- * pass whether or not the feature exists.
+ * <p>These live here rather than in JUnit because mining is datapack-driven from end to end —
+ * hardness, harvest tiers, {@code requiresCorrectToolForDrops} — and outside a running server every
+ * one of those queries answers zero, so an assertion about a pickaxe and a block would pass whether
+ * or not the feature existed.
  *
- * <p>Both directions are asserted on purpose. A lens that accepts more is only safe if it still
- * refuses what the recorded tool could not have harvested, which is the whole substance of the rule.
+ * <p>The pair that matters most is a good tool and a bad one against the same block. An anchor that
+ * swings whatever it recorded at whatever is there has to be slow where a player would be slow,
+ * because "it eventually gives up" and "it takes nine seconds" look identical for the first second
+ * and are completely different features.
  */
 final class CoherenceGameTest {
 
@@ -44,10 +46,10 @@ final class CoherenceGameTest {
         // Obsidian with a diamond pickaxe is genuinely ~190 ticks of mining, so this one needs a
         // window that fits the thing it is asserting.
         ChronoclonesGameTests.add("break_takes_time_in_survival", 400, CoherenceGameTest::survivalBreakTakesTime);
-        ChronoclonesGameTests.add("coherence_reaches_what_the_tool_reaches", 400,
-                CoherenceGameTest::followsTheTool);
-        ChronoclonesGameTests.add("coherence_refuses_what_the_tool_cannot_harvest",
-                CoherenceGameTest::refusesTooHard);
+        ChronoclonesGameTests.add("coherence_breaks_whatever_is_there", 400,
+                CoherenceGameTest::breaksWhateverIsThere);
+        ChronoclonesGameTests.add("coherence_a_poor_tool_is_slow_not_refused",
+                CoherenceGameTest::aPoorToolIsSlowNotRefused);
         ChronoclonesGameTests.add("coherence_bare_hands_clear_soft_blocks",
                 CoherenceGameTest::bareHandsClearSoftBlocks);
         ChronoclonesGameTests.add("break_is_instant_from_a_creative_recording",
@@ -127,10 +129,13 @@ final class CoherenceGameTest {
     }
 
     /**
-     * The rule in one assertion: a diamond pickaxe reaches obsidian, so a routine recorded with one
-     * reaches obsidian — no tag list, no config, just what the tool can do.
+     * The rule in one assertion: the routine recorded stone, obsidian is there, and the clone swings
+     * its pickaxe at the obsidian.
+     *
+     * <p>No tag list, no config, and no judgement about whether the block is a reasonable substitute
+     * for the recorded one. A player who walked up with a diamond pickaxe would have mined it.
      */
-    private static void followsTheTool(GameTestHelper helper) {
+    private static void breaksWhateverIsThere(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
@@ -143,8 +148,17 @@ final class CoherenceGameTest {
                 .thenSucceed();
     }
 
-    /** A wooden pickaxe never harvested obsidian, so a routine holding one does not either. */
-    private static void refusesTooHard(GameTestHelper helper) {
+    /**
+     * A wooden pickaxe on obsidian gets nowhere, and gets nowhere the way a player would.
+     *
+     * <p>The counterpart to the test above, and the reason "break whatever is there" is not the
+     * free-for-all it sounds like. Nothing refuses the attempt — an earlier version reported
+     * WRONG_BLOCK here, which was the mod second-guessing what the player meant — but the game's own
+     * arithmetic makes it hopeless: a tool that cannot harvest a block mines it at a hundredth
+     * speed, so a clone with the wrong pickaxe stands there achieving nothing, exactly as a player
+     * with the wrong pickaxe does.
+     */
+    private static void aPoorToolIsSlowNotRefused(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
@@ -152,10 +166,10 @@ final class CoherenceGameTest {
                 breakWith(Blocks.STONE, new ItemStack(Items.WOODEN_PICKAXE)));
 
         helper.startSequence()
-                .thenExecuteAfter(20, () -> {
+                .thenExecuteAfter(120, () -> {
                     helper.assertBlockPresent(Blocks.OBSIDIAN, target);
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
-                        helper.fail("lenience must not stretch to blocks the tool cannot harvest — got "
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NONE) {
+                        helper.fail("the attempt was refused rather than merely slow: "
                                 + anchor.getLastFailure().reason());
                     }
                 })
