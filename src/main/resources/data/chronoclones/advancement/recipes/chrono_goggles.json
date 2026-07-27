@@ -1,12 +1,12 @@
 {
   "parent": "minecraft:recipes/root",
   "criteria": {
-    "has_lens": {
+    "has_amethyst": {
       "trigger": "minecraft:inventory_changed",
       "conditions": {
         "items": [
           {
-            "items": "chronoclones:chrono_lens"
+            "items": "minecraft:amethyst_shard"
           }
         ]
       }
@@ -21,7 +21,7 @@
   "requirements": [
     [
       "has_the_recipe",
-      "has_lens"
+      "has_amethyst"
     ]
   ],
   "rewards": {

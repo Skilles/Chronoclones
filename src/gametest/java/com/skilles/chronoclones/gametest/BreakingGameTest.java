@@ -4,12 +4,10 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
-import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
-import com.skilles.chronoclones.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -19,41 +17,39 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
- * What a routine will break, how long it takes, and what an Chrono Lens stops it breaking.
+ * What a routine breaks, and how long it takes about it.
  *
- * <p>These live here rather than in JUnit because mining is datapack-driven from end to end —
- * hardness, harvest tiers, {@code requiresCorrectToolForDrops} — and outside a running server every
- * one of those queries answers zero, so an assertion about a pickaxe and a block would pass whether
- * or not the feature existed.
+ * <p>A clone swings the tool it was recorded with at the square it was recorded at, and nothing
+ * inspects the block first. Everything interesting about that follows from the game's own mining
+ * arithmetic, which is why these live here rather than in JUnit: hardness, harvest tiers and
+ * {@code requiresCorrectToolForDrops} are all datapack-driven, and outside a running server every
+ * one of those queries answers zero.
  *
- * <p>The pair that matters most is a good tool and a bad one against the same block. An anchor that
- * swings whatever it recorded at whatever is there has to be slow where a player would be slow,
- * because "it eventually gives up" and "it takes nine seconds" look identical for the first second
- * and are completely different features.
+ * <p>The pair that matters most is a good tool and a bad one against the same block. "It gives up"
+ * and "it takes nine seconds" look identical for the first second and are completely different
+ * features, so both directions are pinned.
  */
-final class CoherenceGameTest {
+final class BreakingGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
 
-    private CoherenceGameTest() {}
+    private BreakingGameTest() {}
 
     static void register() {
-        ChronoclonesGameTests.add("coherence_lens_refuses_another_block",
-                CoherenceGameTest::lensRefusesAnother);
-        // Obsidian with a diamond pickaxe is genuinely ~190 ticks of mining, so this one needs a
-        // window that fits the thing it is asserting.
-        ChronoclonesGameTests.add("break_takes_time_in_survival", 400, CoherenceGameTest::survivalBreakTakesTime);
-        ChronoclonesGameTests.add("coherence_breaks_whatever_is_there", 400,
-                CoherenceGameTest::breaksWhateverIsThere);
-        ChronoclonesGameTests.add("coherence_a_poor_tool_is_slow_not_refused",
-                CoherenceGameTest::aPoorToolIsSlowNotRefused);
-        ChronoclonesGameTests.add("coherence_bare_hands_clear_soft_blocks",
-                CoherenceGameTest::bareHandsClearSoftBlocks);
+        // Obsidian with a diamond pickaxe is genuinely ~190 ticks of mining, so the tests that wait
+        // for one need a window that fits the thing they are asserting.
+        ChronoclonesGameTests.add("break_takes_time_in_survival", 400,
+                BreakingGameTest::survivalBreakTakesTime);
         ChronoclonesGameTests.add("break_is_instant_from_a_creative_recording",
-                CoherenceGameTest::creativeBreakIsInstant);
+                BreakingGameTest::creativeBreakIsInstant);
+        ChronoclonesGameTests.add("break_whatever_is_in_the_square", 400,
+                BreakingGameTest::breaksWhateverIsThere);
+        ChronoclonesGameTests.add("break_with_a_poor_tool_is_slow_not_refused",
+                BreakingGameTest::aPoorToolIsSlowNotRefused);
+        ChronoclonesGameTests.add("break_bare_hands_clear_soft_blocks",
+                BreakingGameTest::bareHandsClearSoftBlocks);
     }
 
     /**
@@ -97,40 +93,8 @@ final class CoherenceGameTest {
                 .thenSucceed();
     }
 
-    /** A routine recorded breaking stone, with whatever tool. */
-    private static Recording breakWith(Block expected, ItemStack tool) {
-        return new Recording(
-                List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
-                List.of(new TimedAction(1, new ChronoAction.BreakBlock(
-                        new BlockPos(0, 0, -1),
-                        BuiltInRegistries.BLOCK.wrapAsHolder(expected),
-                        tool))),
-                20, AnchorTestFixture.AUTHOR_NAME, AnchorTestFixture.AUTHOR_ID);
-    }
-
-    /** With a lens fitted, anything but the recorded block is left alone. */
-    private static void lensRefusesAnother(GameTestHelper helper) {
-        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        helper.setBlock(target, Blocks.DEEPSLATE);
-
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE)));
-        fitLens(anchor);
-
-        helper.startSequence()
-                .thenExecuteAfter(20, () -> {
-                    helper.assertBlockPresent(Blocks.DEEPSLATE, target);
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.WRONG_BLOCK) {
-                        helper.fail("expected WRONG_BLOCK with a lens fitted, got "
-                                + anchor.getLastFailure().reason());
-                    }
-                })
-                .thenSucceed();
-    }
-
     /**
-     * The rule in one assertion: the routine recorded stone, obsidian is there, and the clone swings
-     * its pickaxe at the obsidian.
+     * The routine recorded stone, obsidian is there, and the clone swings its pickaxe at the obsidian.
      *
      * <p>No tag list, no config, and no judgement about whether the block is a reasonable substitute
      * for the recorded one. A player who walked up with a diamond pickaxe would have mined it.
@@ -153,10 +117,9 @@ final class CoherenceGameTest {
      *
      * <p>The counterpart to the test above, and the reason "break whatever is there" is not the
      * free-for-all it sounds like. Nothing refuses the attempt — an earlier version reported
-     * WRONG_BLOCK here, which was the mod second-guessing what the player meant — but the game's own
-     * arithmetic makes it hopeless: a tool that cannot harvest a block mines it at a hundredth
-     * speed, so a clone with the wrong pickaxe stands there achieving nothing, exactly as a player
-     * with the wrong pickaxe does.
+     * WRONG_BLOCK here, which was the mod second-guessing what the player meant — but a tool that
+     * cannot harvest a block mines it at a hundredth speed, so a clone with the wrong pickaxe stands
+     * there achieving nothing, exactly as a player with the wrong pickaxe does.
      */
     private static void aPoorToolIsSlowNotRefused(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -176,12 +139,7 @@ final class CoherenceGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Hands are a tool like any other.
-     *
-     * <p>A player can clear dirt bare-handed and cannot touch stone that way, and the same rule
-     * produces both without either being spelled out anywhere.
-     */
+    /** Hands are a tool like any other: a routine recorded empty-handed still clears dirt. */
     private static void bareHandsClearSoftBlocks(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
@@ -194,8 +152,14 @@ final class CoherenceGameTest {
                 .thenSucceed();
     }
 
-    private static void fitLens(ChronoAnchorBlockEntity anchor) {
-        anchor.getUpgradeHandler().set(1, ItemResource.of(ModItems.CHRONO_LENS.get()),
-                UpgradeState.MAX_COHERENCE);
+    /** A routine recorded breaking one block, with whatever tool. */
+    private static Recording breakWith(Block expected, ItemStack tool) {
+        return new Recording(
+                List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
+                List.of(new TimedAction(1, new ChronoAction.BreakBlock(
+                        new BlockPos(0, 0, -1),
+                        BuiltInRegistries.BLOCK.wrapAsHolder(expected),
+                        tool))),
+                20, AnchorTestFixture.AUTHOR_NAME, AnchorTestFixture.AUTHOR_ID);
     }
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
+import com.skilles.chronoclones.menu.AnchorData;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.Recording;
@@ -57,14 +58,6 @@ import org.jspecify.annotations.Nullable;
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
     public static final int INVENTORY_SLOTS = 18;
-    /**
-     * How many ints the menu syncs.
-     *
-     * <p>Lives here, next to the switch that produces them, because the client builds a buffer of
-     * exactly this size and reads it by index. When the two drifted apart the readouts past the end
-     * did not degrade — they threw, on a client, in a code path no game test reaches.
-     */
-    public static final int DATA_COUNT = 18;
     public static final int UPGRADE_SLOTS = 3;
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
@@ -107,24 +100,17 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         @Override
         public int get(int index) {
             return switch (index) {
-                case 0 -> runtimes.isEmpty() ? 0 : runtimes.get(0).playhead();
-                case 1 -> recording == null ? 0 : recording.lengthTicks();
-                case 2 -> recording == null ? 0 : recording.actions().size();
-                case 3 -> lastFailure.reason().ordinal();
-                case 4 -> enabled ? 1 : 0;
-                case 5 -> runtimes.size();
-                case 6 -> charge.stored();
-                case 7 -> charge.capacity();
-                case 8 -> upgrades.cloneCount();
-                case 9 -> upgrades.ticksPerStep();
-                case 10 -> upgrades.fidelityTier();
-                case 11 -> lastFailure.localPos().getX();
-                case 12 -> lastFailure.localPos().getY();
-                case 13 -> lastFailure.localPos().getZ();
-                case 14 -> upgrades.coherenceTier();
-                case 15 -> originOffset.getX();
-                case 16 -> originOffset.getY();
-                case 17 -> originOffset.getZ();
+                case AnchorData.PLAYHEAD -> runtimes.isEmpty() ? 0 : runtimes.get(0).playhead();
+                case AnchorData.LENGTH_TICKS -> recording == null ? 0 : recording.lengthTicks();
+                case AnchorData.ACTION_COUNT -> recording == null ? 0 : recording.actions().size();
+                case AnchorData.FAILURE_REASON -> lastFailure.reason().ordinal();
+                case AnchorData.ACTIVE_CLONES -> runtimes.size();
+                case AnchorData.CHARGE -> charge.stored();
+                case AnchorData.CHARGE_CAPACITY -> charge.capacity();
+                case AnchorData.TICKS_PER_STEP -> upgrades.ticksPerStep();
+                case AnchorData.FAILURE_X -> lastFailure.localPos().getX();
+                case AnchorData.FAILURE_Y -> lastFailure.localPos().getY();
+                case AnchorData.FAILURE_Z -> lastFailure.localPos().getZ();
                 default -> 0;
             };
         }
@@ -134,7 +120,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         @Override
         public int getCount() {
-            return DATA_COUNT;
+            return AnchorData.COUNT;
         }
     };
 
@@ -173,10 +159,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /** The imprinting player — the identity behind every event this anchor causes. */
     public @Nullable UUID getOwnerId() {
         return ownerId;
-    }
-
-    public String getOwnerName() {
-        return ownerName;
     }
 
     public @Nullable Recording getRecording() {
@@ -377,7 +359,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                                 ChronoAction.BreakBlock action, Placement placement,
                                 Direction facing, int cost) {
         ActionExecutor.Result refusal =
-                ActionExecutor.canBreak(serverLevel, action, placement, upgrades.coherenceTier());
+                ActionExecutor.canBreak(serverLevel, action, placement);
         if (refusal != null) {
             // Includes the block vanishing mid-dig: somebody else got there first, so stop digging
             // at nothing and move on.

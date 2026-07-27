@@ -1,8 +1,8 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "key": { "L": "chronoclones:chrono_lens", "I": "minecraft:iron_ingot", "S": "minecraft:string" },
-  "pattern": [ "III", "LIL", "S S" ],
+  "key": { "A": "minecraft:amethyst_shard", "I": "minecraft:iron_ingot", "S": "minecraft:string" },
+  "pattern": [ "III", "AIA", "S S" ],
   "result": {
     "id": "chronoclones:chrono_goggles"
   }

@@ -20,8 +20,8 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.INVENTORY_SLOTS;
 
-    /** Defined by the block entity, so the two cannot drift apart. */
-    public static final int DATA_COUNT = ChronoAnchorBlockEntity.DATA_COUNT;
+    /** Defined alongside the slot names, so the buffer and the readers cannot drift apart. */
+    public static final int DATA_COUNT = AnchorData.COUNT;
 
     /** 18 storage + 1 fuel + 3 upgrade. */
     private static final int TOTAL_ANCHOR_SLOTS =
@@ -90,72 +90,41 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     }
 
     public int getPlayhead() {
-        return data.get(0);
+        return data.get(AnchorData.PLAYHEAD);
     }
 
     public int getLengthTicks() {
-        return data.get(1);
+        return data.get(AnchorData.LENGTH_TICKS);
     }
 
     public int getActionCount() {
-        return data.get(2);
+        return data.get(AnchorData.ACTION_COUNT);
     }
 
     public int getFailureOrdinal() {
-        return data.get(3);
-    }
-
-    public boolean isAnchorEnabled() {
-        return data.get(4) != 0;
+        return data.get(AnchorData.FAILURE_REASON);
     }
 
     public int getActiveClones() {
-        return data.get(5);
+        return data.get(AnchorData.ACTIVE_CLONES);
     }
 
     public int getCharge() {
-        return data.get(6);
+        return data.get(AnchorData.CHARGE);
     }
 
     public int getChargeCapacity() {
-        return Math.max(1, data.get(7));
-    }
-
-    public int getCloneCount() {
-        return data.get(8);
+        return Math.max(1, data.get(AnchorData.CHARGE_CAPACITY));
     }
 
     public int getTicksPerStep() {
-        return data.get(9);
-    }
-
-    public int getFidelityTier() {
-        return data.get(10);
-    }
-
-    public int getCoherenceTier() {
-        return data.get(14);
-    }
-
-    /** How far the routine has been nudged, so the GUI can say so. */
-    public net.minecraft.core.BlockPos getOriginOffset() {
-        return new net.minecraft.core.BlockPos(data.get(15), data.get(16), data.get(17));
-    }
-
-    /**
-     * Which anchor this menu belongs to.
-     *
-     * <p>For a settings packet to check that it came from someone with this anchor's screen open — a
-     * stronger claim than "is standing near it", and one that needs no distance constant. Nothing
-     * sends one at the moment; it is here for whatever the drawer ends up holding.
-     */
-    public BlockPos anchorPos() {
-        return anchor.getBlockPos();
+        return data.get(AnchorData.TICKS_PER_STEP);
     }
 
     /** Anchor-local position of the last failure, for the diagnostic line. */
-    public net.minecraft.core.BlockPos getFailurePos() {
-        return new net.minecraft.core.BlockPos(data.get(11), data.get(12), data.get(13));
+    public BlockPos getFailurePos() {
+        return new BlockPos(data.get(AnchorData.FAILURE_X), data.get(AnchorData.FAILURE_Y),
+                data.get(AnchorData.FAILURE_Z));
     }
 
     /**
@@ -166,43 +135,41 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     public static final class Layout {
         public static final int WIDTH = 176;
-        public static final int HEIGHT = 229;
+        public static final int HEIGHT = 219;
 
         /**
          * The readout lines, each on its own row.
          *
-         * <p>They used to share: the origin was tucked ten pixels above the status line, which meant
-         * directly on top of the title, and the matching text sat on the end of the upgrades line
-         * where it ran off the right edge of the window and into whatever was beside it. Both were
-         * invisible until a routine had actually been nudged or the wording grew, which is the
-         * argument for giving each line room of its own rather than fitting them together.
+         * <p>They used to share a row and it went wrong twice, both times invisibly until something
+         * changed: a line tucked ten pixels above another printed straight through the title, and a
+         * readout on the end of the upgrades line ran off the right edge of the window as soon as
+         * its wording grew. Hence a row each, and {@code AnchorLayoutTest} to keep them apart.
          */
         public static final int STATUS_Y = 18;
         public static final int UPGRADE_INFO_Y = 28;
-        public static final int MATCHING_Y = 38;
 
-        public static final int STORAGE_Y = 50;
+        public static final int STORAGE_Y = 40;
 
         /** "Fuel", "Charge" and "Modules", above the row they describe. */
-        public static final int SECTION_LABEL_Y = 88;
+        public static final int SECTION_LABEL_Y = 78;
 
         /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
         public static final int LINE_HEIGHT = 9;
         public static final int SLOT_BORDER = 1;
 
-        public static final int MODULE_Y = 100;
+        public static final int MODULE_Y = 90;
         public static final int FUEL_X = 8;
         public static final int UPGRADE_X = 116;
 
         public static final int CHARGE_X = 30;
-        public static final int CHARGE_Y = 104;
+        public static final int CHARGE_Y = 94;
         public static final int CHARGE_WIDTH = 78;
         public static final int CHARGE_HEIGHT = 8;
 
-        public static final int DIAGNOSTIC_Y = 122;
-        public static final int PLAYER_LABEL_Y = 134;
-        public static final int PLAYER_Y = 146;
-        public static final int HOTBAR_Y = 204;
+        public static final int DIAGNOSTIC_Y = 112;
+        public static final int PLAYER_LABEL_Y = 124;
+        public static final int PLAYER_Y = 136;
+        public static final int HOTBAR_Y = 194;
 
         private Layout() {}
     }

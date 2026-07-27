@@ -73,8 +73,12 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
     public void extractRenderState(ChronoCloneEntity entity, ChronoCloneRenderState state, float partialTicks) {
         super.extractRenderState(entity, state, partialTicks);
 
-        state.yRot = Mth.rotLerp(partialTicks, entity.yRotO, entity.getYRot());
-        state.bodyRot = state.yRot;
+        state.bodyRot = Mth.rotLerp(partialTicks, entity.yRotO, entity.getYRot());
+        // Not the yaw again: HumanoidModel reads yRot as the head's rotation RELATIVE to the body,
+        // which is already turned by bodyRot. Setting it to the absolute yaw turned the head twice,
+        // so a ghost walking north — yaw 180 — faced its head due south while everything else about
+        // it was correct. A recording carries one yaw for the whole body, so the head follows it.
+        state.yRot = 0.0f;
         state.xRot = Mth.lerp(partialTicks, entity.xRotO, entity.getXRot());
 
         state.walkAnimationPos = entity.walkAnimation().position(partialTicks);

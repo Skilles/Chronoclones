@@ -40,7 +40,6 @@ class AnchorLayoutTest {
         rows.add(new Row("title", 6, Layout.LINE_HEIGHT));
         rows.add(new Row("progress", Layout.STATUS_Y, Layout.LINE_HEIGHT));
         rows.add(new Row("upgrades", Layout.UPGRADE_INFO_Y, Layout.LINE_HEIGHT));
-        rows.add(new Row("matching and origin", Layout.MATCHING_Y, Layout.LINE_HEIGHT));
         rows.add(slots("storage", Layout.STORAGE_Y, 2));
         rows.add(new Row("section labels", Layout.SECTION_LABEL_Y, Layout.LINE_HEIGHT));
         rows.add(slots("fuel, charge and modules", Layout.MODULE_Y, 1));

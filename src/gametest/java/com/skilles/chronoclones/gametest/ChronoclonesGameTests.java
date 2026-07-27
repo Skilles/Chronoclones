@@ -78,7 +78,7 @@ public final class ChronoclonesGameTests {
         CaptureGameTest.register();
         AnchorDropsGameTest.register();
         InteractionGameTest.register();
-        CoherenceGameTest.register();
+        BreakingGameTest.register();
         NudgeGameTest.register();
         CarrierGameTest.register();
     }

@@ -76,7 +76,7 @@ public final class ActionExecutor {
      * @return the failure, or {@code null} if mining may proceed
      */
     public static @org.jspecify.annotations.Nullable Result canBreak(
-            ServerLevel level, ChronoAction.BreakBlock action, Placement placement, int coherenceTier) {
+            ServerLevel level, ChronoAction.BreakBlock action, Placement placement) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -97,13 +97,10 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. Coherence, from the anchor's Chrono Lenses. Nothing to check without one: the
-        //    clone swings the recorded tool at the square and whatever is there gets what a player
-        //    would have given it. See Coherence.
-        if (!Coherence.matches(state, action.expectedBlock(), coherenceTier)) {
-            return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
-        }
-
+        // 3. What the block IS is deliberately not checked. The clone swings the recorded
+        //    tool at the square and whatever is standing there gets what a player would have given
+        //    it — the game's own mining arithmetic then decides whether that achieves anything.
+        //
         // 4. Blacklist, plus a blanket refusal to touch block entities in v1 — other mods' machines
         //    are a bug farm and the interaction is not worth the surface area.
         if (state.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {

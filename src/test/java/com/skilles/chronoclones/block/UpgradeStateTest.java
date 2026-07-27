@@ -31,7 +31,7 @@ class UpgradeStateTest {
                 counts[axis.ordinal()]++;
             }
         }
-        return UpgradeState.of(counts[0], counts[1], counts[2], counts[3]);
+        return UpgradeState.of(counts[0], counts[1], counts[2]);
     }
 
     @Test
@@ -42,7 +42,6 @@ class UpgradeStateTest {
         assertEquals(1, state.cloneCount());
         assertEquals(1, state.ticksPerStep());
         assertEquals(0, state.fidelityTier());
-        assertEquals(0, state.coherenceTier());
     }
 
     @Test
@@ -63,7 +62,6 @@ class UpgradeStateTest {
         assertEquals(2, state.cloneCount());
         assertEquals(2, state.ticksPerStep());
         assertEquals(1, state.fidelityTier());
-        assertEquals(0, state.coherenceTier(), "no lens installed, so coherence stays strict");
     }
 
     @Test
@@ -82,7 +80,7 @@ class UpgradeStateTest {
     @Test
     @DisplayName("every axis is capped, so a stacked slot cannot run away")
     void axesAreCapped() {
-        UpgradeState state = UpgradeState.of(64, 64, 64, 64);
+        UpgradeState state = UpgradeState.of(64, 64, 64);
 
         assertEquals(UpgradeState.MAX_CLONES, state.cloneCount());
         assertEquals(UpgradeState.MAX_RATE, state.ticksPerStep());
@@ -96,14 +94,15 @@ class UpgradeStateTest {
     }
 
     @Test
-    @DisplayName("isUpgrade recognises exactly the four upgrade items")
+    @DisplayName("isUpgrade recognises exactly the three upgrade items")
     void isUpgradeIsExact() {
         assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_SPLITTER.get()));
         assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_ACCELERATOR.get()));
         assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_FOCUS.get()));
-        assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_LENS.get()));
 
         assertFalse(UpgradeState.isUpgrade(Items.DIAMOND));
+        assertFalse(UpgradeState.isUpgrade(ModItems.CHRONO_GOGGLES.get()),
+                "the goggles are worn rather than slotted, so they are not an upgrade");
         assertFalse(UpgradeState.isUpgrade(ModItems.CHRONO_RECORDER.get()));
     }
 

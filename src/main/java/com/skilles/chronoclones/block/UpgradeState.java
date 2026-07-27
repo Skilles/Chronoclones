@@ -17,26 +17,20 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
  * <p>Derived on read rather than stored, so pulling an upgrade out takes effect immediately and
  * there is no cached state to fall out of sync with the slots.
  */
-public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, int coherenceTier) {
+public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
 
-    /** A bare anchor: one clone, one tick per step, mining only, lenient matching. */
-    public static final UpgradeState BASE = new UpgradeState(1, 1, 0, 0);
+    /** A bare anchor: one clone, one tick per step, mining only. */
+    public static final UpgradeState BASE = new UpgradeState(1, 1, 0);
 
     public static final int MAX_CLONES = 4;
     public static final int MAX_RATE = 3;
     public static final int MAX_FIDELITY = 3;
-    /**
-     * Lenient and exact. There is nothing above exact to buy, so one lens is the whole axis — a
-     * second would be a slot spent on nothing.
-     */
-    public static final int MAX_COHERENCE = 1;
 
-    /** The four independent upgrade axes. */
+    /** The three independent upgrade axes. */
     public enum Axis {
         CLONES,
         RATE,
-        FIDELITY,
-        COHERENCE
+        FIDELITY
     }
 
     /**
@@ -62,7 +56,7 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, i
         }
 
         return of(counts[Axis.CLONES.ordinal()], counts[Axis.RATE.ordinal()],
-                counts[Axis.FIDELITY.ordinal()], counts[Axis.COHERENCE.ordinal()]);
+                counts[Axis.FIDELITY.ordinal()]);
     }
 
     /**
@@ -71,12 +65,11 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, i
      * <p>Multiple copies of the same upgrade stack, which is what makes three slots a real choice:
      * three splitters buys four clones but no combat and no speed.
      */
-    public static UpgradeState of(int clones, int rate, int fidelity, int coherence) {
+    public static UpgradeState of(int clones, int rate, int fidelity) {
         return new UpgradeState(
                 Math.clamp(1L + Math.max(0, clones), 1, MAX_CLONES),
                 Math.clamp(1L + Math.max(0, rate), 1, MAX_RATE),
-                Math.clamp(Math.max(0, fidelity), 0, MAX_FIDELITY),
-                Math.clamp(Math.max(0, coherence), 0, MAX_COHERENCE));
+                Math.clamp(Math.max(0, fidelity), 0, MAX_FIDELITY));
     }
 
     /** Which axis an item feeds, or null if it is not an upgrade. */
@@ -89,9 +82,6 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier, i
         }
         if (item == ModItems.CHRONO_FOCUS.get()) {
             return Axis.FIDELITY;
-        }
-        if (item == ModItems.CHRONO_LENS.get()) {
-            return Axis.COHERENCE;
         }
         return null;
     }

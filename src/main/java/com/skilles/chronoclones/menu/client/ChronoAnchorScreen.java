@@ -198,11 +198,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                         menu.getActiveClones(), menu.getTicksPerStep()),
                 8, Layout.UPGRADE_INFO_Y, MUTED);
 
-        // Matching gets a line rather than the end of the one above: a routine that skips everything
-        // because the stone became deepslate is otherwise indistinguishable from one that is simply
-        // broken, so it must be readable, and it did not fit.
-        extractor.text(font, matchingLine(), 8, Layout.MATCHING_Y, MUTED);
-
         // The diagnostic line the spec insists on: not just what failed, but where, in
         // anchor-local coordinates, so the failing block can actually be found.
         DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
@@ -212,36 +207,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             extractor.text(font, Component.translatable(reason.translationKey(), where),
                     8, Layout.DIAGNOSTIC_Y, reason.halts() ? HALTED : WARNING);
         }
-    }
-
-    /**
-     * How this anchor matches, and where its routine is aimed if that has been moved.
-     *
-     * <p>Together on one line because the origin only appears when it is not zero — a permanent
-     * "Origin 0, 0, 0" would be noise on every anchor to explain a feature most of them are not
-     * using — and a line that is usually one short phrase has room for the other when it is there.
-     */
-    private Component matchingLine() {
-        Component matching = Component.translatable(matchingKey());
-
-        BlockPos offset = menu.getOriginOffset();
-        if (offset.equals(BlockPos.ZERO)) {
-            return matching;
-        }
-        return Component.translatable("gui.chronoclones.anchor.matching_and_origin", matching,
-                offset.getX(), offset.getY(), offset.getZ());
-    }
-
-    /**
-     * Which matching the anchor is doing, as a key so the readout and its tooltip cannot disagree.
-     *
-     * <p>The readout is two words because it shares its line with the origin and the pair has to fit
-     * inside 160 pixels; the sentence that explains it lives in the tooltip, where there is room.
-     */
-    private String matchingKey() {
-        return menu.getCoherenceTier() >= 1
-                ? "gui.chronoclones.anchor.matching.exact"
-                : "gui.chronoclones.anchor.matching.lenient";
     }
 
     /** The three section labels, naming what the row below each one is for. */
@@ -283,11 +248,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         } else if (within(mouseX, mouseY, Layout.UPGRADE_X, Layout.MODULE_Y, 16 + 2 * 18, 16)) {
             extractor.setTooltipForNextFrame(font,
                     Component.translatable("gui.chronoclones.anchor.section.modules.tip"), mouseX, mouseY);
-        } else if (menu.getLengthTicks() > 0
-                && within(mouseX, mouseY, 8, Layout.MATCHING_Y,
-                        font.width(matchingLine()), font.lineHeight)) {
-            extractor.setTooltipForNextFrame(font,
-                    Component.translatable(matchingKey() + ".tip"), mouseX, mouseY);
         }
     }
 
