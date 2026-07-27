@@ -29,14 +29,10 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 /**
  * Shared setup for anchor game tests.
- *
- * <p>The author and owner identities are fixed constants here so every test asserts against the
- * same two, and so the distinction stays visible at the call site — the whole point of the 
- * tests is that these are never the same person.
  */
 final class AnchorTestFixture {
 
-    /** Whoever recorded the routine. Cosmetic only: decides whose skin a ghost wears. */
+    /** Whoever recorded the routine. Cosmetic only: decides whose skin a clone wears. */
     static final UUID AUTHOR_ID = UUID.fromString("a0000000-0000-0000-0000-00000000000a");
     static final String AUTHOR_NAME = "RoutineAuthor";
 
@@ -48,8 +44,6 @@ final class AnchorTestFixture {
 
     /**
      * A recording that breaks a single block one step north of the anchor.
-     *
-     * <p>Authored by {@link #AUTHOR_ID}, deliberately never by the owner.
      */
     static Recording breakOneBlock(Block expected) {
         return new Recording(
@@ -85,17 +79,13 @@ final class AnchorTestFixture {
 
     /**
      * Places a north-facing anchor and imprints {@code recording} as {@link #OWNER_ID}.
-     *
-     * <p>Imprinting through a {@link FakePlayer} is what makes the owner assertable: it extends
-     * {@code ServerPlayer}, so it satisfies the same imprint path a real player takes, with an
-     * identity the test controls.
      */
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording) {
         return placeAndImprint(helper, relativeAnchorPos, recording, owner(helper.getLevel()));
     }
 
-    /** The same, imprinted by somebody specific — for tests about who may do what afterwards. */
+    /** The same, imprinted by somebody specific: for tests about who may do what afterwards. */
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording,
                                                  net.minecraft.server.level.ServerPlayer imprinter) {
@@ -116,16 +106,12 @@ final class AnchorTestFixture {
         return anchor;
     }
 
-    /** The fake player standing in for the anchor's owner. */
     static FakePlayer owner(ServerLevel level) {
         return FakePlayerFactory.get(level, new GameProfile(OWNER_ID, OWNER_NAME));
     }
 
     /**
      * Installs the creative charge cell so charge never confounds a test.
-     *
-     * <p>These tests are about attribution and execution, not economy; leaving charge in play would
-     * make every one of them depend on the fuel system as well.
      */
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {
         anchor.getFuelHandler().set(0,
@@ -135,9 +121,6 @@ final class AnchorTestFixture {
 
     /**
      * Unlocks every action type, for tests that are about an executor rather than the fidelity gate.
-     *
-     * <p>Without this, anything above break-tier is refused with {@code NOT_PERMITTED} and an
-     * interaction test fails for a reason that has nothing to do with interactions.
      */
     static void unlockAllActions(ChronoAnchorBlockEntity anchor) {
         anchor.getUpgradeHandler().set(0,
@@ -151,9 +134,6 @@ final class AnchorTestFixture {
 
     /**
      * Puts a stack straight into a container slot, past any face restrictions.
-     *
-     * <p>The capability route respects sidedness — a furnace refuses most things through most faces
-     * — which is right for gameplay and wrong for a test that just needs a slot to start out full.
      */
     static void fillSlot(GameTestHelper helper, BlockPos relative, int slot,
                          net.minecraft.world.item.ItemStack stack) {

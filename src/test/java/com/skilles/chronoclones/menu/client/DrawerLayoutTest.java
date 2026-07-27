@@ -9,14 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Where the precision drawer opens.
- *
- * <p>Worth asserting because the failure is invisible from the code and total from the player's
- * side: a drawer that opens past the edge of the window is a settings panel that cannot be reached,
- * and the anchor screen is centred, so which side has room depends on the GUI scale the player
- * happens to be using rather than on anything this code can see.
- *
- * <p>The window is 176 wide, so the numbers below are chosen around that: a centred window on a
- * 400px screen leaves 112 either side, which is enough for the drawer's 104 plus its 10px tab.
  */
 class DrawerLayoutTest {
 
@@ -38,7 +30,7 @@ class DrawerLayoutTest {
     @Test
     @DisplayName("it opens left when the right would run off the edge")
     void flipsWhenTheRightIsShort() {
-        // Wide enough on the left, deliberately one pixel short on the right.
+        // Wide enough on the left, one pixel short on the right.
         int leftPos = NEEDED;
         int screen = leftPos + WINDOW + NEEDED - 1;
         assertTrue(DrawerLayout.opensLeft(screen, leftPos, WINDOW),
@@ -48,7 +40,7 @@ class DrawerLayoutTest {
     @Test
     @DisplayName("with room on neither side it takes the larger")
     void takesTheLargerWhenNeitherFits() {
-        // Both sides clipped, so the choice is only about clipping less. Left has 40, right has 20.
+        // Both sides clipped, so the choice is only about clipping less.
         int leftPos = 40;
         int screen = leftPos + WINDOW + 20;
         assertTrue(DrawerLayout.opensLeft(screen, leftPos, WINDOW));
@@ -62,7 +54,7 @@ class DrawerLayoutTest {
     void bodyNeverCoversTheWindow() {
         // The asymmetry this guards is easy to get wrong and invisible in the code. Opening right,
         // the body's left edge is where the tab ends and stays put as the panel widens. Opening
-        // left, the body's *right* edge is what is pinned, so its left edge moves — and writing
+        // left, the body's *right* edge is what is pinned, so its left edge moves. Writing
         // that as a mirror of the first case makes a left-hand drawer grow out from under the
         // window, over the slots, instead of away from it.
         int leftPos = 300;

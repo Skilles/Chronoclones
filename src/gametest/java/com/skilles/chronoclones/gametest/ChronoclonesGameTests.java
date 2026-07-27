@@ -19,35 +19,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
 
-/**
- * Game test registration for 26.x.
- *
- * <p>26.x removed the {@code @GameTest} annotation entirely; tests are now data-driven through two
- * registries. A test is a {@code Consumer<GameTestHelper>} in {@code Registries.TEST_FUNCTION},
- * plus a {@code GameTestInstance} in {@code Registries.TEST_INSTANCE} that points at it and carries
- * the run settings. Both halves are required — a function with no instance never runs, and an
- * instance with no function fails to resolve with "missing test function".
- *
- * <p><b>Test functions cannot go through {@code TestFunctionLoader}.</b> That is the mechanism
- * vanilla uses, but {@code TEST_FUNCTION} is bootstrapped during {@code BuiltInRegistries} class
- * initialisation, which happens long before any mod is constructed — a loader registered from a mod
- * entrypoint is always too late. Instead the functions are registered with a {@link DeferredRegister}
- * over the same registry, which NeoForge fills during {@code RegisterEvent} while built-in
- * registries are still unfrozen. Test instances are then registered later, on
- * {@link RegisterGameTestsEvent}, by which point the functions resolve.
- *
- * <p>These live in {@code src/gametest} rather than in {@code src/main}: they need a running server,
- * so plain JUnit cannot host them, but registering test functions from a released mod would leave
- * every install carrying a couple of dozen test ids visible in {@code /test} and in registry dumps.
- * Their own source set is on the classpath for the dev runs and absent from the jar. Off-runtime
- * logic is covered by plain JUnit instead — see the {@code src/test} suite.
- *
- * <p>That split is also why nothing in {@code src/main} may name this class. Registration therefore
- * hangs off {@link RegisterEvent} rather than a {@code DeferredRegister} handed to the mod
- * constructor — same window while built-in registries are unfrozen, no call from the entrypoint.
- *
- * <p>Run with {@code ./gradlew runGameTestServer}, or {@code /test runall} in a dev client.
- */
+/** Game test registration. Run with {@code ./gradlew runGameTestServer}. */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ChronoclonesGameTests {
 
@@ -64,10 +36,7 @@ public final class ChronoclonesGameTests {
 
     private ChronoclonesGameTests() {}
 
-    /**
-     * Fills {@link #ENTRIES}. Idempotent, because both registration events can arrive per launch and
-     * declaring every test twice would register duplicate ids.
-     */
+    /** Idempotent: both registration events arrive per launch. */
     private static synchronized void declare() {
         if (!ENTRIES.isEmpty()) {
             return;
@@ -94,11 +63,6 @@ public final class ChronoclonesGameTests {
 
     /**
      * The functions half, during the window while {@code TEST_FUNCTION} is still unfrozen.
-     *
-     * <p>{@code TEST_FUNCTION} is bootstrapped during {@code BuiltInRegistries} class initialisation,
-     * long before any mod is constructed, so vanilla's {@code TestFunctionLoader} is always too late.
-     * This is the same window a {@code DeferredRegister} would use, reached without main having to
-     * hand one to the mod constructor.
      */
     @SubscribeEvent
     public static void registerFunctions(RegisterEvent event) {

@@ -33,14 +33,6 @@ import org.junit.jupiter.api.Test;
 /**
  * A Recording must survive both persistence (Codec -> NBT, for the block entity) and sync
  * (StreamCodec -> buffer, for item components) with equality.
- *
- * <p>Codec bugs surface at runtime as silently-empty or corrupted recordings, which is miserable to
- * diagnose through a game client — so they get caught here instead.
- *
- * <p>These assertions need real registries, which is why the build runs JUnit through FML
- * (ModDevGradle's {@code unitTest { }} block). {@code net.neoforged.neoforge.junit.JUnitMain}
- * bootstraps the game before any test runs, so {@code BuiltInRegistries} is already populated by
- * the time this class loads — no manual {@code Bootstrap.bootStrap()} needed.
  */
 class RecordingCodecTest {
 
@@ -53,13 +45,6 @@ class RecordingCodecTest {
 
     /**
      * Exercises every action variant, including the optional field on UseItem in both states.
-     *
-     * <p>Tool/weapon templates are {@link ItemStack#EMPTY} rather than real stacks: in 26.x an
-     * item's default data components are bound during datapack load
-     * ({@code ReloadableServerResources}), so constructing {@code new ItemStack(Items.X)} without a
-     * loaded world throws "Components not bound yet". The FML JUnit bootstrap loads mods but not a
-     * datapack. Round-tripping a populated stack is therefore covered by game tests, where a
-     * server is actually running; what this class verifies is the shape of OUR codecs.
      */
     private static Recording sample() {
         return new Recording(
@@ -100,7 +85,7 @@ class RecordingCodecTest {
                                 new BlockPos(2, 0, -3), 63,
                                 // No carrier entries, for the same reason the templates above are
                                 // empty: one holds a whole ItemStack, and a carrier slot may not be
-                                // empty — its codec is the strict ItemStack.CODEC precisely so that
+                                // empty. Its codec is the strict ItemStack.CODEC so that
                                 // "this session needs nothing here" cannot be encoded. A populated
                                 // carrier therefore round trips in PrecisionGameTest, with a server.
                                 List.of(),
@@ -109,7 +94,7 @@ class RecordingCodecTest {
                                         new ChronoAction.UseContainer.Click(54, 0, ContainerInput.PICKUP),
                                         new ChronoAction.UseContainer.Click(-999, 0, ContainerInput.THROW))))),
                 200,
-                "Bilal",
+                "Skilles",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
     }
 
@@ -203,14 +188,14 @@ class RecordingCodecTest {
         List<MotionSample> mutableMotion = new java.util.ArrayList<>();
         mutableMotion.add(new MotionSample(0, Vec3.ZERO, 0f, 0f));
 
-        Recording r = new Recording(mutableMotion, List.of(), 20, "Bilal", UUID.randomUUID());
+        Recording r = new Recording(mutableMotion, List.of(), 20, "Skilles", UUID.randomUUID());
         mutableMotion.add(new MotionSample(2, new Vec3(9, 9, 9), 0f, 0f));
 
         assertEquals(1, r.motion().size());
     }
 
     @Test
-    @DisplayName("charge costs match the spec: break 10, place 5, attack 20")
+    @DisplayName("charge costs: break 10, place 5, attack 20")
     void chargeCostsMatchSpec() {
         assertEquals(10, ChronoActionType.BREAK_BLOCK.chargeCost());
         assertEquals(5, ChronoActionType.PLACE_BLOCK.chargeCost());
@@ -218,7 +203,7 @@ class RecordingCodecTest {
     }
 
     @Test
-    @DisplayName("fidelity tiers gate actions in the spec's order")
+    @DisplayName("fidelity tiers gate actions in order")
     void fidelityTiersAreOrdered() {
         assertTrue(ChronoActionType.BREAK_BLOCK.fidelityTier() < ChronoActionType.PLACE_BLOCK.fidelityTier());
         assertTrue(ChronoActionType.PLACE_BLOCK.fidelityTier() < ChronoActionType.ATTACK_ENTITY.fidelityTier());

@@ -10,10 +10,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * End-to-end replay behaviour, focused on the guarantees that are easy to regress and impossible to
- * assert off-runtime — anything involving real block state, real loot tables, or the inventory.
- */
+/** End-to-end replay: real block state, real loot tables, real inventory. */
 final class ReplayGameTest {
 
     private ReplayGameTest() {}
@@ -48,7 +45,7 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** the blacklist is enforced at execute time, whatever the recording claims. */
+    /** The blacklist is enforced at execute time, whatever the recording claims. */
     private static void blacklistedBlockSurvives(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BEDROCK);
@@ -68,17 +65,10 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The default carries on when the world has drifted: the square holds a different block now, and
-     * the routine mines it and keeps its drops.
-     *
-     * <p>This is the everyday case the whole rule exists for, which is why it sits here with the rest
-     * of the end-to-end behaviour rather than among the matching rules. The refusal half — an anchor
-     * with an Chrono Lens leaving it alone — is in {@code CoherenceGameTest}.
-     */
+    /** The square holds a different block now; the routine mines it and keeps its drops. */
     private static void carriesOnWhenTheBlockChanged(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        // The canonical drift: you recorded against stone and it is cobblestone now.
+        // The canonical drift: recorded against stone, cobblestone now.
         helper.setBlock(target, Blocks.COBBLESTONE);
 
         ChronoAnchorBlockEntity anchor =
@@ -87,9 +77,7 @@ final class ReplayGameTest {
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
                     helper.assertBlockNotPresent(Blocks.COBBLESTONE, target);
-                    // The drops prove it was mined rather than merely replaced. The diagnostic is
-                    // not asserted: a one-action routine loops every second, so by now it has come
-                    // round again and is correctly reporting nothing left to break.
+                    // Drops prove it was mined rather than replaced.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.COBBLESTONE) != 1) {
                         helper.fail("expected the drop of the block that was actually there");
                     }
@@ -98,11 +86,7 @@ final class ReplayGameTest {
     }
 
     /**
-     * The deliberate deviation from asserted.
-     *
-     * <p>The spec breaks the block and then halts if the drops do not fit. Drops are instead
-     * inserted transactionally first, so a full anchor leaves the block standing rather than
-     * destroying something it cannot store. This test is the reason that ordering is safe to keep.
+     * Breaking into a full anchor halts rather than dropping, asserted.
      */
     private static void fullInventoryDoesNotDestroy(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -128,7 +112,7 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** block entities are refused outright in this pass. */
+    /** Block entities are refused outright in this pass. */
     private static void blockEntitiesAreNeverBroken(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.CHEST);

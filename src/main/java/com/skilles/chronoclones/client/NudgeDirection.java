@@ -7,16 +7,6 @@ import net.minecraft.core.Direction;
 
 /**
  * Turns "the arrow key I pressed" into a step in an anchor's local space.
- *
- * <p>Two rotations, and both are necessary. The key is meaningful relative to <em>the player</em> —
- * up means away from you, left means to your left — because that is what the preview looks like from
- * where you are standing; a routine that jumped north when you pressed up while facing south would be
- * unusable. The stored offset is meaningful relative to <em>the anchor</em>, because that is how
- * every other position in a recording is stored, and an offset that was not would mean something
- * different the moment the routine was replayed on an anchor facing another way.
- *
- * <p>So: key → world (by the player's facing) → local (by the anchor's facing). Pure integer
- * quarter-turns throughout, for the reasons {@link LocalSpace} sets out.
  */
 public final class NudgeDirection {
 
@@ -38,7 +28,6 @@ public final class NudgeDirection {
      * One step, in the anchor's local space.
      *
      * @param playerFacing where the player is looking, snapped to a cardinal
-     * @param anchorFacing the anchor's own facing, which local space is defined against
      */
     public static BlockPos step(Key key, Direction playerFacing, Direction anchorFacing) {
         return switch (key) {

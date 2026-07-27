@@ -18,10 +18,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * The parts of the recording model that can be asserted without a bootstrapped registry.
- *
- * <p>Anything involving {@code Holder<Block>}, {@code ItemStack} or {@code BlockState} needs the
- * game's registries to exist, which plain JUnit cannot do against a NeoForge-patched jar — see
- * {@link RecordingCodecTest} for that half and why it is currently parked.
  */
 class RecordingLogicTest {
 
@@ -50,7 +46,7 @@ class RecordingLogicTest {
     }
 
     @Test
-    @DisplayName("charge costs match the spec: break 10, place 5, attack 20")
+    @DisplayName("charge costs: break 10, place 5, attack 20")
     void chargeCostsMatchSpec() {
         assertEquals(10, ChronoActionType.BREAK_BLOCK.chargeCost());
         assertEquals(5, ChronoActionType.PLACE_BLOCK.chargeCost());
@@ -58,7 +54,7 @@ class RecordingLogicTest {
     }
 
     @Test
-    @DisplayName("fidelity tiers gate actions in the spec's order: BREAK -> PLACE -> ATTACK -> USE")
+    @DisplayName("fidelity tiers gate actions: BREAK -> PLACE -> ATTACK -> USE")
     void fidelityTiersAreOrdered() {
         assertTrue(ChronoActionType.BREAK_BLOCK.fidelityTier() < ChronoActionType.PLACE_BLOCK.fidelityTier());
         assertTrue(ChronoActionType.PLACE_BLOCK.fidelityTier() < ChronoActionType.ATTACK_ENTITY.fidelityTier());
@@ -74,7 +70,7 @@ class RecordingLogicTest {
         assertFalse(ChronoActionType.ATTACK_ENTITY.permittedAt(0));
         assertFalse(ChronoActionType.USE_ITEM.permittedAt(0));
 
-        // Tier 1 adds placing, still no combat — the spec gates combat behind progression.
+        // Tier 1 adds placing, still no combat: combat sits behind progression.
         assertTrue(ChronoActionType.BREAK_BLOCK.permittedAt(1));
         assertTrue(ChronoActionType.PLACE_BLOCK.permittedAt(1));
         assertFalse(ChronoActionType.ATTACK_ENTITY.permittedAt(1));
@@ -106,7 +102,7 @@ class RecordingLogicTest {
                         // Tall but close: must not count as reach.
                         new MotionSample(2, new Vec3(1.0, 40.0, 0.0), 0f, 0f),
                         new MotionSample(4, new Vec3(-7.0, 2.0, 4.0), 0f, 0f)),
-                List.of(), 100, "Bilal", UUID.randomUUID());
+                List.of(), 100, "Skilles", UUID.randomUUID());
 
         assertEquals(Math.sqrt(65.0), r.reach(), 1.0e-9);
     }
@@ -114,7 +110,7 @@ class RecordingLogicTest {
     @Test
     @DisplayName("an empty recording reports zero reach rather than throwing")
     void emptyRecordingHasZeroReach() {
-        Recording empty = new Recording(List.of(), List.of(), 0, "Bilal", UUID.randomUUID());
+        Recording empty = new Recording(List.of(), List.of(), 0, "Skilles", UUID.randomUUID());
         assertEquals(0.0, empty.reach(), 0.0);
         assertTrue(empty.isEmpty());
     }
@@ -125,7 +121,7 @@ class RecordingLogicTest {
         List<MotionSample> mutable = new ArrayList<>();
         mutable.add(new MotionSample(0, Vec3.ZERO, 0f, 0f));
 
-        Recording r = new Recording(mutable, List.of(), 20, "Bilal", UUID.randomUUID());
+        Recording r = new Recording(mutable, List.of(), 20, "Skilles", UUID.randomUUID());
         mutable.add(new MotionSample(2, new Vec3(9, 9, 9), 0f, 0f));
 
         assertEquals(1, r.motion().size());
@@ -140,17 +136,17 @@ class RecordingLogicTest {
         assertEquals(author, r.authorId());
         assertEquals("Author", r.authorName());
 
-        // ownership lives on the block entity. If a setter or field for it ever appears
+        // Ownership lives on the block entity. If a setter or field for it ever appears
         // on Recording, the author/owner split has been collapsed and attribution is a griefing bug.
         // Naming the components rather than counting them says what the guard is actually for: a
-        // count tells you something changed, this tells you whether what changed was ownership.
+        // count shows something changed, this shows whether what changed was ownership.
         assertEquals(List.of("motion", "actions", "lengthTicks", "authorName", "authorId", "creative"),
                 java.util.Arrays.stream(Recording.class.getRecordComponents())
                         .map(java.lang.reflect.RecordComponent::getName).toList(),
-                "Recording's fields changed — make sure the new one is not an owner");
+                "Recording's fields changed: make sure the new one is not an owner");
     }
 
     private static Recording recording(int lengthTicks) {
-        return new Recording(List.of(), List.of(), lengthTicks, "Bilal", UUID.randomUUID());
+        return new Recording(List.of(), List.of(), lengthTicks, "Skilles", UUID.randomUUID());
     }
 }

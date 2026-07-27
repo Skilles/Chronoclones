@@ -21,15 +21,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The overlay drawn over everything while a recording is running.
- *
- * <p>Recording is a mode, and modes that are not visible are modes you forget you are in — the two
- * ways that goes wrong being a routine full of the walk back from the chest, and a session quietly
- * dead while you keep performing the task. So the border is deliberately impossible to miss from the
- * corner of your eye, and the counters are the two caps a session actually ends on.
- *
- * <p>No packets: the recorder's {@code PROGRESS} stamp is a data component, so ordinary inventory
- * sync already puts it on the client every tick. Whether that stamp means a session is <em>live</em>
- * is a separate question, and {@link RecordingHudState} is the part that answers it.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHud {
@@ -70,8 +61,7 @@ public final class RecordingHud {
         }
 
         boolean warning = STATE.isWarning(now);
-        // A slow breath, so the border reads as something that is happening rather than as a texture
-        // stuck on the screen. Partial ticks rather than whole ones, or it strobes.
+        // Partial ticks rather than whole ones, or it strobes.
         float phase = (now + delta.getGameTimeDeltaPartialTick(false)) / 9.0f;
         float pulse = warning ? 1.0f : 0.62f + 0.38f * (float) ((Math.sin(phase) + 1.0) / 2.0);
 
@@ -85,8 +75,7 @@ public final class RecordingHud {
         int height = graphics.guiHeight();
 
         for (int ring = 0; ring < BORDER; ring++) {
-            // Quadratic falloff, so the band is dense at the very edge and gone well before it
-            // reaches anything worth looking at.
+            // Quadratic falloff: dense at the edge, gone before anything readable.
             float fromEdge = 1.0f - ring / (float) BORDER;
             int alpha = (int) (0x66 * fromEdge * fromEdge * pulse);
             if (alpha <= 0) {
@@ -135,9 +124,6 @@ public final class RecordingHud {
 
     /**
      * The progress stamp on whichever recorder in the inventory carries one.
-     *
-     * <p>Only one session can run per player, so at most one of these is live; a second stamp would
-     * be the stranded kind, which {@link RecordingHudState} ages out on its own.
      */
     private static @Nullable RecordingProgress stampOf(LocalPlayer player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {

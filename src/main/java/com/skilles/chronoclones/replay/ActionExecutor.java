@@ -42,10 +42,6 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * Executes a single {@link ChronoAction} against the world, or explains why it could not.
- *
- * <p>This is the only class that mutates the world, and every mutation goes through the owner's
- * fake player so events, protection mods, and land claims all see a real, correctly attributed
- * actor.
  */
 public final class ActionExecutor {
 
@@ -67,12 +63,6 @@ public final class ActionExecutor {
     /**
      * Whether a break may begin, without beginning it.
      *
-     * <p>Split from the break itself because breaking is no longer instantaneous: a clone mines a
-     * block over several ticks, and these are the conditions that must hold before it starts and be
-     * re-checked while it does. Something that was true when mining began — the block still being
-     * there, the chunk still being loaded — is exactly the sort of thing that stops being true
-     * halfway through.
-     *
      * @return the failure, or {@code null} if mining may proceed
      */
     public static @org.jspecify.annotations.Nullable Result canBreak(
@@ -80,14 +70,13 @@ public final class ActionExecutor {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
-        // 1. Radius, re-checked here and not merely at record time. The recording is untrusted
-        //    input the moment it can be transferred between players. Measured from the
-        //    anchor block rather than the routine's origin — see Placement for why.
+        // 1. Radius, re-checked here: a recording is untrusted once it can be traded. Measured
+        //    from the anchor block, never the routine's origin.
         if (!placement.withinRadius(worldPos)) {
             return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
         }
 
-        // 2. Loaded chunks only. No force-loading and no catch-up, by design.
+        // 2. Loaded chunks only: no force-loading, no catch-up.
         if (!level.isLoaded(worldPos)) {
             return Result.fail(FailureReason.UNLOADED, action.localPos());
         }
@@ -97,17 +86,15 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. What the block IS is deliberately not checked. The clone swings the recorded
-        //    tool at the square and whatever is standing there gets what a player would have given
-        //    it — the game's own mining arithmetic then decides whether that achieves anything.
+        // 3. What the block IS is not checked; the clone swings the recorded tool at whatever
+        //    is standing there.
         //
-        // 4. Blacklist, plus a blanket refusal to touch block entities in v1 — other mods' machines
-        //    are a bug farm and the interaction is not worth the surface area.
+        // 4. Blacklist, plus a blanket refusal to touch block entities.
         if (state.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        // 5. Indestructible blocks (bedrock-like) refuse regardless of tags.
+        // 5. Indestructible blocks refuse regardless of tags.
         if (state.getDestroySpeed(level, worldPos) < 0.0f) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
@@ -116,10 +103,6 @@ public final class ActionExecutor {
 
     /**
      * How much of a block one tick of mining removes, as a fraction of the whole.
-     *
-     * <p>The game's own calculation, asked through the owner's fake player holding the recorded
-     * tool — so haste, efficiency, the right pickaxe and the wrong one all behave exactly as they
-     * did for the player who recorded it.
      */
     public static float breakProgressPerTick(ServerLevel level, ChronoAction.BreakBlock action,
                                              Placement placement, java.util.UUID ownerId,
@@ -136,10 +119,6 @@ public final class ActionExecutor {
 
     /**
      * Finishes a break whose mining is complete: permission, drops, removal.
-     *
-     * <p>Callers must have satisfied {@link #canBreak} on this same tick. Re-checking it here would
-     * be cheap, but it would also hide the fact that the caller is responsible for noticing when a
-     * block it was halfway through mining stops being there.
      */
     public static Result finishBreak(ServerLevel level, ChronoAction.BreakBlock action,
                                      Placement placement,
@@ -152,19 +131,17 @@ public final class ActionExecutor {
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
                 Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
         try {
-            // 6. Give protection mods and land claims their say, as the owner.
+            // 6. Protection mods and land claims get their say, as the owner.
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);
             if (breakEvent.isCanceled()) {
                 return Result.fail(FailureReason.PROTECTED, action.localPos());
             }
 
-            // 7. Drops computed through the normal loot path, so fortune and silk touch on the
-            //    recorded tool behave exactly as they did for the player.
+            // 7. The normal loot path, so fortune and silk touch on the recorded tool apply.
             List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, action.toolTemplate());
 
-            // 8. Insert everything or nothing. The spec breaks the block first and halts on
-            //    overflow; doing it in this order means a full anchor never destroys something it
-            //    could not store, so it is simply re-runnable once emptied.
+            // 8. Insert everything or nothing, so a full anchor never destroys what it cannot
+            //    store and the action is simply re-runnable once emptied.
             try (Transaction tx = Transaction.openRoot()) {
                 for (ItemStack drop : drops) {
                     if (drop.isEmpty()) {
@@ -178,7 +155,7 @@ public final class ActionExecutor {
                 tx.commit();
             }
 
-            // 9. Remove the block only after its drops are safely stored.
+            // 9. Remove the block only once its drops are stored.
             level.destroyBlock(worldPos, false, owner);
             return Result.OK;
         } finally {
@@ -288,9 +265,8 @@ public final class ActionExecutor {
         boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
         AABB box = new AABB(worldPos, worldPos).inflate(ATTACK_RADIUS);
 
-        // Ghosts are excluded for free: ChronoCloneEntity is a bare Entity, not a LivingEntity, so
-        // it can never appear in this query. That is deliberate — a visual-only clone must never be
-        // a target, and keeping it off LivingEntity makes that structural rather than a filter.
+        // ChronoCloneEntity is a bare Entity, not a LivingEntity, so it cannot appear here.
+        // Structural rather than a filter.
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box, entity ->
                 entity.isAlive()
                         && !entity.getUUID().equals(ownerId)
@@ -300,7 +276,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_TARGET, localBlock);
         }
 
-        // Prefer the recorded type; the spec treats it as a hint, so fall back to the nearest
+        // Prefer the recorded type, treating it as a hint, and fall back to the nearest
         // living thing rather than refusing to act.
         EntityType<?> expected = action.expectedType().value();
         LivingEntity target = candidates.stream()
@@ -326,10 +302,6 @@ public final class ActionExecutor {
 
     /**
      * How far from the recorded point an attack looks for something to hit.
-     *
-     * <p>Public because the preview draws this exact volume. An attack lands on whatever wandered
-     * into range rather than on a fixed block, and a preview that drew a box would be describing a
-     * routine nobody wrote.
      */
     public static final double ATTACK_RADIUS = 1.5;
 
@@ -337,12 +309,6 @@ public final class ActionExecutor {
 
     /**
      * Right-clicking a block, run through the server's own entry point.
-     *
-     * <p>This is the whole answer to "support other mods' blocks". {@code useItemOn} is what the
-     * server calls when a real player right-clicks: it fires {@code RightClickBlock}, consults the
-     * item, calls {@code BlockState.useItemOn} and {@code useWithoutItem}, and honours every
-     * override a mod has written. Nothing here knows what a lever, a furnace or somebody else's
-     * machine is, and nothing here needs to.
      */
     public static Result executeUseOnBlock(ServerLevel level, ChronoAction.UseOnBlock action,
                                            Placement placement,
@@ -357,8 +323,8 @@ public final class ActionExecutor {
         if (!level.isLoaded(worldPos)) {
             return Result.fail(FailureReason.UNLOADED, action.localPos());
         }
-        // An anchor must never be able to operate another anchor — that is how you build a routine
-        // that reconfigures its neighbours, and there is no version of it worth supporting.
+        // An anchor must never operate another anchor: that is how a routine
+        // reconfigures its neighbours.
         if (level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
@@ -368,7 +334,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
         }
 
-        // The sub-block hit point rotates with the anchor, exactly as the block position does, so a
+        // The sub-block hit point rotates with the anchor, as the block position does, so a
         // rotated routine still clicks the same corner of the same face.
         Direction face = placement.toWorld(action.localFace());
         Vec3 hit = Vec3.atCenterOf(worldPos)
@@ -398,7 +364,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_ITEM, BlockPos.ZERO);
         }
         if (loan.stack().isEmpty()) {
-            // Right-clicking air with an empty hand does nothing worth replaying.
+            // Right-clicking air with an empty hand does nothing.
             return Result.OK;
         }
 
@@ -467,10 +433,6 @@ public final class ActionExecutor {
 
     /**
      * Returns the borrowed item and reports whether the interaction did anything.
-     *
-     * <p>The item goes back regardless of the outcome. An interaction that declined to act may still
-     * have changed what it was holding — and even if it did not, keeping the item hostage because
-     * the routine hit an unexpected world state would drain an anchor one failed loop at a time.
      */
     private static Result finishInteraction(ServerLevel level, BlockPos anchorPos,
                                             ResourceHandler<ItemResource> inventory,
@@ -478,8 +440,8 @@ public final class ActionExecutor {
                                             InteractionResult result, BlockPos localPos) {
         HeldItemLoan.giveBack(level, anchorPos, inventory, loan, owner.getMainHandItem().copy());
 
-        // PASS means nothing was interactable — the same shape of failure as swinging at empty air,
-        // and worth reporting so a routine that has drifted out of alignment says so.
+        // PASS means nothing was interactable, the same shape of failure as swinging at empty air,
+        // and reported so a routine that has drifted out of alignment says so.
         return result.consumesAction() ? Result.OK : Result.fail(FailureReason.NO_TARGET, localPos);
     }
 
@@ -490,17 +452,6 @@ public final class ActionExecutor {
 
     /**
      * Replays a container session by opening the block's real menu and clicking it.
-     *
-     * <p>{@code AbstractContainerMenu.clicked} is the same method the server calls when a player
-     * clicks a slot, so a mod's slot restrictions, shift-click routing and crafting-output rules all
-     * apply without this mod knowing they exist — the same principle as running block interaction
-     * through {@code useItemOn}. It also means the whole grammar of container work is supported by
-     * construction: splitting, shift-click, drag-distribute, swap-to-hotbar, throw.
-     *
-     * <p>Runs the entire session inside one action rather than one click per tick, and that is a
-     * deliberate trade. Holding a menu open across ticks would mean anchor state that has to survive
-     * a halt, a chunk unload and the block being mined — every one of which strands the items sitting
-     * on the cursor. Spec  already refuses cross-tick replay state for the same reason.
      */
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
                                              Placement placement,
@@ -533,9 +484,8 @@ public final class ActionExecutor {
             if (menu == null) {
                 return Result.fail(FailureReason.NO_TARGET, action.localPos());
             }
-            // Slot indices only mean anything relative to the menu that produced them. A menu of a
-            // different shape is a different machine, and clicking it by remembered index would be
-            // pressing buttons at random.
+            // Slot indices mean nothing outside the menu that produced them, so a differently
+            // shaped menu would be clicked at random.
             if (menu.slots.size() != action.menuSize()) {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
@@ -549,15 +499,12 @@ public final class ActionExecutor {
                     if (click.slot() >= menu.slots.size()) {
                         return Result.fail(FailureReason.NO_TARGET, action.localPos());
                     }
-                    // The square the player clicked, whatever is in it now. An earlier version looked
-                    // for another square of the same kind when the remembered one was full, which is
-                    // a guess at intent rather than a replay of a gesture — and it meant an anchor
-                    // could put things somewhere the routine never touched.
+                    // The square the player clicked, whatever is in it now.
                     menu.clicked(click.slot(), click.button(), click.input(), owner);
                 }
             } finally {
                 // Returns whatever is on the cursor to the player, then everything the player is
-                // holding to the anchor — in a finally, because a mod's slot throwing mid-session
+                // holding to the anchor, in a finally, because a mod's slot throwing mid-session
                 // must not leave a routine's items inside a fake player nobody can open.
                 menu.removed(owner);
                 ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);

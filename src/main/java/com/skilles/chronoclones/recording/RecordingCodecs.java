@@ -24,12 +24,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * All serialization for the recording model, in one place.
- *
- * <p>These are deliberately NOT static fields on {@link ChronoAction} / {@link Recording}. Building
- * them touches {@code BuiltInRegistries}, which throws unless the game has been bootstrapped — so
- * putting them on the data classes would make the data classes themselves unloadable outside a
- * running game, and untestable with plain JUnit. Keeping them here means the model stays pure and
- * only code that actually serializes pays the registry dependency.
  */
 public final class RecordingCodecs {
 
@@ -125,8 +119,7 @@ public final class RecordingCodecs {
 
     static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
-            // The whole stack, components included: an anchor set to be specific about items compares
-            // them with isSameItemSameComponents, which an item id alone cannot answer.
+            // The whole stack: an item id cannot answer isSameItemSameComponents.
             ItemStack.CODEC.fieldOf("stack").forGetter(ChronoAction.UseContainer.CarrierSlot::stack)
     ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
 

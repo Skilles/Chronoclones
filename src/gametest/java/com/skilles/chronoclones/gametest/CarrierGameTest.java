@@ -22,12 +22,6 @@ import static com.skilles.chronoclones.gametest.AnchorTestFixture.countIn;
 
 /**
  * Stocking the fake player before a container session runs.
- *
- * <p>The carrier layout is the one part of a session that is not a replayed gesture — the clicks are
- * the player's own, but the squares those clicks were made against have to be rebuilt first. So the
- * rule here is deliberately dull: the recorded item, up to the recorded amount, in the recorded
- * square. Anything cleverer is the mod guessing at intent, and the two guesses that were tried both
- * ended up putting things where the routine never touched.
  */
 final class CarrierGameTest {
 
@@ -54,12 +48,6 @@ final class CarrierGameTest {
 
     /**
      * A session that stocks two squares stocks both of them.
-     *
-     * <p>Every other container test carries a single square, and with one square there is nothing to
-     * starve — so this case had a clear run through a suite that looks like it covers it. It failed
-     * for real: staging was once allowed to take as much of an item as the anchor held, which let
-     * the first square empty the stock and left every square after it reporting the routine
-     * unstocked with a full anchor sitting there.
      */
     private static void everySquareGetsItsShare(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -81,9 +69,6 @@ final class CarrierGameTest {
 
     /**
      * The recorded amount is the amount, however much the anchor is holding.
-     *
-     * <p>An anchor kept topped up is a supply, not an instruction to move the supply: a routine
-     * taught by moving two of something moves two of it, and the rest stays home.
      */
     private static void takesOnlyWhatWasRecorded(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -108,12 +93,6 @@ final class CarrierGameTest {
 
     /**
      * A click lands on the square it recorded, whatever is in it.
-     *
-     * <p>The barrel's first square is full of something else, and the click goes there anyway — which
-     * for a left click on an occupied square means a swap, exactly as it would for a player. An
-     * earlier version went looking for another square of the same kind when the recorded one was
-     * occupied; that is a guess at what the player meant, and it let an anchor put things somewhere
-     * the routine had never touched.
      */
     private static void clicksTheSquareItRecorded(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -155,11 +134,6 @@ final class CarrierGameTest {
 
     /**
      * A carrier square's whole stack survives being imprinted.
-     *
-     * <p>A carrier square records an {@code ItemStack} rather than an item and a count, which is what
-     * lets the shard tooltip and the goggles name what a routine actually needs. The codec test that
-     * would normally cover the round trip cannot build a populated stack without a datapack, so it
-     * happens here instead.
      */
     private static void stackSurvivesAnImprint(GameTestHelper helper) {
         ItemStack recorded = new ItemStack(Items.DIAMOND, 5);

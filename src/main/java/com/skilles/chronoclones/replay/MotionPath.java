@@ -6,15 +6,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Interpolates a looping route from a waypoint list.
- *
- * <p>This class exists to make positional drift structurally impossible rather than merely
- * unlikely, which is the single largest design risk in the spec (, Day 1). Every query is a
- * pure function of an integer tick: nothing is ever accumulated, so tick {@code n} and tick
- * {@code n + k*length} return bit-identical results forever.
- *
- * <p>Deliberately free of Minecraft runtime dependencies beyond {@link Vec3}, so it is unit
- * testable without launching the game. On Day 2 the real motion track replaces the waypoint list,
- * but this contract — position is a function of an int — must not change.
  */
 public final class MotionPath {
 

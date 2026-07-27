@@ -26,24 +26,10 @@ import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Draws the clone: the author's player model, translucent and tinted.
- *
- * <p>Both halves of "translucent" matter. The alpha is what stops a working farm from looking like a
- * crowd of players, and the cyan tint is what stops it reading as one <em>specific</em> player —
- * seeing what appears to be a named griefer standing in your base is a bad thirty seconds even when
- * nothing is wrong.
- *
- * <p>The skin is a lookup, not a dependency. {@code SkinManager.createLookup} hands back a supplier
- * that answers immediately with the UUID-derived default and swaps in the fetched skin when it
- * arrives, so the silhouette fallback the plan called for is the same code path as the real thing
- * rather than a separate one to maintain.
- *
- * <p>26.x rendering is state-extraction based: {@link #extractRenderState} fills a plain data object
- * on the main thread and {@link #submit} queues it. Nothing here may touch the entity — by the time
- * the model is posed, {@code ModelFeatureRenderer} is working from the state alone. See
- * {@link ChronoCloneRenderState} for the trap that makes the choice of state class load-bearing.
  */
 public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, ChronoCloneRenderState> {
 
@@ -65,19 +51,16 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
     }
 
     @Override
-    public ChronoCloneRenderState createRenderState() {
+    public @NonNull ChronoCloneRenderState createRenderState() {
         return new ChronoCloneRenderState();
     }
 
     @Override
-    public void extractRenderState(ChronoCloneEntity entity, ChronoCloneRenderState state, float partialTicks) {
+    public void extractRenderState(@NonNull ChronoCloneEntity entity, @NonNull ChronoCloneRenderState state, float partialTicks) {
         super.extractRenderState(entity, state, partialTicks);
 
         state.bodyRot = Mth.rotLerp(partialTicks, entity.yRotO, entity.getYRot());
-        // Not the yaw again: HumanoidModel reads yRot as the head's rotation RELATIVE to the body,
-        // which is already turned by bodyRot. Setting it to the absolute yaw turned the head twice,
-        // so a ghost walking north — yaw 180 — faced its head due south while everything else about
-        // it was correct. A recording carries one yaw for the whole body, so the head follows it.
+        // yRot is the head's rotation relative to the body; the absolute yaw turns it twice.
         state.yRot = 0.0f;
         state.xRot = Mth.lerp(partialTicks, entity.xRotO, entity.getXRot());
 
@@ -95,14 +78,13 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
 
     @Override
     public void submit(ChronoCloneRenderState state, PoseStack poseStack, SubmitNodeCollector collector,
-                       CameraRenderState camera) {
+                       @NonNull CameraRenderState camera) {
         HumanoidModel<ChronoCloneRenderState> model =
                 state.skin.model() == PlayerModelType.SLIM ? this.slimModel : this.wideModel;
         RenderType renderType = RenderTypes.entityTranslucent(state.skin.body().texturePath());
 
         poseStack.pushPose();
-        // The same three steps LivingEntityRenderer performs: face the body, flip into model space,
-        // then drop the origin to the feet.
+        // As LivingEntityRenderer: face the body, flip into model space, drop to the feet.
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0f - state.bodyRot));
         poseStack.scale(-1.0f, -1.0f, 1.0f);
         poseStack.translate(0.0f, -1.501f, 0.0f);
@@ -117,14 +99,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
 
     /**
      * The held item, posed off the model's right hand.
-     *
-     * <p>Open-coded rather than reusing {@code ItemInHandLayer}: layers hang off
-     * {@code LivingEntityRenderer}, and a ghost is not a living entity — deliberately, since that is
-     * what keeps it off every {@code getEntitiesOfClass(LivingEntity...)} query in the game,
-     * including our own attack targeting.
-     *
-     * <p>The item is drawn opaque. Tinting it too would make a held torch look broken rather than
-     * ghostly, and the body already carries the effect.
      */
     private void submitHeldItem(ChronoCloneRenderState state, HumanoidModel<ChronoCloneRenderState> model,
                                 PoseStack poseStack, SubmitNodeCollector collector) {
@@ -144,9 +118,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
 
     /**
      * The author's skin, defaulting to the UUID-derived silhouette until the fetch lands.
-     *
-     * <p>Cached on the entity: {@code createLookup} allocates a profile, a future handle and a
-     * closure, and this runs once per ghost per frame.
      */
     private static PlayerSkin skinOf(ChronoCloneEntity entity) {
         UUID author = entity.authorId();

@@ -10,13 +10,10 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
 /**
- * Payload registration. Both directions of the preview exchange, and nothing else so far.
+ * Payload registration.
  *
- * <p>Note the shape of {@link #clientReplyHandler}: payloads must be registered on both sides, but
- * the code that <em>handles</em> a play-to-client payload is client code. Naming the client class
- * here — even inside a {@code dist == CLIENT} branch — would put it in the bytecode of a class the
- * dedicated server loads. 26.x removed the runtime member-stripping that used to make that safe, so
- * side isolation has to be structural, and a settable hook is the smallest structure that does it.
+ * <p>The client handlers are settable because naming a client class here would put it in the
+ * bytecode of a class the dedicated server loads.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ChronoclonesNetwork {

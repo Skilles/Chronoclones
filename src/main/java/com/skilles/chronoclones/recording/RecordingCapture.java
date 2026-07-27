@@ -35,19 +35,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Server-side capture hooks.
- *
- * <p>Records <em>semantic intent</em>, never raw input, and only actions that actually succeeded —
- * every handler runs at {@link EventPriority#LOWEST} and bails if another listener cancelled the
- * event, so a routine can never contain a step that was blocked by a protection mod at record time.
- *
- * <p>All handlers no-op unless the player has an active session, so the cost on a server with no
- * recordings in progress is a single map lookup. That same lookup is what keeps a routine from
- * recording its own clones — see {@link RecordingSessions} for why an anchor's actions arrive here
- * wearing the recording player's identity.
- *
- * <p>A session is tied to the <em>player</em>, not to what they are holding. Any routine worth
- * recording means holding something other than the recorder — a pickaxe, a stack of blocks — so the
- * recorder only has to remain somewhere in the inventory.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class RecordingCapture {
@@ -68,10 +55,7 @@ public final class RecordingCapture {
 
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder == null) {
-            // Only abandon if the recorder has left the inventory entirely (dropped, died). It does
-            // NOT need to stay in hand: recording a mining routine requires holding a pickaxe, so
-            // treating "not in hand" as abandonment would kill the session the instant the player
-            // switched hotbar slots — which is to say, always.
+            // Only once the recorder has left the inventory: it need not stay in hand.
             RecordingSessions.discard(player);
             return;
         }
@@ -123,7 +107,7 @@ public final class RecordingCapture {
         BlockState placed = event.getPlacedBlock();
         ItemStack held = player.getMainHandItem();
 
-        // The item that produced this block — matched against anchor inventory at replay.
+        // The item that produced this block, matched against anchor inventory at replay.
         if (held.isEmpty()) {
             return;
         }
@@ -169,19 +153,13 @@ public final class RecordingCapture {
         BlockPos pos = event.getPos();
         ItemStack stack = event.getItemStack();
 
-        // Whether this click is worth recording as a use, and whether it might open a container, are
-        // two independent questions, and this handler must answer the second one for every click.
-        //
-        // Arming the watch below the item filters was a real bug: you start a recording by using the
-        // recorder, so you are still holding it when you walk over and open the first chest — the
-        // one click most likely to open a container was the one click guaranteed to be filtered out,
-        // and a whole hauling routine recorded as nothing at all.
+        // Armed above the item filters. Below them the recorder itself, still in hand when the
+        // first chest opens, filtered out the one click most likely to open a container.
         int recordedIndex = -1;
 
         if (!isControlInput(stack) && !(stack.getItem() instanceof BlockItem)) {
             BlockHitResult hit = event.getHitVec();
-            // Stored relative to the block centre so it rotates with the anchor, like every other
-            // position in a recording.
+            // Relative to the block centre so it rotates with the anchor.
             Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
 
             recordedIndex = session.nextActionIndex();
@@ -195,19 +173,12 @@ public final class RecordingCapture {
                     Vec3.atCenterOf(pos));
         }
 
-        // Armed last, and always. The index is what the open handler retracts if a menu appears; -1,
-        // or an index past the end when the action was dropped for range, simply retracts nothing.
+        // Always armed. -1, or an index past the end, retracts nothing.
         ContainerWatch.noteInteraction(player, pos, recordedIndex);
     }
 
     /**
      * True for items whose use is us, not the routine.
-     *
-     * <p>The recorder starts and stops recording, and a shard is inspected and imprinted — neither
-     * is a step in the task being taught.
-     *
-     * <p>Block items are excluded elsewhere for a different reason: placing one fires this event
-     * <em>and</em> {@code EntityPlaceEvent}, so recording both captures every placement twice.
      */
     private static boolean isControlInput(ItemStack stack) {
         return stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get());
@@ -260,15 +231,7 @@ public final class RecordingCapture {
 
     // ------------------------------------------------------------------ containers
 
-    /**
-     * Starts collecting the clicks made inside a container, which {@link ContainerWatch} turns into
-     * one action when the menu closes.
-     *
-     * <p>Clicks, not the net movement of items. Splitting a stack by right-clicking it means "take
-     * half of whatever is there", and recording the arithmetic that produced on one particular chest
-     * on one particular day replays as something the player never did. See {@link ContainerWatch}
-     * for the rest of that argument, and the mixin for why the clicks have to be intercepted.
-     */
+    /** {@link ContainerWatch} turns the collected clicks into one action on close. */
     @SubscribeEvent
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
@@ -324,12 +287,6 @@ public final class RecordingCapture {
 
     /**
      * Wipes the capture maps when the server goes away.
-     *
-     * <p>They are static, and in single player the JVM outlives the server: quit to the title screen
-     * while recording and the session survives into the next world you load, with an origin in a
-     * place that no longer exists. Logout normally clears it, but a crash or a quit mid-session does
-     * not go through logout — and the open-container watch has never been cleared by anything but
-     * the container closing.
      */
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
@@ -359,8 +316,7 @@ public final class RecordingCapture {
         RecordingSessions.discard(player);
         ContainerWatch.forget(player);
 
-        // Clear the stamp, otherwise the item keeps reporting RECORDING for a session that no
-        // longer exists and every later interaction with it reads as a failure.
+        // Clear the stamp, or the item reports RECORDING for a session that no longer exists.
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder != null) {
             recorder.remove(ModDataComponents.PROGRESS.get());
@@ -369,16 +325,6 @@ public final class RecordingCapture {
 
     /**
      * The specific recorder stack this session is bound to, or null if it is gone.
-     *
-     * <p>Matched by session id, not by "is a recorder". Scanning for any recorder would let a
-     * running session latch onto a <em>different</em> recorder the player happens to be carrying —
-     * stamping PROGRESS over its finished RECORDING and then overwriting or erasing it on stop.
-     * That is a silent data-loss bug and it depends on inventory slot order, so it only shows up
-     * sometimes.
-     *
-     * <p>Deliberately not restricted to the hands: any routine worth recording involves holding
-     * something else, so requiring the recorder in hand would end the session on the first hotbar
-     * switch.
      */
     public static @Nullable ItemStack findSessionRecorder(Player player, RecordingSession session) {
         Inventory inventory = player.getInventory();
@@ -388,8 +334,7 @@ public final class RecordingCapture {
                 return stack;
             }
         }
-        // Off-hand and armour are not part of getNonEquipmentItems on every version; check hands
-        // explicitly so a recorder held in the off-hand is still found.
+        // Check hands explicitly so a recorder in the off-hand is still found.
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
             if (belongsTo(stack, session)) {

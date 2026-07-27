@@ -15,6 +15,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
+import org.jspecify.annotations.NonNull;
 
 public class ChronoAnchorMenu extends AbstractContainerMenu {
 
@@ -32,12 +33,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     /**
      * Client-side constructor, reached via the extra data written by {@code openMenu(provider, pos)}.
-     *
-     * <p>The ContainerData here MUST be a fresh {@link SimpleContainerData}, not the block entity's
-     * own instance. The client-side block entity is never ticked (the block's ticker returns null on
-     * the client) so its fields sit at their defaults forever; reading them would show a frozen
-     * readout no matter what the server is doing. {@link #addDataSlots} is what actually carries the
-     * values across, and it needs a client-side buffer to write into.
      */
     public ChronoAnchorMenu(int containerId, Inventory playerInventory, RegistryFriendlyByteBuf extraData) {
         this(containerId, playerInventory, resolve(playerInventory, extraData.readBlockPos()),
@@ -129,9 +124,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     /**
      * Slot geometry, shared by the menu and the screen.
-     *
-     * <p>They have to agree exactly: the menu decides where clicks land and the screen decides
-     * where the boxes are drawn, so a mismatch is invisible until someone clicks empty air.
      */
     public static final class Layout {
         public static final int WIDTH = 176;
@@ -139,11 +131,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
         /**
          * The readout lines, each on its own row.
-         *
-         * <p>They used to share a row and it went wrong twice, both times invisibly until something
-         * changed: a line tucked ten pixels above another printed straight through the title, and a
-         * readout on the end of the upgrades line ran off the right edge of the window as soon as
-         * its wording grew. Hence a row each, and {@code AnchorLayoutTest} to keep them apart.
          */
         public static final int STATUS_Y = 18;
         public static final int UPGRADE_INFO_Y = 28;
@@ -175,7 +162,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public ItemStack quickMoveStack(Player player, int index) {
+    public @NonNull ItemStack quickMoveStack(@NonNull Player player, int index) {
         Slot slot = slots.get(index);
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
@@ -189,8 +176,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
                 return ItemStack.EMPTY;
             }
         } else {
-            // Into the anchor. Route upgrades and fuel to their own slots first, so shift-clicking
-            // a splitter installs it rather than burying it in storage.
+            // Upgrades and fuel route to their own slots first.
             boolean moved;
             if (UpgradeState.isUpgrade(stack.getItem())) {
                 moved = moveItemStackTo(stack, ANCHOR_SLOTS + 1, TOTAL_ANCHOR_SLOTS, false);
@@ -214,7 +200,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean stillValid(Player player) {
+    public boolean stillValid(@NonNull Player player) {
         return !anchor.isRemoved()
                 && player.level().getBlockEntity(anchor.getBlockPos()) == anchor
                 && player.distanceToSqr(

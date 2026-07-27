@@ -11,11 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * Turning an arrow key into a step in an anchor's local space.
- *
- * <p>Two rotations compose here — the player's facing and the anchor's — and getting either backwards
- * produces a control scheme that works from one side of an anchor and moves the routine sideways from
- * the other. That is the kind of bug that is obvious in play and invisible in review, which is exactly
- * what {@code LocalSpaceTest} exists for and why this gets the same treatment.
  */
 class NudgeDirectionTest {
 
@@ -26,7 +21,7 @@ class NudgeDirectionTest {
     @Test
     @DisplayName("on a north-facing anchor, forward is away from the player")
     void forwardIsAwayFromThePlayer() {
-        // North-facing anchor means local space is world space. A player looking north pushes north.
+        // A north-facing anchor means local space is world space.
         assertEquals(new BlockPos(0, 0, -1), step(NudgeDirection.Key.FORWARD, Direction.NORTH, Direction.NORTH));
         assertEquals(new BlockPos(0, 0, 1), step(NudgeDirection.Key.FORWARD, Direction.SOUTH, Direction.NORTH));
         assertEquals(new BlockPos(1, 0, 0), step(NudgeDirection.Key.FORWARD, Direction.EAST, Direction.NORTH));
@@ -64,12 +59,7 @@ class NudgeDirectionTest {
     }
 
     /**
-     * The property that matters, and the only one worth asserting for the rotated cases.
-     *
-     * <p>A hand-written expectation like "on an east-facing anchor, forward is +X" is itself a
-     * calculation, and a test that gets it backwards agrees with a implementation that gets it
-     * backwards. So instead: push the step back through the same {@link Placement} the anchor uses,
-     * and check the origin ends up one block in the direction the player was actually pointing.
+     * The property that matters, and the only one asserted for the rotated cases.
      */
     @Test
     @DisplayName("a step moves the origin the way the player is pointing, whatever the anchor faces")

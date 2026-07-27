@@ -12,14 +12,6 @@ import net.minecraft.network.codec.StreamCodec;
 
 /**
  * Live HUD counters for a recorder in RECORDING state.
- *
- * <p>Carried as a data component so ordinary inventory sync delivers it — no custom packet. If
- * that proves too laggy in practice the fallback is a small periodic payload, but this is the
- * cheapest thing that can work and is worth trying first.
- *
- * <p>{@code sessionId} identifies which capture session stamped this item. Without it, a player
- * carrying two recorders can have the running session bind to the wrong one — and then overwrite
- * or erase a finished recording that happened to sit in an earlier inventory slot.
  */
 public record RecordingProgress(UUID sessionId, int elapsedTicks, int actionCount,
                                 boolean outOfRangeWarning) {

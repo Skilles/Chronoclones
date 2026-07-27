@@ -14,10 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * The highlight packet, over the wire.
- *
- * <p>Worth asserting because this one fails quietly: a codec that reads the two slot lists back in
- * the wrong order paints the right squares in the wrong colours, which looks like a working feature
- * telling you something false — the exact failure mode the highlight exists to rule out.
  */
 class RecordingHighlightPayloadTest {
 

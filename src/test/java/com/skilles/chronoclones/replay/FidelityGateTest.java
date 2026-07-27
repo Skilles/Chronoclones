@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The fidelity ladder is a progression gate, not a cosmetic one: the design keeps combat behind it so
+ * The fidelity ladder is a progression gate, not a cosmetic one: it keeps combat behind it so
  * an early-game anchor can only mine and build. These tests pin the ladder so a reordering of the
  * enum cannot quietly hand a fresh anchor the ability to attack.
  */

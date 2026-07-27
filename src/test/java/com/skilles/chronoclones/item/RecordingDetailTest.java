@@ -19,10 +19,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The detailed listing behind shift.
- *
- * <p>Its job is to let someone decide whether to trust a stranger's shard, so the assertions here are
- * about what a reader can actually learn: which block, which place, and — for a container — which
- * button, since take-half and take-all are the difference between splitting a stack and emptying it.
  */
 class RecordingDetailTest {
 
@@ -53,7 +49,7 @@ class RecordingDetailTest {
         String text = keysOf(lines);
         assertTrue(text.contains("tooltip.chronoclones.detail.break"), text);
         assertTrue(text.contains("tooltip.chronoclones.detail.place"), text);
-        // The position is the point — "14 breaks" without one tells a reader nothing.
+        // The position is the point: "14 breaks" without one tells a reader nothing.
         assertTrue(text.contains("3, -1, 2"), text);
         assertTrue(text.contains("-2, 0, 5"), text);
     }
@@ -61,9 +57,8 @@ class RecordingDetailTest {
     @Test
     @DisplayName("a container session lists which button each click uses")
     void containerSessionIsExpanded() {
-        // No carrier entries: naming one means naming its stack, and a carrier line renders through
-        // getHoverName, which reads an item's default components — unbound without a loaded datapack.
-        // That the "needs" line appears, and names the right thing, is asserted in PrecisionGameTest.
+        // No carrier entries: a carrier line renders through getHoverName, which reads default
+        // components, unbound without a loaded datapack.
         List<Component> lines = RecordingDetail.describe(List.of(
                 new TimedAction(20, new ChronoAction.UseContainer(
                         new BlockPos(0, 0, -1), 63,

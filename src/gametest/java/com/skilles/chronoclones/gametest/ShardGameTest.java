@@ -20,11 +20,7 @@ import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 /**
- * Spec  transfer, and the  property that matters most about it.
- *
- * <p>Transfer is where the author/owner split earns its keep: once a routine can be handed to
- * someone else, "who wrote this" and "who is answerable for it" are genuinely different people, and
- * a shard imprinted by a second player must act as that second player.
+ * Transferring a routine, and the attribution property that matters most about it.
  */
 final class ShardGameTest {
 
@@ -59,15 +55,12 @@ final class ShardGameTest {
             helper.fail("inscribed shard does not report itself as inscribed");
         }
         if (shard.getMaxStackSize() != 1) {
-            helper.fail("inscribed shards must not stack — each carries distinct data");
+            helper.fail("inscribed shards must not stack: each carries distinct data");
         }
         helper.succeed();
     }
 
-    /**
-     * The heart of  under transfer: a routine authored by one player and imprinted by another
-     * must act as the <em>imprinter</em>.
-     */
+    /** A routine authored by one player and imprinted by another acts as the imprinter. */
     private static void shardImprintUsesNewOwner(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -75,8 +68,7 @@ final class ShardGameTest {
         ServerLevel level = helper.getLevel();
         Recording authored = AnchorTestFixture.breakOneBlock(Blocks.STONE);
 
-        // Scoped to this test's own target: game tests share a world and run concurrently, so an
-        // unfiltered listener would observe a neighbouring test's anchor instead.
+        // Scoped to this test's target: game tests share a world and run concurrently.
         BlockPos absoluteTarget = helper.absolutePos(target);
         AtomicReference<UUID> observed = new AtomicReference<>();
         Object listener = new Object() {
@@ -105,7 +97,7 @@ final class ShardGameTest {
                     }
                     if (AnchorTestFixture.AUTHOR_ID.equals(actor)) {
                         helper.fail("a transferred routine acted as its author - this is exactly the "
-                                + "griefing vector spec 10.1 warns about");
+                                + "griefing vector this guards");
                     }
                     if (!SECOND_OWNER_ID.equals(actor)) {
                         helper.fail("expected the imprinting player " + SECOND_OWNER_ID
@@ -126,7 +118,7 @@ final class ShardGameTest {
             helper.fail("anchor did not take the routine");
         }
         if (shard.isEmpty() || !ChronoShardItem.isInscribed(shard)) {
-            helper.fail("the shard lost its recording — it must survive imprinting");
+            helper.fail("the shard lost its recording: it must survive imprinting");
         }
         helper.succeed();
     }

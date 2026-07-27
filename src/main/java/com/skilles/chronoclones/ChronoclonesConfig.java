@@ -2,10 +2,7 @@ package com.skilles.chronoclones;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-/**
- * Server-side tunables. Anything that affects world mutation lives here so a server owner can
- * clamp it ("enforce MAX_RADIUS at both record time and execute time").
- */
+/** Server-side tunables. MAX_RADIUS is enforced at record time and again at execute time. */
 public final class ChronoclonesConfig {
     public static final ModConfigSpec SPEC;
 
@@ -17,10 +14,6 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue GOGGLE_RADIUS;
     /**
      * Whether Chrono Goggles show anchors somebody else imprinted.
-     *
-     * <p>A server-side policy rather than a client toggle, and enforced in the reply rather than by
-     * asking the client to look away: what a routine does is information about its owner, and the
-     * decision about who may see it belongs to whoever runs the server.
      */
     public static final ModConfigSpec.BooleanValue GOGGLES_SHOW_OTHERS;
 

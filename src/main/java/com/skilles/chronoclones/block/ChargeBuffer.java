@@ -5,13 +5,6 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 /**
  * The anchor's charge buffer.
- *
- * <p>Charge is the mod's primary balance lever: every executed action costs some, so upgrades read
- * as a tradeoff rather than pure gain. Four clones mining at triple rate burn charge twelve times
- * as fast as a bare anchor, which is what stops "more upgrades" from being a free win.
- *
- * <p>Immutable so the block entity swaps one value rather than mutating shared state, which keeps
- * "did this action actually get paid for" impossible to get half-right.
  */
 public record ChargeBuffer(int stored, int capacity) {
 

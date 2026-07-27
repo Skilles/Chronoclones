@@ -20,19 +20,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Lends the anchor's inventory to the fake player for the length of one container session.
- *
- * <p>A container menu is built around a player's inventory — that is what the bottom half of every
- * chest screen is, and what shift-click moves things into. Replaying a session through the real menu
- * therefore needs the anchor's contents to actually <em>be</em> the player's contents while the
- * clicks run, and to come back afterwards.
- *
- * <p>Same idea as {@link HeldItemLoan}, scaled from one stack to the whole inventory, and for the
- * same reason: the only way to get a mod's behaviour right is to give it the real thing and take
- * back whatever it hands you.
- *
- * <p>The fake player is shared per owner per level, so both halves are mandatory and
- * {@link #drain} belongs in a {@code finally}. Leaving items in it would strand them somewhere no
- * player can reach, and hand them to whichever of that owner's anchors acts next.
  */
 public final class ContainerCarrier {
 
@@ -41,21 +28,6 @@ public final class ContainerCarrier {
     /**
      * Sets the stage: empties the anchor into the fake player, with the recorded items in the slots
      * the session's clicks expect.
-     *
-     * <p>Placement is the whole job. A click on a player slot names a square whose contents are an
-     * accident of where that player kept things, so dumping the anchor's supply in from index zero
-     * leaves every recorded deposit clicking somewhere empty. The recorded layout says which square
-     * held what, and this puts it back there.
-     *
-     * <p>Anything the layout did not ask for still comes along, in whatever slots are left, so a
-     * session that shift-clicks its whole inventory into a chest still has one.
-     *
-     * <p>Emptying the anchor is deliberate: if it kept a copy, a session that consumed items would
-     * duplicate them on the way back.
-     *
-     * <p>The recorded item, up to the recorded amount, and no substitutions. The clicks that follow
-     * are the player's own gestures replayed against whatever ends up in these squares, so the job
-     * here is only to reproduce the arrangement those gestures were made against.
      *
      * @return false if a layout entry found nothing at all to stage
      */
@@ -78,10 +50,8 @@ public final class ContainerCarrier {
             inventory.set(slot, ItemResource.EMPTY, 0);
         }
 
-        // Which squares staging has spoken for, so the leftovers below cannot land in one. Vanilla's
-        // Inventory.add merges into the first partial stack it finds, which for a routine staging
-        // five diamonds into a slot and holding twenty-seven more meant the slot quietly became
-        // thirty-two — undoing the count that was just decided and shift-clicking the lot away.
+        // Which squares staging has claimed, so leftovers cannot land in one. Inventory.add
+        // merges into the first partial stack it finds, which would undo the staged count.
         boolean[] claimed = new boolean[Inventory.INVENTORY_SIZE];
 
         for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
@@ -97,13 +67,8 @@ public final class ContainerCarrier {
             // anchor and leaving the next one to report the routine unstocked.
             ItemStack staged = draw(pool, wanted.stack());
             if (staged.isEmpty()) {
-                // The routine needs something the anchor is not stocked with. Report it rather than
-                // running a session whose clicks will land on empty squares and quietly do nothing.
-                //
-                // The anchor has already been emptied into the pool by this point, so bailing out
-                // without this line destroyed everything it was holding — a routine that was merely
-                // missing one ingredient would eat the other seventeen stacks. Spilling into the
-                // player hands them to the drain in the caller's finally, which puts them back.
+                // The anchor is already emptied into the pool, so bailing out without spilling
+                // would destroy everything it was holding.
                 spill(pool, target, claimed);
                 return false;
             }
@@ -120,10 +85,6 @@ public final class ContainerCarrier {
 
     /**
      * Moves whatever is left of the pool into the player, where {@link #drain} can find it.
-     *
-     * <p>Into squares staging is not using, and without merging. Both of those matter: a leftover
-     * that topped up a staged slot would change the amount the session goes on to move, which is the
-     * one thing staging had just finished deciding.
      */
     private static void spill(List<ItemStack> pool, Inventory target, boolean[] claimed) {
         for (ItemStack leftover : pool) {
@@ -132,8 +93,7 @@ public final class ContainerCarrier {
             }
             int free = firstFree(target, claimed);
             if (free < 0) {
-                // Every free square is spoken for. Topping up a staged slot is wrong; losing the
-                // stack is worse, and drain hands it all back to the anchor either way.
+                // Topping up a staged slot is wrong; losing the stack is worse.
                 target.add(leftover);
                 continue;
             }
@@ -152,13 +112,6 @@ public final class ContainerCarrier {
 
     /**
      * Takes up to {@code wanted}'s count of {@code wanted}'s item out of the pool.
-     *
-     * <p>Matched on the item rather than the whole stack, so a routine taught with a fresh pickaxe
-     * runs on a worn one. Below that there is nothing to decide: the recording says what was in this
-     * square, and reproducing it is the entire job.
-     *
-     * <p>Gathering runs across the whole pool, since the anchor may hold the same item spread over
-     * several of its own slots.
      */
     private static ItemStack draw(List<ItemStack> pool, ItemStack wanted) {
         int limit = Math.min(wanted.getCount(), wanted.getMaxStackSize());
@@ -182,16 +135,11 @@ public final class ContainerCarrier {
 
     /**
      * Moves everything the fake player is holding back into the anchor, dropping what will not fit.
-     *
-     * <p>Overflow should be unreachable — the anchor was emptied to fill the player — but a session
-     * can end holding more than it started with, and voiding a player's items to keep an invariant
-     * tidy is not a trade worth making.
      */
     public static void drain(ServerLevel level, BlockPos anchorPos,
                              ItemStacksResourceHandler inventory, FakePlayer player,
                              @Nullable AbstractContainerMenu menu) {
-        // The cursor first. removed() normally hands it back to the inventory, but only vanilla's
-        // implementation promises that, and a stack left on a cursor nobody can see is gone.
+        // The cursor first: only vanilla's removed() promises to hand it back.
         if (menu != null) {
             ItemStack carried = menu.getCarried();
             if (!carried.isEmpty()) {

@@ -12,13 +12,6 @@ import net.minecraft.network.chat.Component;
 
 /**
  * Human-readable summary of a recording, shared by the recorder and the Chrono Shard.
- *
- * <p>This exists because handing someone an opaque item that turns out to mine a shaft under their
- * base is a bad surprise in single player and an actual attack on a shared server. A recording must
- * be fully inspectable <em>before</em> it is imprinted, so this reports who authored it, how long it
- * runs, exactly what it does broken down by action type, and how far from the anchor it reaches.
- *
- * <p>Cheap to compute and computed client-side from the synced component — no server round trip.
  */
 public final class RecordingTooltips {
 
@@ -56,9 +49,7 @@ public final class RecordingTooltips {
                         String.format("%.1f", recording.reach()))
                 .withStyle(ChatFormatting.GRAY));
 
-        // The summary says how destructive a routine is; the detail says destructive to what. Behind
-        // shift because it can run to dozens of lines, and because the summary is what you want when
-        // sorting a chest full of shards.
+        // Behind shift because the detail runs to dozens of lines.
         if (recording.actions().isEmpty()) {
             return lines;
         }
@@ -73,11 +64,7 @@ public final class RecordingTooltips {
     }
 
     /**
-     * Whether the detailed listing should be shown — in practice, whether shift is held.
-     *
-     * <p>Installed by the client entrypoint rather than reading {@code Screen.hasShiftDown()} here.
-     * This class is common code, and 26.x removed the runtime member-stripping that used to make
-     * naming a client type from common code safe, so side isolation has to be structural.
+     * Whether the detailed listing should be shown; in practice, whether shift is held.
      */
     public static volatile java.util.function.BooleanSupplier detailRequested = () -> false;
 

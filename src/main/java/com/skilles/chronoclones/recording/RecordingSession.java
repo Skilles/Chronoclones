@@ -13,11 +13,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Server-side state of one in-progress recording.
- *
- * <p>Lives only on the server and only while capture is active; the finished {@link Recording} is
- * what gets written to the recorder item. Everything appended here is already converted to
- * anchor-local space via {@link LocalSpace}, so the origin and its cardinal facing are captured
- * once at start and never revisited.
  */
 public final class RecordingSession {
 
@@ -48,11 +43,10 @@ public final class RecordingSession {
         this.authorId = player.getUUID();
         this.authorName = player.getGameProfile().name();
         this.origin = player.blockPosition();
-        // Snapping to a cardinal is mandatory — see LocalSpace for why arbitrary yaw cannot work.
+        // Snapping to a cardinal is mandatory; see LocalSpace for why arbitrary yaw cannot work.
         this.originFacing = LocalSpace.snapToCardinal(player.getYRot());
-        // Captured at the start, not at the finish: the routine describes how the player was
-        // playing while they performed it, and switching to survival to stop the recorder should
-        // not retroactively make an instant-break routine into a mining one.
+        // Captured at the start: switching to survival to stop the recorder should not
+        // retroactively make an instant-break routine into a mining one.
         this.creative = player.isCreative();
     }
 
@@ -112,9 +106,6 @@ public final class RecordingSession {
     /**
      * Records an action if it is within range and under the action cap.
      *
-     * <p>Out-of-range actions are dropped rather than clamped: silently relocating what the player
-     * did would be worse than not recording it, and the HUD warns instead.
-     *
      * @return the cap that was hit, or null
      */
     public StopReason record(ChronoAction action, Vec3 worldPos) {
@@ -137,11 +128,6 @@ public final class RecordingSession {
 
     /**
      * Retracts an action that turned out not to be one.
-     *
-     * <p>Used for the click that opens a container: at click time it looks like an ordinary use, and
-     * only the menu appearing afterwards reveals that the interesting part is what the player then
-     * moves. Bounds-checked because the action may never have been recorded — out of range, or over
-     * the cap.
      */
     public void dropActionAt(int index) {
         if (index >= 0 && index < actions.size()) {

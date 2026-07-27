@@ -15,15 +15,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * The step-by-step reading of a recording, shown while shift is held.
- *
- * <p>The summary answers "how destructive is this"; this answers "destructive to <em>what</em>". A
- * shard that says "14 breaks" tells you nothing about whether those breaks are a cobblestone wall or
- * the floor under your chests, and that distinction is the entire reason spec Â treats
- * inspection as a safety property rather than a convenience.
- *
- * <p>Positions are offsets from the anchor, because that is all a recording knows â€” it has not been
- * imprinted anywhere yet. The preview draws the same routine in the world once you point at an
- * anchor, which is the other half of the same question.
  */
 public final class RecordingDetail {
 
@@ -94,9 +85,8 @@ public final class RecordingDetail {
 
         for (ChronoAction.UseContainer.CarrierSlot carried : session.carrier()) {
             lines.add(indent(Component.translatable("tooltip.chronoclones.detail.container.needs",
-                            // getHoverName rather than the item's description id, so a routine that
-                            // wants the pickaxe you named "Tunneler" says so — which is the point of
-                            // recording the components in the first place.
+                            // getHoverName, so a routine wanting a pickaxe named "Tunneler"
+                            // says so.
                             carried.stack().getCount(), name(carried.stack().getHoverName()))
                     .withStyle(ChatFormatting.DARK_AQUA)));
             added++;
@@ -117,10 +107,6 @@ public final class RecordingDetail {
 
     /**
      * A click in words.
-     *
-     * <p>Naming the button matters more than naming the slot: "take half" is the difference between
-     * a routine that splits a stack and one that empties it, and it is the part a reader cannot infer
-     * from anything else on the tooltip.
      */
     private static net.minecraft.network.chat.MutableComponent clickLine(ChronoAction.UseContainer.Click click) {
         String key = switch (click.input()) {
@@ -143,10 +129,6 @@ public final class RecordingDetail {
 
     /**
      * An item's display name without building a stack.
-     *
-     * <p>{@code getName} needs an {@code ItemStack}, and constructing one outside a loaded datapack
-     * throws — which would make this class unloadable in unit tests for no benefit, since a tooltip
-     * only ever wants the plain name.
      */
     private static Component itemName(Item item) {
         return item == Items.AIR

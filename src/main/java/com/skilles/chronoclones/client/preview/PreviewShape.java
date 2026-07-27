@@ -15,32 +15,15 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
-/**
- * A routine turned into something you can look at: boxes where it will act, spheres where it will
- * swing, and the path it walks.
- *
- * <p>The point is to answer "what is this thing about to do to my base?" <em>before</em> imprinting
- * it, which the design treats as a safety requirement rather than a nicety — a shard handed to you
- * on a shared server is untrusted code, and a tooltip saying "14 breaks" does not tell you whether
- * those breaks are the cobblestone wall or the floor under your chests.
- *
- * <p>Computed against an anchor position and facing, so the preview is rotated exactly as the
- * routine would be if imprinted there. Looking at a west-facing anchor shows you the west-facing
- * version.
- */
+/** A routine as geometry: boxes where it acts, spheres where it swings, and its path. */
 public final class PreviewShape {
 
     /** What a routine does at one block, coloured by how much it should worry you. */
     public enum Kind {
-        /** Removes a block. */
         BREAK(0xFF_FF6B4A),
-        /** Adds a block. */
         PLACE(0xFF_7CFF9B),
-        /** Right-clicks something. */
         INTERACT(0xFF_86FFE7),
-        /** Moves items in or out of a container. */
         TRANSFER(0xFF_FFC24D),
-        /** Swings at whatever is in range. */
         ATTACK(0xFF_FF3B3B);
 
         public final int colour;
@@ -56,17 +39,12 @@ public final class PreviewShape {
     /**
      * A block the routine acts on.
      *
-     * @param failing whether this is the step the anchor is currently stuck on
+     * @param failing whether the anchor is currently stuck on this step
      */
     public record Mark(BlockPos pos, Kind kind, boolean failing) {}
 
     /**
      * A region the routine reaches into without naming a block.
-     *
-     * <p>Attacking and interacting with a mob happen wherever the clone is standing and to whatever
-     * wandered into range. A box would assert a certainty the routine does not have; a sphere the
-     * size of the executor's own query says the true thing — it swings here, at whatever is in this
-     * volume.
      */
     public record Volume(Vec3 centre, double radius, Kind kind, boolean failing) {}
 
@@ -102,9 +80,8 @@ public final class PreviewShape {
     }
 
     /**
-     * @param failingLocal anchor-local position of the step that is currently failing, or null.
-     *                     Marked rather than filtered out: the value is in seeing <em>which</em> of
-     *                     fourteen breaks is the one the anchor cannot do.
+     * @param failingLocal the currently failing step, or null. Marked rather than filtered:
+     *                     the value is in seeing which step it is.
      */
     public static PreviewShape of(Recording recording, BlockPos anchorPos, Direction anchorFacing,
                                   @Nullable BlockPos failingLocal) {
@@ -119,8 +96,7 @@ public final class PreviewShape {
 
             Vec3 reach = reachOf(timed.action());
             if (reach != null) {
-                // No half-block offset: an entity action records an exact point rather than a
-                // square, and the executor inflates its query around that same point.
+                // No half-block offset: an entity action records a point, not a square.
                 volumes.add(new Volume(LocalSpace.toWorld(reach, anchorPos, anchorFacing),
                         radiusOf(timed.action()), kind,
                         BlockPos.containing(reach).equals(failingLocal)));
@@ -147,10 +123,6 @@ public final class PreviewShape {
 
     /**
      * Where an action reaches when it does not name a block, or null if it names one.
-     *
-     * <p>Using an item in mid-air stays absent entirely: it happens wherever the clone is standing,
-     * affects nothing in particular, and a sphere for it would clutter the view with the one action
-     * type that cannot touch anything.
      */
     private static @Nullable Vec3 reachOf(ChronoAction action) {
         return switch (action) {

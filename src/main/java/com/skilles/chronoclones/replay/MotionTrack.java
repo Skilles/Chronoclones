@@ -11,14 +11,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Reads a recorded motion track back as a continuous path.
- *
- * <p>Samples are captured every {@link MotionSample#SAMPLE_INTERVAL_TICKS} ticks, so replay
- * interpolates between them. As with the Day 1 spike, <b>every query is a pure function of an
- * integer tick</b> — nothing accumulates, so a ghost looping for hours returns to exactly its
- * starting position rather than drifting away from it.
- *
- * <p>Queries outside the recorded range clamp to the first or last sample rather than extrapolating,
- * which keeps a ghost inside the routine it was given.
  */
 public final class MotionTrack {
 
@@ -68,7 +60,7 @@ public final class MotionTrack {
         MotionSample to = samples.get(i + 1);
         double t = progressBetween(from, to, tick);
 
-        // Interpolating raw degrees would spin the ghost the long way around when crossing ±180.
+        // Interpolating raw degrees would spin the clone the long way around when crossing ±180.
         float delta = LocalSpace.wrapDegrees(to.localYaw() - from.localYaw());
         return LocalSpace.wrapDegrees(from.localYaw() + (float) (delta * t));
     }
@@ -87,7 +79,6 @@ public final class MotionTrack {
         return from.pitch() + (float) ((to.pitch() - from.pitch()) * t);
     }
 
-    /** World position for an anchor at {@code anchorPos} facing {@code anchorFacing}. */
     public Vec3 worldPositionAt(int tick, BlockPos anchorPos, Direction anchorFacing) {
         return LocalSpace.toWorld(localPositionAt(tick), anchorPos, anchorFacing);
     }

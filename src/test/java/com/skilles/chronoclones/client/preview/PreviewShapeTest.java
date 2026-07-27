@@ -25,12 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * What a routine looks like before you commit to it.
- *
- * <p>Spec  makes inspection a safety property rather than a convenience: a shard handed to you
- * on a shared server is untrusted code. A routine that previewed as nothing at all would defeat that
- * entirely, which is what an attack-only routine used to do — the single most dangerous action type
- * was the one the preview was silent about.
+ * What a routine looks like before it is imprinted.
  */
 class PreviewShapeTest {
 
@@ -61,7 +56,7 @@ class PreviewShapeTest {
     void attackIsVisible() {
         PreviewShape shape = PreviewShape.of(of(attackAt(0, 0, -2)), ANCHOR, Direction.NORTH);
 
-        assertFalse(shape.isEmpty(), "an attacking routine that previews as nothing is the  hole");
+        assertFalse(shape.isEmpty(), "an attacking routine that previews as nothing cannot be inspected");
         assertEquals(1, shape.volumes().size());
         assertEquals(PreviewShape.Kind.ATTACK, shape.volumes().getFirst().kind());
         // A sphere rather than a box, because the swing lands on whatever is in range, not on a square.

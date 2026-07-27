@@ -7,20 +7,13 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * One clone playing back a recording.
- *
- * <p>Multiple runtimes share a single recording, separated by {@link #phaseOffset} so they string
- * out along the routine — the bucket-brigade visual the spec calls the showpiece.
- *
- * <p>{@link #playhead} is an integer tick index and the sole piece of motion state; position is
- * always recomputed from it rather than accumulated. {@link #actionCursor} advances monotonically
- * through the action list so due-action lookup stays O(1) per tick instead of rescanning.
  */
 public final class CloneRuntime {
 
     private final int phaseOffset;
     private int playhead;
     private int actionCursor;
-    private @Nullable ChronoCloneEntity ghost;
+    private @Nullable ChronoCloneEntity clone;
 
     public CloneRuntime(int phaseOffset) {
         this.phaseOffset = phaseOffset;
@@ -28,7 +21,7 @@ public final class CloneRuntime {
         this.actionCursor = 0;
     }
 
-    /** Phase offset for clone {@code i} of {@code n} — evenly distributed along the timeline. */
+    /** Phase offset for clone {@code i} of {@code n}: evenly distributed along the timeline. */
     public static int phaseOffsetFor(int index, int count, int lengthTicks) {
         if (count <= 0) {
             return 0;
@@ -62,13 +55,6 @@ public final class CloneRuntime {
 
     /**
      * How far through the block it is currently breaking, 0 to 1.
-     *
-     * <p>Mining is the one action that spans ticks, so it is the one that needs state between them.
-     * Kept on the runtime rather than the anchor because each clone mines its own block: four clones
-     * strung along a quarry are four separate holes in progress.
-     *
-     * <p>Deliberately not persisted. A half-mined block on chunk unload simply starts again, which
-     * matches the rest of replay — playheads are not saved either.
      */
     private float miningProgress;
     private @Nullable BlockPos miningPos;
@@ -114,18 +100,18 @@ public final class CloneRuntime {
         actionCursor = 0;
     }
 
-    public @Nullable ChronoCloneEntity ghost() {
-        return ghost;
+    public @Nullable ChronoCloneEntity cloneEntity() {
+        return clone;
     }
 
-    public void setGhost(@Nullable ChronoCloneEntity ghost) {
-        this.ghost = ghost;
+    public void setClone(@Nullable ChronoCloneEntity clone) {
+        this.clone = clone;
     }
 
-    public void discardGhost() {
-        if (ghost != null) {
-            ghost.discard();
-            ghost = null;
+    public void discardClone() {
+        if (clone != null) {
+            clone.discard();
+            clone = null;
         }
     }
 }

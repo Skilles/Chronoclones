@@ -19,10 +19,7 @@ public final class ModDataComponents {
                     .persistent(RecordingCodecs.RECORDING)
                     .networkSynchronized(RecordingCodecs.RECORDING_STREAM));
 
-    /**
-     * Live counters while recording, for the HUD. Kept as a separate component so the (large)
-     * recording payload is not rewritten every tick just to update a counter.
-     */
+    /** Separate from the recording so the large payload is not rewritten every tick. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<RecordingProgress>> PROGRESS =
             COMPONENTS.registerComponentType("recording_progress", builder -> builder
                     .persistent(RecordingProgress.CODEC)

@@ -23,22 +23,11 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The Chrono Recorder.
- *
- * <p>States: {@code IDLE -> RECORDING -> HOLDING -> (imprint) -> IDLE}. The state is derived from
- * the item's data components rather than stored separately, so it cannot drift out of sync with
- * the payload:
- * <ul>
- * <li>{@code PROGRESS} present -> RECORDING</li>
- * <li>{@code RECORDING} present -> HOLDING</li>
- * <li>neither -> IDLE</li>
- * </ul>
- *
- * <p>The authoritative capture state lives server-side in {@link RecordingSessions}; the component
- * is the client-visible mirror that drives the HUD.
  */
 public class ChronoRecorderItem extends Item {
 
@@ -72,7 +61,7 @@ public class ChronoRecorderItem extends Item {
     }
 
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
+    public @NonNull InteractionResult use(Level level, Player player, @NonNull InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
 
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
@@ -86,8 +75,8 @@ public class ChronoRecorderItem extends Item {
             if (state == State.IDLE) {
                 return InteractionResult.PASS;
             }
-            // Only end the live session if THIS recorder owns it. Discarding a finished recording
-            // must not kill a capture running on a different recorder in the same inventory.
+            // Only if THIS recorder owns the session; another may be capturing in the same
+            // inventory.
             RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
             RecordingSession active = RecordingSessions.get(serverPlayer);
             if (stamp != null && active != null && stamp.sessionId().equals(active.sessionId())) {
@@ -102,8 +91,7 @@ public class ChronoRecorderItem extends Item {
         return switch (state) {
             case IDLE -> beginRecording(serverPlayer, stack);
             case RECORDING -> stopRecording(serverPlayer, stack, RecordingSession.StopReason.MANUAL);
-            // Imprinting happens by right-clicking an anchor, handled by the block. Clicking air
-            // while holding a finished recording should not silently throw it away.
+            // Imprinting is handled by the block; clicking air must not discard the recording.
             case HOLDING -> {
                 feedback(serverPlayer, "message.chronoclones.recorder.holding", ChatFormatting.AQUA);
                 yield InteractionResult.SUCCESS;
@@ -112,9 +100,7 @@ public class ChronoRecorderItem extends Item {
     }
 
     private InteractionResult beginRecording(ServerPlayer player, ItemStack stack) {
-        // Refuse rather than silently replace. RecordingSessions is keyed by player, so starting a
-        // second capture would drop the first session while leaving its PROGRESS stamp behind —
-        // stranding that recorder in a permanent RECORDING state it can never leave cleanly.
+        // Sessions are keyed by player, so a second capture would strand the first recorder.
         if (RecordingSessions.isRecording(player)) {
             feedback(player, "message.chronoclones.recorder.already_recording", ChatFormatting.RED);
             return InteractionResult.SUCCESS;
@@ -135,9 +121,8 @@ public class ChronoRecorderItem extends Item {
     /** Also called by the tick handler when a cap is reached, hence the explicit reason. */
     public static InteractionResult stopRecording(ServerPlayer player, ItemStack stack,
                                                   RecordingSession.StopReason reason) {
-        // Only the recorder that started the live session may end it. Without this check a stack
-        // carrying a stale stamp would end somebody else's running session and write that
-        // recording onto the wrong item.
+        // Only the recorder that started the session may end it; a stale stamp would otherwise
+        // write somebody else's recording onto this item.
         RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
         RecordingSession active = RecordingSessions.get(player);
         if (stamp != null && active != null && !stamp.sessionId().equals(active.sessionId())) {
@@ -149,16 +134,14 @@ public class ChronoRecorderItem extends Item {
         }
 
         RecordingSession session = RecordingSessions.end(player);
-        // A recording can be stopped with a chest still open, and the watch has no other way to hear
-        // about it — PlayerContainerEvent.Close will find no session and return.
+        // A recording can stop with a chest still open, and Close will find no session.
         ContainerWatch.forget(player);
         stack.remove(ModDataComponents.PROGRESS.get());
 
-        // Distinguish "the session vanished" from "the session captured nothing". Collapsing these
-        // into one message is what made this failure impossible to diagnose.
+        // "Session vanished" and "session captured nothing" are different failures.
         if (session == null) {
             ChronoRecorderItem.clear(stack);
-            Chronoclones.LOGGER.warn("Recorder stopped for {} but no capture session existed — "
+            Chronoclones.LOGGER.warn("Recorder stopped for {} but no capture session existed: "
                     + "it was discarded while the item still read RECORDING.",
                     player.getGameProfile().name());
             feedback(player, "message.chronoclones.recorder.lost", ChatFormatting.RED);
@@ -197,13 +180,13 @@ public class ChronoRecorderItem extends Item {
     }
 
     @Override
-    public boolean isFoil(ItemStack stack) {
+    public boolean isFoil(@NonNull ItemStack stack) {
         return stateOf(stack) != State.IDLE;
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
-                                java.util.function.Consumer<Component> adder, TooltipFlag flag) {
+    public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
+                                java.util.function.@NonNull Consumer<Component> adder, @NonNull TooltipFlag flag) {
         switch (stateOf(stack)) {
             case IDLE -> adder.accept(Component.translatable("tooltip.chronoclones.recorder.idle")
                     .withStyle(ChatFormatting.DARK_GRAY));

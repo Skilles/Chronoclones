@@ -8,12 +8,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * The throttle in front of the preview and goggle requests.
- *
- * <p>The first assertion here is the whole reason this class exists. Written the obvious way —
- * {@code now - lastRequest >= INTERVAL}, with {@code lastRequest} starting at {@code Long.MIN_VALUE}
- * — the subtraction overflows to a large negative number, the comparison is false forever, and no
- * request is ever sent. That shipped in two caches: the anchor preview did nothing at all, and the
- * only reason it went unnoticed is that previewing a routine held in hand returns before it.
  */
 class RequestClockTest {
 
@@ -24,7 +18,7 @@ class RequestClockTest {
     void firstRequestIsAllowed() {
         // A brand new world starts at tick zero, which is exactly where the overflow bit hardest.
         assertTrue(new RequestClock().claim(0, INTERVAL),
-                "a fresh clock refused its first request — the feature would do nothing, silently");
+                "a fresh clock refused its first request: the feature would do nothing, silently");
         assertTrue(new RequestClock().claim(1, INTERVAL));
         assertTrue(new RequestClock().claim(1_000_000, INTERVAL));
     }

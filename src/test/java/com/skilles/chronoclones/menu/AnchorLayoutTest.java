@@ -12,18 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * That nothing in the anchor window is drawn on top of anything else.
- *
- * <p>Written after two overlaps shipped, and both are worth naming because they share a shape. The
- * origin readout was tucked ten pixels above the status line — which is where the title is — so it
- * appeared directly through the window's own name, but only once a routine had been nudged. And the
- * matching text sat on the end of the upgrades line, where it fitted until the wording got longer
- * and then ran off the edge of the window entirely.
- *
- * <p>Neither showed up while writing the code. Both are one comparison here.
- *
- * <p>Vertical only: horizontal placement depends on {@code Font.width}, which needs a client. What
- * this can check is that the rows are in order and that they all fit inside the window, which is
- * where the mistakes actually were.
  */
 class AnchorLayoutTest {
 
@@ -93,9 +81,8 @@ class AnchorLayoutTest {
     @Test
     @DisplayName("the window fits the smallest screen the game will scale to")
     void windowFitsTheSmallestScreen() {
-        // Minecraft clamps the GUI scale so the effective viewport stays at least 320x240. A window
-        // taller than that cannot be fully seen at any scale, and the readouts at the bottom are the
-        // ones that would go — the diagnostic line included.
+        // Minecraft clamps the GUI scale so the viewport stays at least 320x240, and the
+        // readouts at the bottom are what a taller window would lose.
         assertTrue(Layout.HEIGHT <= 240,
                 "the window is " + Layout.HEIGHT + " tall and would be clipped at every GUI scale");
     }

@@ -12,7 +12,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * The spec calls coordinate rebasing "the part most likely to be implemented wrong", so these tests
+ * Coordinate rebasing is the part most likely to be implemented wrong, so these tests
  * try to break it rather than merely demonstrate it: all 4×4 facing combinations, off-axis and
  * negative positions, and the consistency between rotating a position and rotating a yaw.
  */

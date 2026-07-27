@@ -8,13 +8,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import org.jspecify.annotations.NonNull;
 
 /**
  * An anchor upgrade, which is only ever an item in a slot.
- *
- * <p>Exists purely so each upgrade can say what it does. Four visually similar trinkets whose effect
- * is invisible until slotted is exactly the situation where a player slots all four, sees no change,
- * and concludes the mod is broken — so the tooltip is the feature, not decoration.
  */
 public class UpgradeItem extends Item {
 
@@ -26,8 +23,8 @@ public class UpgradeItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
-                                Consumer<Component> adder, TooltipFlag flag) {
+    public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
+                                Consumer<Component> adder, @NonNull TooltipFlag flag) {
         adder.accept(Component.translatable(descriptionKey).withStyle(ChatFormatting.GRAY));
         adder.accept(Component.translatable("tooltip.chronoclones.upgrade.slot")
                 .withStyle(ChatFormatting.DARK_GRAY));

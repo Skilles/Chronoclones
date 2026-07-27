@@ -10,11 +10,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Who may retune somebody else's anchor: nobody.
- *
- * <p>This is a security rule rather than a convenience one, and it fails quietly in both directions.
- * Too strict and a fresh anchor cannot be aimed before it is imprinted, which is the one time aiming
- * it is easiest. Too loose and anyone who can walk up to your farm can redirect it — and because the
- * anchor keeps running under its owner's identity, the damage arrives with your name on it.
  */
 class AnchorAuthorityTest {
 
@@ -38,7 +33,7 @@ class AnchorAuthorityTest {
     void unownedIsOpen() {
         // Deliberate, not an oversight. Aiming and tuning an anchor before committing a routine to
         // it is the point of being able to do either early, and there is no one yet to protect it
-        // from — ownership arrives with the imprint.
+        // from; ownership arrives with the imprint.
         assertTrue(AnchorAuthority.mayRetune(null, STRANGER));
     }
 }

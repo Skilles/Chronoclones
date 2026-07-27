@@ -3,15 +3,8 @@ package com.skilles.chronoclones.menu;
 /**
  * The slots of the anchor's synced {@code ContainerData}, by name.
  *
- * <p>A {@code ContainerData} is an array of ints addressed by position, and the two halves of it sit
- * in different files: the block entity fills the array and the menu reads it. Written as bare
- * numbers, those two lists have to be kept aligned by eye — and they have already come apart once.
- * A row removed from the middle silently shifts every readout below it to the wrong value, and the
- * time the count itself drifted, the client threw reading past the end of a buffer it had sized
- * from the other constant.
- *
- * <p>So the positions live here, once, and {@link #COUNT} is derived from them rather than typed
- * out. Adding a row is one line; removing one cannot leave a gap.
+ * <p>Written as bare numbers in two files, these drifted once and a client read past the end
+ * of its buffer.
  */
 public final class AnchorData {
 

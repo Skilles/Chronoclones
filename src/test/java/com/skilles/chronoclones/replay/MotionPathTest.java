@@ -11,9 +11,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * DAY 1 SPIKE (1b), executed as a test rather than by eye.
- *
- * <p>The spec's stated go/no-go was "run it for ten full loops and watch for positional drift".
- * Watching is weaker than asserting, so this asserts it — and over far more than ten loops.
  */
 class MotionPathTest {
 

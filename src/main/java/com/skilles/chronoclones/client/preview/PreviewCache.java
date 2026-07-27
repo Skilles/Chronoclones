@@ -20,14 +20,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Decides what the player is currently being shown a preview of, and fetches it when needed.
- *
- * <p>Two sources, one display. A routine held in hand — an inscribed shard, or a recorder that has
- * finished — is already on the client as an item component, so pointing at an anchor while holding
- * one previews <em>what would happen if you imprinted it here</em>, with no packet at all. That is
- * the case the spec cares about: inspection before committing. Pointing at an anchor empty-handed
- * previews what it is already doing, which needs one request.
- *
- * <p>Client-only, single-threaded, and holds at most one routine.
  */
 public final class PreviewCache {
 
@@ -48,8 +40,7 @@ public final class PreviewCache {
     /**
      * The anchor being looked at and the routine to draw there, or null.
      *
-     * @param failure what that anchor is currently stuck on. Always NONE for a routine held in hand:
-     *                a shard has never run anywhere, so it has nothing to be stuck on.
+     * @param failure always NONE for a routine held in hand, which has never run
      */
     public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
                          DiagnosticState failure, BlockPos originOffset) {
@@ -85,14 +76,10 @@ public final class PreviewCache {
             ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }
 
-        // The offset belongs to the anchor, not to the routine, so it applies to a shard being
-        // lined up as much as to one already imprinted — that is what makes aiming before you
-        // commit possible at all. Zero until the reply lands, which is also the right answer for an
-        // anchor nobody has nudged.
+        // The offset belongs to the anchor, so it applies to a shard being lined up as well.
         BlockPos offset = fresh ? cachedOffset : BlockPos.ZERO;
 
-        // A routine in hand wins: the player is asking "what would this do here", and answering with
-        // what the anchor already holds would be a different question.
+        // A routine in hand wins: the question is what it would do here.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
             return new Target(pos, facing, held, true, DiagnosticState.NONE, offset);
@@ -102,8 +89,7 @@ public final class PreviewCache {
             return cached == null ? null
                     : new Target(pos, facing, cached, false, cachedFailure, offset);
         }
-        // Nothing to draw until the reply lands. One frame of nothing beats a stale routine drawn
-        // over a different anchor.
+        // One frame of nothing beats a stale routine drawn over a different anchor.
         return null;
     }
 
@@ -118,17 +104,8 @@ public final class PreviewCache {
     }
 
     /**
-     * Moves the cached routine by a nudge the client has just sent.
-     *
-     * <p>The alternative was dropping the cache and waiting for the server to say where the routine
-     * went, and it looked wrong: clearing the offset drew one or more frames at the un-nudged origin
-     * before the reply landed, so every press flashed the wireframe back to where it started. The
-     * client knows the delta — it just sent it — so the drawing can be right immediately and the
-     * reply becomes a confirmation rather than the source.
-     *
-     * <p>An optimistic offset is only wrong if the server refuses the nudge, which happens for
-     * somebody else's anchor. The ordinary TTL refresh puts that right within a few seconds, and a
-     * player who cannot move an anchor is not the one watching to see whether it moved.
+     * Moves the cached routine by a nudge just sent, rather than dropping the cache and drawing
+     * at the un-nudged origin until the reply lands.
      *
      * @param delta the step, or {@link BlockPos#ZERO} for a reset
      */

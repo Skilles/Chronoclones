@@ -20,11 +20,6 @@ import org.joml.Vector3f;
 
 /**
  * Draws the preview: a box at every block the routine touches, and a line along the path it walks.
- *
- * <p>Boxes rather than a rehearsal ghost. A ghost shows one moment at a time and you have to watch
- * the whole loop to learn what it does; the boxes show every block it will ever touch, at once, in
- * colours that separate "removes a block" from "adds one". For deciding whether to trust a stranger's
- * shard, all-at-once is the only useful view.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class PreviewRenderer {
@@ -56,12 +51,10 @@ public final class PreviewRenderer {
         SubmitNodeCollector collector = event.getSubmitNodeCollector();
 
         poseStack.pushPose();
-        // Everything below is in world coordinates; one translation puts the whole preview into
-        // camera space rather than each piece doing its own subtraction.
+        // One translation puts the whole preview into camera space.
         poseStack.translate(-camera.x, -camera.y, -camera.z);
 
-        // Goggle anchors first and dimmer, so the one you are actually pointing at still reads as
-        // the subject rather than as one of nine equally loud outlines.
+        // Goggle anchors first and dimmer, so the one under the crosshair still reads.
         for (PreviewCache.Target target : worn) {
             if (hovered == null || !target.anchorPos().equals(hovered.anchorPos())) {
                 submit(collector, poseStack, target, GOGGLE_ALPHA);
@@ -76,7 +69,7 @@ public final class PreviewRenderer {
 
     private static void submit(SubmitNodeCollector collector, PoseStack poseStack,
                                PreviewCache.Target target, int alpha) {
-        // Drawn from the nudged origin, so what you see is where the work actually lands.
+        // Drawn from the nudged origin, so the preview matches where the work lands.
         PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
                 target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
         if (shape.isEmpty()) {
@@ -104,13 +97,11 @@ public final class PreviewRenderer {
         poseStack.translate(pos.getX() + INSET, pos.getY() + INSET, pos.getZ() + INSET);
         poseStack.scale(1.0f - (float) (INSET * 2), 1.0f - (float) (INSET * 2), 1.0f - (float) (INSET * 2));
 
-        // The failing step overrides its own colour and draws heavier. Otherwise "which of these
-        // fourteen breaks is the one that is stuck" is a question you answer by counting.
+        // The failing step overrides its colour and draws heavier, so it is findable.
         int colour = fade(mark.failing() ? PreviewShape.FAILING_COLOUR : mark.kind().colour, alpha);
         float width = mark.failing() ? FAILING_LINE_WIDTH : BOX_LINE_WIDTH;
 
-        // afterTerrain = true so the outline shows through the very blocks it describes. A preview
-        // you can only see by standing in the right place is not a preview.
+        // afterTerrain so the outline shows through the blocks it describes.
         collector.submitShapeOutline(poseStack, Shapes.block(), RenderTypes.lines(),
                 colour, width, true);
 
@@ -119,10 +110,6 @@ public final class PreviewRenderer {
 
     /**
      * A reach volume, as three orthogonal circles.
-     *
-     * <p>Three rings rather than a mesh: it costs a few dozen line segments, reads unmistakably as a
-     * sphere from any angle, and stays legible when several overlap — which they will, because an
-     * attack routine is usually many swings from one spot.
      */
     private static void submitVolume(SubmitNodeCollector collector, PoseStack poseStack,
                                      PreviewShape.Volume volume, int alpha) {
@@ -169,7 +156,7 @@ public final class PreviewRenderer {
                                  Vec3 from, Vec3 to, int colour) {
         normal.set((float) (to.x - from.x), (float) (to.y - from.y), (float) (to.z - from.z));
         if (normal.lengthSquared() < 1.0e-6f) {
-            // Two samples at the same place. The line shader normalises, and a zero normal is NaN.
+            // Two samples at the same place: the line shader normalises, and zero is NaN.
             return;
         }
         normal.normalize();

@@ -3,23 +3,14 @@ package com.skilles.chronoclones.recording;
 import com.mojang.serialization.Codec;
 
 import net.minecraft.util.StringRepresentable;
+import org.jspecify.annotations.NonNull;
 
-/**
- * The kinds of action a recording can contain, the fidelity ladder they are gated behind
- * ({@code BREAK -> +PLACE -> +ATTACK -> +USE}), and their charge costs.
- *
- * <p>Serialised by name rather than ordinal so reordering this enum cannot silently reinterpret
- * saved recordings as a different action.
- *
- * <p>Deliberately free of registry access: codecs live in {@link RecordingCodecs} so that this
- * enum and the data records stay loadable — and therefore unit testable — without bootstrapping
- * the game.
- */
+/** The kinds of action a recording can contain, their fidelity tier, and their charge cost. */
 public enum ChronoActionType implements StringRepresentable {
 
     BREAK_BLOCK("break_block", 0, 10),
     PLACE_BLOCK("place_block", 1, 5),
-    /** Hauling is a place-tier convenience, not an interaction — it swings nothing and hits nothing. */
+    /** Hauling is a place-tier convenience, not an interaction: it swings nothing and hits nothing. */
     USE_CONTAINER("use_container", 1, 2),
     ATTACK_ENTITY("attack_entity", 2, 20),
     USE_ON_BLOCK("use_on_block", 3, 5),
@@ -39,11 +30,10 @@ public enum ChronoActionType implements StringRepresentable {
     }
 
     @Override
-    public String getSerializedName() {
+    public @NonNull String getSerializedName() {
         return name;
     }
 
-    /** Minimum fidelity upgrade tier that permits this action. */
     public int fidelityTier() {
         return fidelityTier;
     }
@@ -52,7 +42,6 @@ public enum ChronoActionType implements StringRepresentable {
         return chargeCost;
     }
 
-    /** True if an anchor upgraded to {@code tier} is allowed to execute this action type. */
     public boolean permittedAt(int tier) {
         return fidelityTier <= tier;
     }

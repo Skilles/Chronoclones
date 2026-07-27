@@ -13,19 +13,6 @@ import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 /**
  * Caps how many clone actions the whole level may execute per tick.
- *
- * <p>Motion is cheap — driving a ghost is one position assignment — but world mutation is not, and
- * a base full of anchors could otherwise issue unbounded block breaks in a single tick. This bounds
- * the expensive half.
- *
- * <p>Anchors that run out of budget simply do not act this tick and retry on the next one, rather
- * than losing the action. Because {@code CloneRuntime}'s action cursor only advances when an action
- * is actually attempted, a starved anchor resumes exactly where it left off.
- *
- * <p><b>Note on the spec's staggered ticking.</b>  also suggests skipping whole anchor ticks on a
- * hashed schedule. That is not done here: the anchor's per-tick work is what keeps ghosts moving
- * smoothly, and staggering it would make them visibly stutter. The budget bounds the part that
- * actually costs, which is the point of the suggestion.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class LevelActionBudget {

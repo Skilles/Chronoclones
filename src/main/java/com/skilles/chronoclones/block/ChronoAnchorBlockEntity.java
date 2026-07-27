@@ -44,16 +44,11 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * The Chrono Anchor: holds an imprinted recording and replays it on a loop.
- *
- * <p><b>Owner and author are different fields and are never conflated</b>. The owner
- * is whoever imprinted this anchor and is the identity behind every block break, damage source and
- * permission check. The author travels with the {@link Recording} and only decides whose skin the
- * ghost wears. Getting this backwards is a griefing vector, so the owner is stored here — on the
- * block — and the recording carries no owner field at all.
  */
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
@@ -62,7 +57,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
         @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
+        protected void onContentsChanged(int index, @NonNull ItemStack previousContents) {
             setChanged();
         }
     };
@@ -76,15 +71,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /** One fuel item at a time; charge is drawn from it as it burns. */
     private final ItemStacksResourceHandler fuelSlot = new ItemStacksResourceHandler(1) {
         @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
+        protected void onContentsChanged(int index, @NonNull ItemStack previousContents) {
             setChanged();
         }
     };
 
-    /** Three upgrade slots. */
     private final ItemStacksResourceHandler upgradeSlots = new ItemStacksResourceHandler(UPGRADE_SLOTS) {
         @Override
-        protected void onContentsChanged(int index, ItemStack previousContents) {
+        protected void onContentsChanged(int index, @NonNull ItemStack previousContents) {
             setChanged();
         }
     };
@@ -156,7 +150,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return upgrades;
     }
 
-    /** The imprinting player — the identity behind every event this anchor causes. */
+    /** The imprinting player: the identity behind every event this anchor causes. */
     public @Nullable UUID getOwnerId() {
         return ownerId;
     }
@@ -180,9 +174,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Where this anchor's routine lands, and where its radius is measured from.
-     *
-     * <p>Built here rather than at each call site so the two positions are decided once. See
-     * {@link Placement} for why conflating them would hand out unlimited reach.
      */
     public Placement placement() {
         return Placement.of(worldPosition, getBlockState().getValue(ChronoAnchorBlock.FACING),
@@ -190,11 +181,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * Moves the routine's origin, clamped so it cannot become a way to extend reach.
-     *
-     * <p>The clamp is belt-and-braces — every action is radius-checked against the anchor block
-     * regardless, so an offset beyond the radius makes a routine fail rather than reach further.
-     * Bounding it anyway keeps absurd values out of the save file and keeps the preview on screen.
+     * Moves the routine's origin, clamped so a nudge cannot extend reach.
      */
     public void nudgeOrigin(BlockPos delta) {
         int limit = com.skilles.chronoclones.ChronoclonesConfig.MAX_RADIUS.getAsInt();
@@ -214,9 +201,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Imprints a recording, taking ownership for the imprinting player.
-     *
-     * <p>The owner comes from {@code imprinter} and the author stays inside {@code recording}. They
-     * are set from two different sources here on purpose — see the class docs.
      */
     public void imprint(Recording recording, ServerPlayer imprinter) {
         this.recording = recording;
@@ -232,12 +216,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /**
      * Takes ownership without touching the routine, for an anchor placed from a stack that already
      * carries one.
-     *
-     * <p>A routine survives being mined and re-placed — losing one to a pickaxe would be a miserable
-     * way to lose an afternoon's recording. Ownership does <em>not</em> survive: it is reassigned to
-     * whoever places the block, exactly as imprinting reassigns it. Mining someone's anchor and
-     * putting it down elsewhere must not let it keep acting in their name, and an
-     * anchor placed by a dispenser gets no owner at all, which leaves it inert.
      */
     public void adopt(ServerPlayer placer) {
         this.ownerId = placer.getUUID();
@@ -247,7 +225,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public void clearRecording() {
-        discardGhosts();
+        discardClones();
         runtimes.clear();
         recording = null;
         motionTrack = null;
@@ -257,7 +235,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     private void rebuildRuntimes() {
-        discardGhosts();
+        discardClones();
         runtimes.clear();
         if (recording == null) {
             return;
@@ -278,20 +256,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         if (!enabled || recording == null || motionTrack == null || ownerId == null) {
             if (!runtimes.isEmpty()) {
-                discardGhosts();
+                discardClones();
                 runtimes.clear();
                 setActive(false);
             }
             return;
         }
 
-        // Upgrades and refuelling run BEFORE the halt check, and unconditionally.
-        //
-        // Both halting reasons describe a resource the player can restore — charge, or inventory
-        // space — so an anchor that stops refuelling while halted can never recover from the very
-        // condition that halted it. Putting these after the halt check deadlocked a no-charge
-        // anchor permanently: fuel sat in the slot untouched until the anchor was re-imprinted,
-        // which reset the failure by accident rather than by design.
+        // Before the halt check: both halting reasons name a resource the player restores.
         UpgradeState current = UpgradeState.from(upgradeSlots);
         if (current.cloneCount() != upgrades.cloneCount()) {
             upgrades = current;
@@ -304,13 +276,12 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         if (lastFailure.halts()) {
             if (!DiagnosticState.canResume(lastFailure.reason(), !charge.isEmpty(), hasInventoryRoom())) {
-                // Still stuck. Ghosts stay faded so the stopped state reads from across the base
-                // rather than only in the GUI.
-                discardGhosts();
+                // Clones stay faded so the state is visible outside the GUI.
+                discardClones();
                 setActive(false);
                 return;
             }
-            // The cause cleared, so pick up where the routine left off.
+            // Cause cleared; resume.
             lastFailure = DiagnosticState.NONE;
             setChanged();
         }
@@ -331,7 +302,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 runtime.loop(length);
             }
 
-            syncGhost(serverLevel, runtime, facing);
+            syncClone(serverLevel, runtime, facing);
             runDueActions(serverLevel, runtime);
 
             if (lastFailure.halts()) {
@@ -341,19 +312,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * One tick of mining, or the whole break at once for a creative routine.
+     * One tick of mining, or the whole break for a creative routine.
      *
-     * <p>The player did not remove a block; they held a button until it gave way, and everything
-     * else they were doing waited. Replaying that as an instant deletion loses the only part of a
-     * mining routine you can actually watch, and loses the constraint that makes tool choice mean
-     * anything — a wooden pickaxe on obsidian should be a bad idea, not merely a slower way to the
-     * same result.
-     *
-     * <p>A creative recording breaks instantly, because that is what the author did. It is a
-     * property of the recording rather than of the anchor, so a creative-built routine stays
-     * instant wherever it is imprinted, and a survival one stays slow.
-     *
-     * @return true if the action finished this tick and the cursor has moved on
+     * @return true if the action finished this tick
      */
     private boolean mineOneTick(ServerLevel serverLevel, CloneRuntime runtime,
                                 ChronoAction.BreakBlock action, Placement placement,
@@ -361,8 +322,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ActionExecutor.Result refusal =
                 ActionExecutor.canBreak(serverLevel, action, placement);
         if (refusal != null) {
-            // Includes the block vanishing mid-dig: somebody else got there first, so stop digging
-            // at nothing and move on.
+            // Also covers the block vanishing mid-dig.
             stopMining(serverLevel, runtime);
             runtime.consumeAction();
             recordFailure(serverLevel, refusal.reason(), refusal.localPos(), runtime.playhead(), facing);
@@ -373,8 +333,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         boolean instant = recording != null && recording.creative();
 
         if (!instant) {
-            // Rate upgrades speed mining too. An accelerated clone replays more of the routine per
-            // real tick, and swinging is part of the routine.
+            // Rate upgrades speed mining too: swinging is part of the routine.
             float perTick = ActionExecutor.breakProgressPerTick(serverLevel, action, placement,
                     ownerId, ownerName) * upgrades.ticksPerStep();
             float progress = runtime.mine(worldPos, perTick);
@@ -400,11 +359,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * The cracking overlay, keyed to the ghost doing the digging.
-     *
-     * <p>Vanilla identifies a destruction animation by the entity id of whoever is breaking, which
-     * is what keeps four clones mining four blocks from overwriting each other's cracks. Falling
-     * back to the anchor's own hash covers the tick before a ghost exists.
+     * The cracking overlay, keyed to the clone doing the digging.
      */
     private void showCracks(ServerLevel serverLevel, CloneRuntime runtime, BlockPos worldPos,
                             float progress) {
@@ -416,16 +371,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private void stopMining(ServerLevel serverLevel, CloneRuntime runtime) {
         BlockPos was = runtime.miningPos();
         if (was != null) {
-            // -1 is vanilla's "no longer breaking this", and without it the cracks stay on screen
-            // until a chunk reload.
+            // -1 is vanilla's "no longer breaking this"; without it the cracks persist.
             serverLevel.destroyBlockProgress(breakerIdOf(runtime), was, -1);
         }
         runtime.clearMining();
     }
 
     private int breakerIdOf(CloneRuntime runtime) {
-        ChronoCloneEntity ghost = runtime.ghost();
-        return ghost != null ? ghost.getId() : worldPosition.hashCode();
+        ChronoCloneEntity clone = runtime.cloneEntity();
+        return clone != null ? clone.getId() : worldPosition.hashCode();
     }
 
     private void runDueActions(ServerLevel serverLevel, CloneRuntime runtime) {
@@ -442,7 +396,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             TimedAction timed = actions.get(runtime.actionCursor());
             ChronoAction action = timed.action();
 
-            // Fidelity gates which action types this anchor may run at all.
+            // Fidelity gates which action types this anchor may run.
             if (!action.type().permittedAt(upgrades.fidelityTier())) {
                 runtime.consumeAction();
                 recordFailure(serverLevel, FailureReason.NOT_PERMITTED, localPosOf(action),
@@ -450,14 +404,12 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 continue;
             }
 
-            // Out of level budget this tick. Leave the cursor alone so the action is retried next
-            // tick rather than silently dropped.
+            // Leave the cursor so the action retries next tick.
             if (!LevelActionBudget.tryClaim(serverLevel)) {
                 return;
             }
 
-            // Charge is the balance lever: more clones at a higher rate burn it
-            // proportionally faster, so upgrades cost something rather than being pure gain.
+            // More clones at a higher rate burn charge proportionally faster.
             int cost = action.chargeCost();
             if (!charge.canAfford(cost)) {
                 recordFailure(serverLevel, FailureReason.NO_CHARGE, localPosOf(action),
@@ -465,8 +417,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 return;
             }
 
-            // Breaking is the one action that takes time. It keeps the cursor until the block is
-            // gone, so the rest of the routine waits for it exactly as the player did.
+            // Breaking holds the cursor until the block is gone.
             if (action instanceof ChronoAction.BreakBlock breaking) {
                 if (!mineOneTick(serverLevel, runtime, breaking, placement, facing, cost)) {
                     return;
@@ -493,7 +444,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             };
 
             if (result.succeeded()) {
-                // Only pay for work that actually happened; a skipped action is free.
+                // Only pay for work that happened.
                 charge = charge.spend(cost);
                 setChanged();
             }
@@ -504,8 +455,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                     return;
                 }
             } else if (lastFailure.isFailure()) {
-                // A success clears a previous non-halting complaint, so the GUI reflects now
-                // rather than the last thing that ever went wrong.
+                // A success clears a previous non-halting failure.
                 lastFailure = DiagnosticState.NONE;
                 setChanged();
             }
@@ -525,9 +475,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Burns one fuel item if there is room for the charge it would produce.
-     *
-     * <p>Deliberately only consumes when the whole burn fits, so a nearly-full anchor never eats a
-     * block of coal to gain twenty charge.
      */
     private void consumeFuel() {
         if (level == null || charge.headroom() <= 0) {
@@ -538,7 +485,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
 
-        // Creative cell: top up and never consume, so charge stops being a variable while testing.
+        // Creative cell: top up, never consume.
         if (resource.getItem() == ModItems.CREATIVE_CHARGE_CELL.get()) {
             charge = charge.refill(charge.headroom());
             setChanged();
@@ -546,7 +493,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
 
         ItemStack probe = resource.toStack(1);
-        int burnTicks = level.fuelValues().burnDuration(probe);
+        int burnTicks = probe.getBurnTime(null, level.fuelValues());
         if (burnTicks <= 0) {
             return;
         }
@@ -581,9 +528,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Records why an action was skipped and marks the spot in-world.
-     *
-     * <p>The particle is the point: a routine that quietly stops doing one of its steps is the most
-     * confusing failure this mod can produce, so it gets a visible marker at the exact block.
      */
     private void recordFailure(ServerLevel serverLevel, FailureReason reason, BlockPos localPos,
                                int tick, Direction facing) {
@@ -596,9 +540,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 worldPos.getX() + 0.5, worldPos.getY() + 0.5, worldPos.getZ() + 0.5,
                 6, 0.2, 0.2, 0.2, 0.01);
 
-        // Only on the transition into halted. A halted anchor re-enters this method every tick, and
-        // a sound per tick would be unbearable — which is precisely why it is worth one sound once:
-        // a stopped anchor is otherwise silent and looks no different from a finished job.
+        // Only on the transition into halted: this runs every tick while stuck.
         if (wasRunning && lastFailure.halts()) {
             serverLevel.playSound(null, worldPosition, SoundEvents.BEACON_DEACTIVATE,
                     SoundSource.BLOCKS, 0.5f, 1.4f);
@@ -606,11 +548,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
-     * A slow drift of sculk soul above a running anchor.
-     *
-     * <p>The lit face already says "running" up close, but a block face is invisible from behind and
-     * from above. One particle every second and a half is enough to spot a working anchor across a
-     * base, and cheap enough to leave on for every anchor on a server.
+     * Idle particles above a running anchor.
      */
     private void emitIdleParticles(ServerLevel serverLevel) {
         if (serverLevel.getGameTime() % IDLE_PARTICLE_INTERVAL_TICKS != 0) {
@@ -623,33 +561,29 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private static final int IDLE_PARTICLE_INTERVAL_TICKS = 30;
 
-    private void syncGhost(ServerLevel serverLevel, CloneRuntime runtime, Direction facing) {
+    private void syncClone(ServerLevel serverLevel, CloneRuntime runtime, Direction facing) {
         if (motionTrack == null || motionTrack.isEmpty()) {
             return;
         }
-        ChronoCloneEntity ghost = runtime.ghost();
-        if (ghost == null || ghost.isRemoved()) {
-            ghost = ChronoCloneEntity.create(serverLevel);
-            // The AUTHOR, never the owner. This is the one place authorship is used for anything,
-            // and it is purely cosmetic: whose skin the clone wears.
+        ChronoCloneEntity clone = runtime.cloneEntity();
+        if (clone == null || clone.isRemoved()) {
+            clone = ChronoCloneEntity.create(serverLevel);
+            // The author, not the owner: authorship only decides the skin.
             if (recording != null) {
-                ghost.setAuthor(recording.authorId(), recording.authorName());
+                clone.setAuthor(recording.authorId(), recording.authorName());
             }
-            runtime.setGhost(ghost);
-            serverLevel.addFreshEntity(ghost);
+            runtime.setClone(clone);
+            serverLevel.addFreshEntity(clone);
         }
 
         Vec3 pos = motionTrack.worldPositionAt(runtime.playhead(), placement().origin(), facing);
         float yaw = motionTrack.worldYawAt(runtime.playhead(), facing);
-        ghost.driveTo(pos, yaw, motionTrack.pitchAt(runtime.playhead()));
-        ghost.setHeldItem(upcomingHeldItem(runtime));
+        clone.driveTo(pos, yaw, motionTrack.pitchAt(runtime.playhead()));
+        clone.setHeldItem(upcomingHeldItem(runtime));
     }
 
     /**
-     * What the ghost should be holding right now: whatever the action it is walking towards needs.
-     *
-     * <p>Read from the action cursor rather than the last action performed, so the clone picks up the
-     * pickaxe on the way to the block instead of a tick after breaking it.
+     * The item for the action the clone is walking towards.
      */
     private ItemStack upcomingHeldItem(CloneRuntime runtime) {
         if (recording == null) {
@@ -663,8 +597,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return actions.get(cursor).action().heldTemplate();
     }
 
-    private void discardGhosts() {
-        runtimes.forEach(CloneRuntime::discardGhost);
+    private void discardClones() {
+        runtimes.forEach(CloneRuntime::discardClone);
     }
 
     private void setActive(boolean active) {
@@ -677,19 +611,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     @Override
     public void setRemoved() {
         super.setRemoved();
-        discardGhosts();
+        discardClones();
     }
 
     /**
      * Spills everything the anchor is holding when it is broken.
-     *
-     * <p>The base implementation covers {@code Container} block entities only, and this one stores
-     * through the transfer API instead — so without this override a full anchor deletes its contents
-     * silently. That is the same item-loss failure the transactional break ordering exists to
-     * prevent, arriving through a different door.
      */
     @Override
-    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+    public void preRemoveSideEffects(@NonNull BlockPos pos, @NonNull BlockState state) {
         super.preRemoveSideEffects(pos, state);
         if (level == null) {
             return;
@@ -717,13 +646,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     /**
      * Carries the routine onto the dropped item, and back off it on placement.
-     *
-     * <p>Only the routine. The owner is deliberately not a component: it is reassigned by
-     * {@link #adopt}, so an anchor cannot be picked up and re-placed while still acting as its
-     * previous owner.
      */
     @Override
-    protected void collectImplicitComponents(net.minecraft.core.component.DataComponentMap.Builder builder) {
+    protected void collectImplicitComponents(net.minecraft.core.component.DataComponentMap.@NonNull Builder builder) {
         super.collectImplicitComponents(builder);
         if (recording != null) {
             builder.set(ModDataComponents.RECORDING.get(), recording);
@@ -731,7 +656,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     @Override
-    protected void applyImplicitComponents(net.minecraft.core.component.DataComponentGetter getter) {
+    protected void applyImplicitComponents(net.minecraft.core.component.@NonNull DataComponentGetter getter) {
         super.applyImplicitComponents(getter);
         Recording carried = getter.get(ModDataComponents.RECORDING.get());
         if (carried != null) {
@@ -743,14 +668,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     @Override
     public void removeComponentsFromTag(ValueOutput output) {
-        // The routine now lives on the stack; leaving a copy in the saved tag would double it up.
+        // The routine lives on the stack now; a copy in the tag would duplicate it.
         output.discard("recording");
     }
 
     // ------------------------------------------------------------- persistence
 
     @Override
-    protected void saveAdditional(ValueOutput output) {
+    protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
         inventory.serialize(output.child("inventory"));
         fuelSlot.serialize(output.child("fuel"));
@@ -769,11 +694,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             output.store("origin_offset", BlockPos.CODEC, originOffset);
         }
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
-        // Playheads are deliberately NOT saved: no catch-up on chunk load.
+        // Playheads are not saved: no catch-up on chunk load.
     }
 
     @Override
-    protected void loadAdditional(ValueInput input) {
+    protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         input.child("inventory").ifPresent(inventory::deserialize);
         input.child("fuel").ifPresent(fuelSlot::deserialize);
@@ -789,19 +714,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
-        // Ghosts are never persisted; runtimes rebuild from their phase offsets on first tick.
+        // Clones are not persisted; runtimes rebuild from phase offsets on first tick.
         runtimes.clear();
     }
 
     // ------------------------------------------------------------------- menu
 
     @Override
+    @NonNull
     public Component getDisplayName() {
         return Component.translatable("block.chronoclones.chrono_anchor");
     }
 
     @Override
-    public AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
+    public AbstractContainerMenu createMenu(int containerId, @NonNull Inventory playerInventory, @NonNull Player player) {
         return new ChronoAnchorMenu(containerId, playerInventory, this, data);
     }
 }

@@ -9,28 +9,14 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import org.jspecify.annotations.NonNull;
 
 /**
  * The Chrono Anchor screen: storage, fuel, upgrades, charge, and the diagnostic line.
- *
- * <p>26.x replaced immediate-mode screen drawing with render-state extraction — {@code renderBg},
- * {@code GuiGraphics} and {@code blit} are gone. The direct replacement for {@code renderBg} is
- * {@link net.minecraft.client.gui.screens.Screen#extractBackground}, which is what vanilla's
- * {@code HopperScreen} overrides.
- *
- * <p>Drawn with {@code fill} and {@code text} rather than a blitted texture. That started as a way
- * to de-risk the GUI spike without also depending on a texture asset and the {@code RenderPipeline}
- * argument every {@code blit} overload now requires; it has stayed because it costs nothing and
- * reads cleanly. A painted texture is a polish-pass swap, not a rewrite.
- *
- * <p>Client-only. Isolation comes from being referenced solely by {@code ChronoclonesClient}, which
- * is itself {@code @Mod(dist = Dist.CLIENT)} — 26.x removed the runtime member-stripping that
- * {@code @OnlyIn} used to provide, so that annotation is noise and NeoForge warns about it.
  */
 public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu> {
 
-    // Package-private: the drawer widgets draw themselves in the same palette, and a second copy of
-    // these numbers is a second thing to forget when one of them changes.
+    // Package-private: the drawer widgets draw themselves in the same palette.
     static final int PANEL_BG = 0xFF2B2B33;
     static final int PANEL_EDGE = 0xFF5A5A6E;
     static final int SLOT_BG = 0xFF8B8B8B;
@@ -56,7 +42,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private boolean drawerOnLeft;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
-        // imageWidth/imageHeight are final in 26.x — they must go through the 5-arg constructor.
+        // imageWidth/imageHeight are final in 26.x and must go through the 5-arg constructor.
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
         this.inventoryLabelY = Layout.PLAYER_LABEL_Y;
     }
@@ -82,13 +68,9 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         openness = Math.clamp(openness + (drawerOpen ? DRAWER_STEP : -DRAWER_STEP), 0f, 1f);
     }
 
-    /**
-     * Window background. This is NOT inside the container's pose translation, so coordinates here
-     * are absolute — same as vanilla's {@code HopperScreen}, which computes its own origin rather
-     * than reading {@code leftPos}. Calling {@code super} first paints the usual screen dimming.
-     */
+    /** Not inside the container's pose translation, so coordinates here are absolute. */
     @Override
-    public void extractBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
+    public void extractBackground(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(extractor, mouseX, mouseY, partialTick);
 
         int xo = (this.width - this.imageWidth) / 2;
@@ -100,7 +82,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.fill(xo - 1, yo - 1, xo + imageWidth + 1, yo + imageHeight + 1, PANEL_EDGE);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, PANEL_BG);
 
-        // Storage grid, then fuel + upgrades, then the player inventory — matching menu slot order.
+        // Storage grid, then fuel and upgrades, then the player inventory: menu slot order.
         for (int row = 0; row < 2; row++) {
             for (int col = 0; col < 9; col++) {
                 slotBox(extractor, xo + 8 + col * 18, yo + Layout.STORAGE_Y + row * 18);
@@ -126,10 +108,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     /**
      * The precision drawer, as wide as it has slid so far.
-     *
-     * <p>Interpolated across the tick rather than stepped with it: the state advances twenty times a
-     * second and this runs rather more often than that, so without the partial tick a five-frame
-     * slide is five visible jumps.
      */
     private void drawer(GuiGraphicsExtractor extractor, int xo, int yo, float partialTick) {
         float eased = previousOpenness + (openness - previousOpenness) * partialTick;
@@ -171,11 +149,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.fill(x - 1, y - 1, x + 17, y + 17, SLOT_BG);
     }
 
-    /**
-     * Labels. {@code extractContents} wraps this call in {@code pose().translate(leftPos, topPos)},
-     * so these coordinates are LOCAL to the window — adding leftPos/topPos here offsets everything
-     * a second time. Vanilla's own override uses bare {@code titleLabelX}/{@code titleLabelY}.
-     */
+    /** Wrapped in a translate to leftPos/topPos, so these coordinates are window-local. */
     @Override
     protected void extractLabels(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         extractor.text(font, title, titleLabelX, titleLabelY, TEXT);
@@ -188,8 +162,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             return;
         }
 
-        // Each readout gets its own line. Packing them side by side overlapped as soon as a
-        // routine had a two-digit action count.
+        // A line each: side by side overlapped at two-digit action counts.
         extractor.text(font, Component.translatable("gui.chronoclones.anchor.progress",
                         menu.getPlayhead() / 20, menu.getLengthTicks() / 20, menu.getActionCount()),
                 8, Layout.STATUS_Y, ACCENT);
@@ -198,8 +171,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                         menu.getActiveClones(), menu.getTicksPerStep()),
                 8, Layout.UPGRADE_INFO_Y, MUTED);
 
-        // The diagnostic line the spec insists on: not just what failed, but where, in
-        // anchor-local coordinates, so the failing block can actually be found.
+        // Not just what failed but where, in anchor-local coordinates.
         DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
         if (reason != DiagnosticState.FailureReason.NONE) {
             BlockPos at = menu.getFailurePos();
@@ -209,7 +181,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    /** The three section labels, naming what the row below each one is for. */
     private void sectionLabels(GuiGraphicsExtractor extractor) {
         extractor.text(font, Component.translatable("gui.chronoclones.anchor.section.fuel"),
                 Layout.FUEL_X, Layout.SECTION_LABEL_Y, MUTED);
@@ -221,13 +192,9 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     /**
      * Tooltips for the parts of the window that are not slots.
-     *
-     * <p>Runs outside the window's translation — {@code extractContents} pops the matrix before
-     * {@code extractTooltip} — so the mouse and the regions here are both in screen coordinates,
-     * unlike everything in {@code extractLabels}.
      */
     @Override
-    protected void extractTooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+    protected void extractTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         super.extractTooltip(extractor, mouseX, mouseY);
         // A slot under the pointer has already claimed the tooltip, and two at once is one too many.
         if (hoveredSlot != null) {
@@ -236,8 +203,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         if (within(mouseX, mouseY, Layout.CHARGE_X, Layout.CHARGE_Y,
                 Layout.CHARGE_WIDTH, Layout.CHARGE_HEIGHT)) {
-            // The bar answers "roughly how full", which is the question at a glance. This answers
-            // "will it finish the routine", which needs the actual numbers.
+            // The bar answers "roughly how full"; this answers "will it finish".
             extractor.setTooltipForNextFrame(font,
                     Component.translatable("gui.chronoclones.anchor.charge.detail",
                             menu.getCharge(), menu.getChargeCapacity()),

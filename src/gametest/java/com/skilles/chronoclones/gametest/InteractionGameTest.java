@@ -29,12 +29,6 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * The generic interaction paths.
- *
- * <p>These matter more than the count of them suggests. Every one goes through the server's own
- * entry point — {@code useItemOn} for blocks, the item-handler capability for containers — so what
- * they actually assert is that the mod contains <em>no</em> knowledge of levers or chests, and would
- * behave the same way for a block belonging to a mod that has not been written yet. A test that
- * special-cased its way to green here would be worse than none.
  */
 final class InteractionGameTest {
 
@@ -61,9 +55,6 @@ final class InteractionGameTest {
 
     /**
      * Nothing in this mod knows what a lever is.
-     *
-     * <p>The routine says "right-click the top face of the block one step north". A lever happens to
-     * be there, so it flips — for exactly the same reason it flips for a player.
      */
     private static void flipsLever(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -76,8 +67,7 @@ final class InteractionGameTest {
         AnchorTestFixture.unlockAllActions(AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.AIR))));
 
-        // Checked after one pass, not a full loop. A lever is a toggle and the routine repeats, so
-        // waiting long enough for two passes asserts nothing at all.
+        // One pass, not a loop: a lever is a toggle and the routine repeats.
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
                     if (!helper.getBlockState(target).getValue(LeverBlock.POWERED)) {
@@ -108,14 +98,6 @@ final class InteractionGameTest {
 
     /**
      * The borrowed stack comes home, carrying whatever the interaction did to it.
-     *
-     * <p>Flint and steel lights a fire and loses a point of durability. The executor knows neither
-     * fact: it hands over a real stack, lets the normal code path do whatever it does, and puts back
-     * what is left in the hand. That one mechanism is what makes durability, consumption and
-     * container-item swaps all come out right without a table of special cases.
-     *
-     * <p>Checked after a single pass rather than a full loop, so the assertion is an exact number
-     * instead of "less than it started with".
      */
     private static void returnsWhatItBorrowed(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -149,11 +131,6 @@ final class InteractionGameTest {
 
     /**
      * The reason container work is recorded as clicks rather than amounts.
-     *
-     * <p>The session right-clicks a stack to split it. Right-click means <em>take half of whatever
-     * is there</em>, so the barrel is deliberately stocked with 40 rather than the 64 such a routine
-     * would have been taught on: an amount baked in at record time would move 32, and intent moves
-     * 20. Getting 20 out is the whole argument for the click model.
      */
     private static void splitsByIntent(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -184,10 +161,6 @@ final class InteractionGameTest {
 
     /**
      * Loading a furnace, which is where slots carry meaning.
-     *
-     * <p>Pick the logs up, then right-click one into the input and one into the fuel slot. Both
-     * accept a log, so anything that merely looked for room would put both in the input and smelt
-     * nothing.
      */
     private static void loadsAFurnace(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -215,9 +188,8 @@ final class InteractionGameTest {
                     }
                     assertSlotHolds(helper, furnace, FURNACE_INPUT, Items.OAK_LOG, "input");
 
-                    // The fuel slot is asserted through the furnace being lit rather than by reading
-                    // it, because a furnace consumes fuel on the tick it arrives - an empty fuel slot
-                    // here means the log got there and burned, which is the point.
+                    // A furnace consumes fuel on the tick it arrives, so an empty fuel slot
+                    // here means the log got there and burned.
                     if (!helper.getBlockState(target).getValue(BlockStateProperties.LIT)) {
                         helper.fail("the furnace never lit - the second log did not reach the fuel "
                                 + "slot, so nothing smelts");
@@ -286,9 +258,6 @@ final class InteractionGameTest {
 
     /**
      * A session refuses a menu of a different shape.
-     *
-     * <p>Slot indices only mean anything relative to the menu that produced them, so a routine taught
-     * on a barrel must not start pressing the same numbered buttons on a furnace.
      */
     private static void refusesAnotherMenu(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -312,14 +281,6 @@ final class InteractionGameTest {
 
     /**
      * Depositing, which is the case the carrier layout exists for.
-     *
-     * <p>The recorded click names a player-inventory slot, and which one is pure accident — wherever
-     * that player kept the stack. The anchor stores from index zero, which a chest menu shows in a
-     * completely different square, so without the recorded layout this session clicked an empty slot
-     * and did nothing at all, silently.
-     *
-     * <p>The layout here deliberately names a main-inventory slot rather than the first hotbar one,
-     * because a mapping that happened to line up would prove nothing.
      */
     private static void depositsIntoAContainer(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -380,10 +341,7 @@ final class InteractionGameTest {
 
     // ------------------------------------------------------------------ menu geometry
 
-    // Vanilla menus lay out container slots first, then the player's main inventory, then the
-    // hotbar. The anchor's slot 0 is loaded into Inventory slot 0, which is hotbar 0 - so it lands
-    // at containerSlots + 27. None of this is knowledge the mod has; the tests need it to write
-    // click scripts by hand, which is exactly what a recording does for real.
+    // Vanilla menu order: container slots, main inventory, hotbar.
     private static final int CHEST_MENU_SIZE = 27 + 36;
     private static final int CHEST_CARRIER_SLOT = 27 + 27;
     private static final int CHEST_MAIN_INVENTORY_START = 27;
@@ -397,11 +355,6 @@ final class InteractionGameTest {
 
     /**
      * A click on a full slot does nothing, and does nothing anywhere else either.
-     *
-     * <p>The routine puts coal in the furnace's fuel slot, which is already full of coal, so the
-     * click has no effect and the coal comes home. What it must never do is end up in the
-     * <em>input</em> slot, which would accept it — a furnace will happily try to smelt coal, so a
-     * routine that went looking for somewhere the item fits would quietly feed the wrong hopper.
      */
     private static void fullSlotLeavesTheItemAlone(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -433,7 +386,7 @@ final class InteractionGameTest {
                                 + "than the square it named, got "
                                 + furnace.getResource(FURNACE_INPUT).getItem());
                     }
-                    // And it is not lost either — a click with nowhere to go returns its item.
+                    // And it is not lost: a click with nowhere to go returns its item.
                     if (countIn(anchor.getInventory(), Items.COAL) != 1) {
                         helper.fail("the coal went nowhere and was not returned to the anchor");
                     }
@@ -443,10 +396,6 @@ final class InteractionGameTest {
 
     /**
      * A session that cannot be stocked leaves the anchor's contents alone.
-     *
-     * <p>Staging empties the anchor before it knows whether the layout can be satisfied, so bailing
-     * out used to destroy everything it was holding — a routine missing one ingredient would eat the
-     * other seventeen stacks. This is the assertion that stops that coming back.
      */
     private static void failedStagingKeepsTheInventory(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);

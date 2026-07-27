@@ -13,10 +13,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Halts have to be pauses, not traps.
- *
- * <p>Regression cover for a deadlock: a no-charge anchor stopped refuelling while halted, so the
- * fuel that would have cleared the halt was never consumed. It could only be revived by
- * re-imprinting, which reset the failure by accident rather than by design.
  */
 class DiagnosticStateTest {
 
@@ -51,7 +47,7 @@ class DiagnosticStateTest {
                 continue;
             }
             assertTrue(DiagnosticState.canResume(reason, true, true),
-                    reason + " halts but cannot be resumed even once everything is available — "
+                    reason + " halts but cannot be resumed even once everything is available: "
                             + "that is a permanent trap");
         }
     }

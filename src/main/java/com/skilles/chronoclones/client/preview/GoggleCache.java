@@ -11,15 +11,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 
 /**
  * Every anchor the goggles can currently see.
- *
- * <p>Separate from {@link PreviewCache}, which answers a different question. That one is about the
- * anchor under the crosshair and is driven by where you are looking; this is about the room you are
- * standing in and is driven by a timer. Conflating them was what made a second source impossible to
- * add — one cached routine, keyed by one position.
- *
- * <p>Polled rather than pushed. A push would mean the server tracking which players are wearing
- * goggles and re-sending whenever any anchor in range changed, which is a subscription system for a
- * feature whose whole job is "roughly what is around me".
  */
 public final class GoggleCache {
 

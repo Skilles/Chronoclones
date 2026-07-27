@@ -15,18 +15,10 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Preview traffic: a routine sent to one client, on request, for as long as they are looking at it.
- *
- * <p>Deliberately request/response rather than syncing the routine in the anchor's update tag. A
- * recording is kilobytes; an update tag goes to every client in view distance, on every block update,
- * whether or not anyone is looking. A server with a hundred anchors would pay that continuously so
- * that somebody might occasionally glance at one.
- *
- * <p>The reply carries the whole {@link Recording} rather than pre-computed geometry, because the
- * client needs exactly the same code path for the other preview source — a shard held in hand, whose
- * recording is already on the client as an item component and needs no packet at all.
  */
 public final class AnchorPreviewPayloads {
 
@@ -42,18 +34,13 @@ public final class AnchorPreviewPayloads {
                 StreamCodec.composite(BlockPos.STREAM_CODEC.cast(), Request::pos, Request::new);
 
         @Override
-        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
 
     /**
      * Server → client: the routine, or empty if that anchor has none.
-     *
-     * <p>The diagnostic rides along because the preview is where it is most useful. The anchor GUI
-     * has always said <em>why</em> the last action failed; drawing the same information in the world
-     * says <em>which</em> of fourteen identical-looking breaks is the one that cannot run, which is
-     * the part you otherwise have to work out by counting.
      */
     public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure,
                         BlockPos originOffset) implements CustomPacketPayload {
@@ -70,17 +57,13 @@ public final class AnchorPreviewPayloads {
                         Reply::new);
 
         @Override
-        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
 
     /**
      * Answers a request, if the player could plausibly be looking at that anchor.
-     *
-     * <p>The distance check is not politeness. Without it this is a remote read of any anchor in the
-     * world by coordinate — which would leak what every routine on a server does, to anyone willing
-     * to send packets, including the ones whose author never handed out a shard.
      */
     public static void handleRequest(Request request, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {

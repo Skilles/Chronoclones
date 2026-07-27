@@ -16,16 +16,8 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 /**
- * the security-critical tests: <b>attribution must resolve from the anchor owner, never
+ * The security-critical tests: <b>attribution must resolve from the anchor owner, never
  * from the recording author.</b>
- *
- * <p>The spec is explicit that getting this backwards is a griefing vector — a crafted recording
- * handed to another player would break blocks in the author's name and pass their land claims. It
- * asks for a test before shipping multiplayer, and this is it.
- *
- * <p>These run in a real server with real events, which is the only place the claim can actually be
- * checked: the whole question is what a third-party protection mod observes, and that cannot be
- * asserted off-runtime.
  */
 final class AttributionGameTest {
 
@@ -57,7 +49,7 @@ final class AttributionGameTest {
 
                     UUID actor = observed.get();
                     if (actor == null) {
-                        helper.fail("no block break event fired — the routine never executed");
+                        helper.fail("no block break event fired: the routine never executed");
                     }
                     if (!AnchorTestFixture.OWNER_ID.equals(actor)) {
                         helper.fail("break was attributed to " + actor + " but must be the anchor owner "
@@ -67,10 +59,7 @@ final class AttributionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The same assertion stated as the failure it prevents: the author must never be the actor,
-     * even though the routine is theirs.
-     */
+    /** The author must never be the actor, even though the routine is theirs. */
     private static void authorIsNeverTheActor(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -89,16 +78,13 @@ final class AttributionGameTest {
                     NeoForge.EVENT_BUS.unregister(listener);
                     if (authorAttributedBreaks.get() > 0) {
                         helper.fail("the recording author was used as the actor "
-                                + authorAttributedBreaks.get() + " time(s) - this is the spec 10.1 griefing vector");
+                                + authorAttributedBreaks.get() + " time(s): the griefing vector");
                     }
                 })
                 .thenSucceed();
     }
 
-    /**
-     * Stands in for a protection mod or land claim: a listener that cancels the break must actually
-     * stop it, and the anchor must report why rather than failing silently.
-     */
+    /** A listener that cancels the break must stop it, and the anchor must report why. */
     private static void protectionCanCancel(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -145,11 +131,6 @@ final class AttributionGameTest {
 
     /**
      * Registers a temporary game-bus listener scoped to one absolute position.
-     *
-     * <p>The position filter is not optional. Game tests share a world and run concurrently, so an
-     * unfiltered listener observes breaks from <em>other</em> tests' anchors and asserts against
-     * whichever fired first. That makes a test either flaky or — worse — passing for the wrong
-     * reason, because the neighbouring test happened to use the same owner.
      */
     private static Object listenForBreakAt(BlockPos absolutePos,
                                            java.util.function.Consumer<BreakBlockEvent> handler) {

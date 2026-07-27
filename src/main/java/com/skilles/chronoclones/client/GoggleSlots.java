@@ -21,14 +21,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Which slots of an open container some nearby anchor's routine works on.
- *
- * <p>The counterpart to the recording highlights: same squares, same colours, opposite direction in
- * time. That one shows what a session is capturing as you do it; this shows what an imprinted routine
- * will do to the container you have just opened — "this anchor takes from these two slots", without
- * having to read a tooltip and count.
- *
- * <p>Entirely client-side. The goggles already delivered these routines, so working out which of them
- * mentions this block is arithmetic on data the client has, not a question worth a packet.
  */
 public final class GoggleSlots {
 
@@ -37,16 +29,12 @@ public final class GoggleSlots {
     /**
      * The slots one routine touches in one container.
      *
-     * @param touched the squares its clicks name
-     * @param carried the squares it stocks, and what it expects to find in each
+     * @param carried the squares it stocks, and what it expects in each
      */
     public record Session(Set<Integer> touched, Map<Integer, ItemStack> carried) {}
 
     /**
      * The session for the container the player has open, or null if nothing nearby uses it.
-     *
-     * <p>Sessions from every visible anchor are merged. Two anchors sharing a chest is a normal way
-     * to build, and showing only one of them would be showing the wrong half of what happens there.
      */
     public static @Nullable Session sessionFor(AbstractContainerScreen<?> screen) {
         BlockPos open = openContainerPos();
@@ -58,10 +46,6 @@ public final class GoggleSlots {
 
     /**
      * The same answer, from the anchors and the container rather than from the game's state.
-     *
-     * <p>Split out because this is the part with rules in it — which routines count, and what happens
-     * when two of them want the same square — and because a screen and a live hit result are a great
-     * deal of world to stand up in order to ask a question about a list.
      */
     static @Nullable Session collect(List<PreviewCache.Target> anchors, BlockPos open, int menuSize) {
         Set<Integer> touched = new HashSet<>();
@@ -75,8 +59,7 @@ public final class GoggleSlots {
                 if (!target.placement().toWorld(session.localPos()).equals(open)) {
                     continue;
                 }
-                // A recorded session against a differently shaped menu describes squares that are
-                // not the ones on screen. Replay refuses that case; so should the highlight.
+                // Replay refuses a differently shaped menu; so should the highlight.
                 if (session.menuSize() != menuSize) {
                     continue;
                 }
@@ -84,8 +67,7 @@ public final class GoggleSlots {
                     touched.add(click.slot());
                 }
                 for (ChronoAction.UseContainer.CarrierSlot slot : session.carrier()) {
-                    // First anchor to claim a square wins. Two of them stocking the same one is a
-                    // conflict the player should sort out, and averaging the marks would hide it.
+                    // First claim wins: two anchors on one square is a conflict to surface.
                     carried.putIfAbsent(slot.menuSlot(), slot.stack());
                 }
             }
@@ -96,11 +78,6 @@ public final class GoggleSlots {
 
     /**
      * The block whose menu is open.
-     *
-     * <p>Taken from what the player is looking at, because a container screen does not carry its own
-     * position — the menu knows about slots, not about the world. In practice you are still pointing
-     * at the block you just right-clicked, and if you are not, showing nothing is the correct answer
-     * rather than a guess.
      */
     private static @Nullable BlockPos openContainerPos() {
         Minecraft client = Minecraft.getInstance();

@@ -12,15 +12,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Upgrades are items in slots rather than block tiers, so the anchor's capabilities are
- * derived from slot contents on every read. These tests cover that derivation and the caps that
- * stop a stack of splitters from spawning an unbounded number of clones.
+ * Capabilities are derived from slot contents on every read. These tests cover that derivation
+ * and the caps that stop a stack of splitters spawning unbounded clones.
  */
 class UpgradeStateTest {
 
     /**
      * Counts upgrades by axis the way {@code UpgradeState.from} does, without building an
-     * {@code ItemResource} — that constructs an {@code ItemStack} internally, which needs
+     * {@code ItemResource}, which constructs an {@code ItemStack} internally, which needs
      * datapack-bound components and so cannot happen in a unit test.
      */
     private static UpgradeState install(net.minecraft.world.item.Item... items) {

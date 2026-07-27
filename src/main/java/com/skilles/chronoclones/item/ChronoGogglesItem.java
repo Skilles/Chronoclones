@@ -8,13 +8,10 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import org.jspecify.annotations.NonNull;
 
 /**
- * Headwear that shows what every anchor around you is going to do.
- *
- * <p>Its own class rather than {@link UpgradeItem} for one word: these are <em>worn</em>, and the
- * upgrade tooltip ends with "Slot into an Chrono Anchor". An item whose tooltip tells you to put it
- * somewhere it does not go is worse than one with no tooltip at all.
+ * Headwear that shows what every anchor in range is going to do.
  */
 public class ChronoGogglesItem extends Item {
 
@@ -23,8 +20,8 @@ public class ChronoGogglesItem extends Item {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display,
-                                Consumer<Component> adder, TooltipFlag flag) {
+    public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
+                                Consumer<Component> adder, @NonNull TooltipFlag flag) {
         adder.accept(Component.translatable("tooltip.chronoclones.chrono_goggles")
                 .withStyle(ChatFormatting.GRAY));
     }

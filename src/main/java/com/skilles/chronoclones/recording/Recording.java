@@ -9,21 +9,6 @@ import net.minecraft.world.phys.Vec3;
 /**
  * A complete captured performance: a dense, evenly-sampled motion track plus a sparse,
  * event-driven action track.
- *
- * <p><b>{@code authorId} is not the anchor owner.</b> The author is whoever recorded this; the
- * owner is whoever runs it. Ghost appearance resolves from the author, and every piece of
- * attribution — block break events, damage sources, protection checks — resolves from the owner
- * stored on the block entity. Conflating them is a griefing vector: a shared
- * recording would otherwise break blocks attributed to someone who never consented. This record
- * therefore carries no owner field at all, so the mistake is not expressible here.
- *
- * <p>{@code creative} records how the author was playing, not how the anchor runs. A routine
- * recorded in creative breaks blocks instantly on replay, because that is what the player did; one
- * recorded in survival mines them at the speed the recorded tool actually manages. Storing it on the
- * recording rather than reading the owner's game mode keeps a routine the same wherever it is
- * imprinted — a shard does not become slower because you handed it to somebody in survival.
- *
- * <p>Serialization lives in {@link RecordingCodecs}.
  */
 public record Recording(
         List<MotionSample> motion,
@@ -40,9 +25,6 @@ public record Recording(
 
     /**
      * A survival recording, which is nearly all of them.
-     *
-     * <p>Creative is the exception worth spelling out at the call site, so it is the one that has to
-     * name the field.
      */
     public Recording(List<MotionSample> motion, List<TimedAction> actions, int lengthTicks,
                      String authorName, UUID authorId) {
@@ -57,7 +39,6 @@ public record Recording(
         return lengthTicks / 20;
     }
 
-    /** Action counts by type, for the shard tooltip. */
     public Map<ChronoActionType, Integer> actionCounts() {
         Map<ChronoActionType, Integer> counts = new java.util.EnumMap<>(ChronoActionType.class);
         for (TimedAction timed : actions) {
@@ -66,11 +47,7 @@ public record Recording(
         return counts;
     }
 
-    /**
-     * Furthest horizontal reach of the routine from the anchor, for the shard tooltip. Handing
-     * someone an opaque item that turns out to mine a shaft under their base is an actual attack
-     * on a shared server, so this must be inspectable before imprinting.
-     */
+    /** Furthest horizontal reach, so a shard can be inspected before it is imprinted. */
     public double reach() {
         double maxSqr = 0.0;
         for (MotionSample sample : motion) {

@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 /**
  * Replay-side counterpart to {@code MotionPathTest}. The same invariant has to hold for real
  * recordings as held for the Day 1 spike: position is a pure function of an integer tick, so a
- * ghost looping indefinitely never drifts.
+ * clone looping indefinitely never drifts.
  */
 class MotionTrackTest {
 
@@ -102,7 +102,7 @@ class MotionTrackTest {
     }
 
     @Test
-    @DisplayName("world position applies the anchor's facing, so a rotated anchor rotates the ghost")
+    @DisplayName("world position applies the anchor's facing, so a rotated anchor rotates the clone")
     void worldPositionRespectsAnchorFacing() {
         MotionTrack track = new MotionTrack(List.of(
                 new MotionSample(0, new Vec3(0, 0, -3), 0f, 0f)));

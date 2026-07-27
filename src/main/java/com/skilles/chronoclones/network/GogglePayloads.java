@@ -24,20 +24,11 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 /**
  * Goggle traffic: every anchor near a player, in one exchange.
- *
- * <p>A radius query rather than one request per anchor, and that is the safer shape as well as the
- * cheaper one. The single-anchor request has to check that the requester is plausibly near the
- * coordinate they named, because without it the packet is a remote read of any anchor in the world.
- * A radius computed from the player's own position cannot be pointed anywhere else — the property
- * holds by construction instead of by a check somebody has to remember.
- *
- * <p>Two more gates, both server-side. The player must actually be wearing the goggles, because a
- * client asking nicely is not a permission system. And {@link ChronoclonesConfig#GOGGLES_SHOW_OTHERS}
- * decides whether anchors belonging to other people come back at all.
  */
 public final class GogglePayloads {
 
@@ -45,10 +36,6 @@ public final class GogglePayloads {
 
     /**
      * How many anchors one reply may carry.
-     *
-     * <p>Each carries a whole {@link Recording}, which is kilobytes. Eight nearest is enough to see
-     * a working base at a glance and bounded enough not to matter; the client is told the cap was hit
-     * so a partial view never reads as a complete one.
      */
     public static final int MAX_ANCHORS = 8;
 
@@ -62,7 +49,7 @@ public final class GogglePayloads {
                 StreamCodec.unit(new Request());
 
         @Override
-        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
@@ -102,7 +89,7 @@ public final class GogglePayloads {
         }
 
         @Override
-        public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
             return TYPE;
         }
     }
@@ -111,8 +98,7 @@ public final class GogglePayloads {
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
-        // Worn, not merely owned. Otherwise the packet is a base-wide scan available to any client
-        // that feels like sending it.
+        // Worn, not merely owned, or the packet is a base-wide scan for any client.
         if (!player.getItemBySlot(EquipmentSlot.HEAD).is(ModItems.CHRONO_GOGGLES.get())) {
             return;
         }
@@ -125,8 +111,7 @@ public final class GogglePayloads {
         BlockPos centre = player.blockPosition();
 
         List<Entry> found = new ArrayList<>();
-        // Chunk-wise rather than block-wise: a 24-block radius is a quarter of a million positions,
-        // and block entities are already indexed per chunk.
+        // Chunk-wise: a 24-block radius is a quarter of a million positions.
         int minChunkX = (centre.getX() - radius) >> 4;
         int maxChunkX = (centre.getX() + radius) >> 4;
         int minChunkZ = (centre.getZ() - radius) >> 4;
@@ -176,12 +161,6 @@ public final class GogglePayloads {
 
     /**
      * Whether one anchor may be shown to one viewer.
-     *
-     * <p>Its own method because it is the rule the config exists to express, and because it is worth
-     * asserting without standing up a world full of chunks to iterate.
-     *
-     * <p>An anchor with no owner has never been imprinted by anybody, so there is nobody for it to be
-     * private from.
      */
     public static boolean visibleTo(@Nullable UUID ownerId, UUID viewer, boolean showOthers) {
         return showOthers || ownerId == null || ownerId.equals(viewer);

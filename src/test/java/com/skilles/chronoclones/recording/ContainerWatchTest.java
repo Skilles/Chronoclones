@@ -11,18 +11,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
  * What a container session carries.
- *
- * <p>The carried list exists so replay can put the anchor's supply in the squares the recorded clicks
- * name. That makes it tempting to record the whole player inventory and be safe — but it is not safe:
- * replay refuses a session whose carried items the anchor lacks, so an over-broad list turns "move a
- * stack of sandstone" into "and also be holding a pickaxe, a map, and six other things".
- *
- * <p>These assertions are about that narrowing, which is why they check absence as much as presence.
  */
 class ContainerWatchTest {
 
     /**
-     * One occupied square. The stack is empty because it cannot be anything else here — an item's
+     * One occupied square. The stack is empty because it cannot be anything else here: an item's
      * default components are bound during datapack load, so {@code new ItemStack(Items.X)} throws in
      * the FML JUnit bootstrap. It costs nothing: {@link ContainerWatch#carried} decides purely on slot
      * index, and which stack survives the narrowing is asserted in {@code PrecisionGameTest}.

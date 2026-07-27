@@ -24,15 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Which nearby routines mark up an open container.
- *
- * <p>The marks are drawn from anchors the player is not looking at and may not have noticed, so the
- * ways this goes wrong are quiet ones: a chest marked up by a routine that works the chest next
- * door, or a routine's squares missed because a second anchor got there first. Neither announces
- * itself — the highlight simply describes something that is not going to happen.
- *
- * <p>Carrier stacks are empty throughout, because a populated one cannot be built without a loaded
- * datapack. What is asserted here is which squares are claimed and by how many anchors; what is
- * drawn on them is a rendering question with no test that could reach it.
  */
 class GoggleSlotsTest {
 
@@ -82,7 +73,7 @@ class GoggleSlotsTest {
     @Test
     @DisplayName("a routine working a different container is ignored")
     void otherContainersAreIgnored() {
-        // Same routine, an anchor one block over — so its session lands on the chest next door.
+        // Same routine, an anchor one block over, so its session lands on the chest next door.
         assertNull(GoggleSlots.collect(
                 List.of(anchor(anchorFor(CHEST).east(), 30)), CHEST, MENU_SIZE));
     }
@@ -99,10 +90,8 @@ class GoggleSlotsTest {
     @Test
     @DisplayName("two anchors sharing a container are both shown")
     void anchorsSharingAContainerAreMerged() {
-        // A chest worked by two routines is an ordinary way to build, and showing one of them would
-        // be showing the wrong half of what happens there. The second anchor has to be nudged onto
-        // the chest — two of them cannot stand in the same block — so this covers the highlight
-        // following the nudge as well as the anchor's own position.
+        // A chest worked by two routines is ordinary. The second anchor has to be nudged onto
+        // it, so this covers the highlight following the nudge too.
         GoggleSlots.Session session = GoggleSlots.collect(List.of(
                 anchor(anchorFor(CHEST), 30),
                 anchor(anchorFor(CHEST).above(), new BlockPos(0, -1, 0), 31)), CHEST, MENU_SIZE);

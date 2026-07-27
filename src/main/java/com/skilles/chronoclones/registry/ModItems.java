@@ -25,9 +25,6 @@ public final class ModItems {
 
     /**
      * Names {@code assets/chronoclones/equipment/chrono_goggles.json}, and through it the layer texture.
-     *
-     * <p>Not registered anywhere: equipment assets are resolved by id straight out of the resource
-     * pack, so the key is only ever a name. There is no registry to add it to.
      */
     private static final ResourceKey<EquipmentAsset> GOGGLES_ASSET = ResourceKey.create(
             EquipmentAssets.ROOT_ID, Chronoclones.id("chrono_goggles"));
@@ -45,8 +42,7 @@ public final class ModItems {
             ChronoShardItem::new,
             (Item.Properties props) -> props.stacksTo(16).rarity(Rarity.UNCOMMON));
 
-    // Upgrades. Items in slots rather than block tiers, so five independent axes do not
-    // become a combinatorial crafting tree.
+    // Upgrades as items in slots rather than block tiers, to avoid a combinatorial recipe tree.
 
     /** +1 clone, distributed along the timeline by phase offset. The visual showpiece. */
     public static final DeferredItem<UpgradeItem> CHRONO_SPLITTER = upgrade("chrono_splitter");
@@ -58,10 +54,7 @@ public final class ModItems {
     public static final DeferredItem<UpgradeItem> CHRONO_FOCUS = upgrade("chrono_focus");
 
     /**
-     * Worn on the head: shows every anchor's routine in range, not just the one you are staring at.
-     *
-     * <p>Not an upgrade — it goes on the player rather than into a slot, because what it changes is
-     * what <em>you</em> can see rather than what an anchor can do.
+     * Worn on the head: shows every anchor's routine in range, not only the one under the crosshair.
      */
     public static final DeferredItem<ChronoGogglesItem> CHRONO_GOGGLES = ITEMS.registerItem(
             "chrono_goggles",
@@ -70,11 +63,9 @@ public final class ModItems {
                     .component(DataComponents.EQUIPPABLE,
                             Equippable.builder(EquipmentSlot.HEAD)
                                     .setEquipSound(SoundEvents.ARMOR_EQUIP_GENERIC)
-                                    // The asset is what makes these render as a worn layer on the
-                                    // head. Without one, HumanoidArmorLayer.shouldRender is false
-                                    // and vanilla falls through to CustomHeadLayer, which draws the
-                                    // inventory icon as a flat slab floating above the skull — the
-                                    // "invisible" this once claimed to be was never invisible.
+                                    // Without an asset, HumanoidArmorLayer.shouldRender is false
+                                    // and CustomHeadLayer draws the inventory icon as a slab
+                                    // floating above the skull.
                                     .setAsset(GOGGLES_ASSET)
                                     .setSwappable(true)
                                     .build()));

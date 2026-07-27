@@ -10,9 +10,6 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
 /**
  * Exposes the anchor's inventory to automation.
- *
- * <p>Spec  chose "the anchor block is an inventory" specifically so hopper and pipe
- * compatibility is free rather than bespoke — this registration is what buys that.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ModCapabilities {

@@ -20,16 +20,6 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * What a routine breaks, and how long it takes about it.
- *
- * <p>A clone swings the tool it was recorded with at the square it was recorded at, and nothing
- * inspects the block first. Everything interesting about that follows from the game's own mining
- * arithmetic, which is why these live here rather than in JUnit: hardness, harvest tiers and
- * {@code requiresCorrectToolForDrops} are all datapack-driven, and outside a running server every
- * one of those queries answers zero.
- *
- * <p>The pair that matters most is a good tool and a bad one against the same block. "It gives up"
- * and "it takes nine seconds" look identical for the first second and are completely different
- * features, so both directions are pinned.
  */
 final class BreakingGameTest {
 
@@ -38,8 +28,7 @@ final class BreakingGameTest {
     private BreakingGameTest() {}
 
     static void register() {
-        // Obsidian with a diamond pickaxe is genuinely ~190 ticks of mining, so the tests that wait
-        // for one need a window that fits the thing they are asserting.
+        // Obsidian with a diamond pickaxe is ~190 ticks, so these need a longer window.
         ChronoclonesGameTests.add("break_takes_time_in_survival", 400,
                 BreakingGameTest::survivalBreakTakesTime);
         ChronoclonesGameTests.add("break_is_instant_from_a_creative_recording",
@@ -54,10 +43,6 @@ final class BreakingGameTest {
 
     /**
      * A survival routine mines rather than deletes.
-     *
-     * <p>Asserted as "still there early, gone later" rather than by counting ticks, because the exact
-     * duration is the game's own arithmetic and pinning it here would make this a test of vanilla.
-     * What matters is that there is a middle — before this, a break was one indivisible instant.
      */
     private static void survivalBreakTakesTime(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -74,9 +59,6 @@ final class BreakingGameTest {
 
     /**
      * A creative recording keeps creative's instant break.
-     *
-     * <p>The flag is on the recording, not on the anchor, so a routine built in creative stays
-     * instant after it is handed to somebody playing survival — it describes what the author did.
      */
     private static void creativeBreakIsInstant(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -95,9 +77,6 @@ final class BreakingGameTest {
 
     /**
      * The routine recorded stone, obsidian is there, and the clone swings its pickaxe at the obsidian.
-     *
-     * <p>No tag list, no config, and no judgement about whether the block is a reasonable substitute
-     * for the recorded one. A player who walked up with a diamond pickaxe would have mined it.
      */
     private static void breaksWhateverIsThere(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
@@ -114,12 +93,6 @@ final class BreakingGameTest {
 
     /**
      * A wooden pickaxe on obsidian gets nowhere, and gets nowhere the way a player would.
-     *
-     * <p>The counterpart to the test above, and the reason "break whatever is there" is not the
-     * free-for-all it sounds like. Nothing refuses the attempt — an earlier version reported
-     * WRONG_BLOCK here, which was the mod second-guessing what the player meant — but a tool that
-     * cannot harvest a block mines it at a hundredth speed, so a clone with the wrong pickaxe stands
-     * there achieving nothing, exactly as a player with the wrong pickaxe does.
      */
     private static void aPoorToolIsSlowNotRefused(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);

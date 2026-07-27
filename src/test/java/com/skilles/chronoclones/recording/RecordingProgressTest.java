@@ -21,11 +21,6 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Regression cover for the session-binding rule.
- *
- * <p>A player carrying two recorders once had the running capture latch onto whichever one came
- * first in inventory order, stamping PROGRESS over a finished RECORDING and then overwriting or
- * erasing it on stop. The stamp now carries the session id so a session can only ever bind to the
- * recorder that started it.
  */
 class RecordingProgressTest {
 

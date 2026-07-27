@@ -16,12 +16,7 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /**
- * One line, and only when the goggles are showing you less than there is.
- *
- * <p>A reply carries whole recordings, so it is capped at the nearest few anchors and the server
- * says when it cut the list short. That flag was already computed, sent and cached — and read by
- * nothing, which made the cap exactly the silent truncation it was introduced to avoid. A view
- * missing half a base looks identical to a base with half as many anchors.
+ * One line, and only when the goggles are showing fewer anchors than there are.
  */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class GoggleHud {
@@ -38,8 +33,7 @@ public final class GoggleHud {
         if (client.player == null || client.gui.hud.isHidden() || !GoggleCache.isTruncated()) {
             return;
         }
-        // Bottom centre, above the hotbar: the goggles' subject is the world, so this stays out of
-        // the middle of it.
+        // Bottom centre: the goggles' subject is the world, so this stays out of the middle.
         graphics.centeredText(client.font,
                 Component.translatable("hud.chronoclones.goggles.truncated", GogglePayloads.MAX_ANCHORS)
                         .withStyle(ChatFormatting.GRAY),

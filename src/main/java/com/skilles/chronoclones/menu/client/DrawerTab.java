@@ -8,6 +8,7 @@ import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
+import org.jspecify.annotations.NonNull;
 
 /** The handle that opens and closes the precision drawer. Points the way the drawer will move. */
 final class DrawerTab extends AbstractButton {
@@ -29,7 +30,7 @@ final class DrawerTab extends AbstractButton {
     }
 
     @Override
-    public void onPress(InputWithModifiers input) {
+    public void onPress(@NonNull InputWithModifiers input) {
         onPress.run();
     }
 
@@ -42,8 +43,7 @@ final class DrawerTab extends AbstractButton {
                 isHoveredOrFocused() ? ChronoAnchorScreen.PANEL_EDGE : ChronoAnchorScreen.SLOT_BG);
         graphics.fill(x + 1, y + 1, x + WIDTH - 1, y + HEIGHT - 1, ChronoAnchorScreen.PANEL_BG);
 
-        // Which way it will move, not which side it is on: a chevron that stays put while the drawer
-        // slides is telling you where it has been rather than what the button does.
+        // Which way it will move, not which side it is on.
         boolean pointsLeft = open.getAsBoolean() == !onLeft;
         String chevron = pointsLeft ? "<" : ">";
         graphics.text(font, chevron,
@@ -52,7 +52,7 @@ final class DrawerTab extends AbstractButton {
     }
 
     @Override
-    protected void updateWidgetNarration(NarrationElementOutput output) {
+    protected void updateWidgetNarration(@NonNull NarrationElementOutput output) {
         defaultButtonNarrationText(output);
     }
 }

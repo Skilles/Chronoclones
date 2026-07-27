@@ -29,13 +29,11 @@ public class ChronoclonesClient {
 
     public ChronoclonesClient(ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-        // Installed from here so the common network class never names a client type — see
-        // ChronoclonesNetwork for why that matters on 26.x.
+        // Installed here so the common network class never names a client type.
         ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
         ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
         ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
-        // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask. This
-        // is what Screen used to do underneath.
+        // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask.
         RecordingTooltips.detailRequested = () -> {
             var window = Minecraft.getInstance().getWindow();
             return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
@@ -55,10 +53,6 @@ public class ChronoclonesClient {
 
     /**
      * Everything the client caches about a world is scoped to that world.
-     *
-     * <p>All of it is keyed by things a server hands out — container ids from zero, block positions,
-     * game time — so anything kept across a disconnect is not stale so much as wrong: it will match
-     * something on the next world and describe it incorrectly.
      */
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {

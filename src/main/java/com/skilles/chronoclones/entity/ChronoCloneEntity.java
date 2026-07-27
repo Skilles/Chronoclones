@@ -20,55 +20,31 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Visual-only clone. Never a FakePlayer — this entity does not act on the world at all;
- * its owning {@code ChronoAnchorBlockEntity} does, through a shared fake player.
- *
- * <p>Position is written directly by the anchor every tick. This entity has no movement logic of
- * its own on purpose: the whole point of the Day 1 drift spike is that position is a pure
- * function of an integer playhead, never an accumulated delta.
- *
- * <p>It carries the recording's <b>author</b>, which is the one place that identity is used for
- * anything: whose skin the ghost wears. Authorship is cosmetic by design and the anchor's owner is
- * what every permission check resolves from — see {@code ChronoAnchorBlockEntity} for why those must
- * never be the same field.
- */
+/** Visual-only clone. Never a FakePlayer: the anchor acts, through a shared one. */
 public class ChronoCloneEntity extends Entity {
 
     /**
      * Author identity, synced for rendering only.
-     *
-     * <p>A UUID string rather than a UUID: 26.2 has no {@code OPTIONAL_UUID} serialiser, and the
-     * client needs the id as well as the name — the id is what picks the right default skin when the
-     * session server has nothing, which is every single-player world and every offline-mode server.
      */
     private static final EntityDataAccessor<String> AUTHOR_ID =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> AUTHOR_NAME =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
 
-    /** What the clone appears to be holding. Cosmetic — see {@code ChronoAction.heldTemplate}. */
+    /** What the clone appears to be holding. Cosmetic: see {@code ChronoAction.heldTemplate}. */
     private static final EntityDataAccessor<ItemStack> HELD_ITEM =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
 
     /**
      * Drives the walk cycle.
-     *
-     * <p>Derived from how far the entity actually moved rather than synced, because the anchor
-     * already sends position every tick and a second stream saying the same thing would be pure
-     * waste. {@code Level} calls {@code setOldPosAndRot()} immediately before {@code tick()} on both
-     * sides, so the previous position is available here without keeping any of our own.
      */
     private final WalkAnimationState walkAnimation = new WalkAnimationState();
 
     /**
      * Client-side skin lookup, resolved lazily by the renderer and cached for the entity's life.
-     *
-     * <p>Held here rather than in the renderer because renderers are singletons per entity type: a
-     * map there would keep an entry for every author seen in the session. {@code PlayerSkin} is a
-     * common class, so this stays server-safe even though only the client ever writes it.
      */
     private @Nullable Supplier<PlayerSkin> skinLookup;
     private @Nullable UUID skinLookupFor;
@@ -83,7 +59,7 @@ public class ChronoCloneEntity extends Entity {
         return new ChronoCloneEntity(ModEntities.CHRONO_GHOST.get(), level);
     }
 
-    /** Set by the anchor. Bypasses movement entirely — no deltas, no physics. */
+    /** Set by the anchor. Bypasses movement entirely: no deltas, no physics. */
     public void driveTo(Vec3 pos, float yaw, float pitch) {
         this.setPos(pos.x, pos.y, pos.z);
         this.setYRot(yaw);
@@ -92,7 +68,7 @@ public class ChronoCloneEntity extends Entity {
         this.setDeltaMovement(Vec3.ZERO);
     }
 
-    /** Called by the anchor when the ghost is spawned, once per routine. */
+    /** Called by the anchor when the clone is spawned, once per routine. */
     public void setAuthor(UUID authorId, String authorName) {
         this.entityData.set(AUTHOR_ID, authorId.toString());
         this.entityData.set(AUTHOR_NAME, authorName);
@@ -118,11 +94,6 @@ public class ChronoCloneEntity extends Entity {
 
     /**
      * Sets the visibly held item, skipping the write when nothing changed.
-     *
-     * <p>The guard is not an optimisation. {@code SynchedEntityData} compares with
-     * {@code Objects.equals}, and {@code ItemStack} does not override it — so handing it a fresh
-     * copy every tick marks the entry dirty every tick and puts one item packet per ghost per tick
-     * on the wire, forever.
      */
     public void setHeldItem(ItemStack stack) {
         if (!ItemStack.matches(this.entityData.get(HELD_ITEM), stack)) {
@@ -150,8 +121,7 @@ public class ChronoCloneEntity extends Entity {
 
     @Override
     public void tick() {
-        // Deliberately does not call super.tick(): no gravity, no drag, no collision resolution.
-        // The anchor is the only thing that moves this entity.
+        // No super.tick(): the anchor moves this entity, with no physics of its own.
         float travelled = (float) Mth.length(this.getX() - this.xo, 0.0, this.getZ() - this.zo);
         this.walkAnimation.update(Math.min(travelled * 4.0f, 1.0f), 0.4f, 1.0f);
     }
@@ -176,9 +146,9 @@ public class ChronoCloneEntity extends Entity {
         return true;
     }
 
-    /** Spec /Q4: ghosts are never interactable and never take damage. */
+    /** Clones are never interactable and never take damage. */
     @Override
-    public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+    public boolean hurtServer(@NonNull ServerLevel level, @NonNull DamageSource source, float amount) {
         return false;
     }
 
@@ -195,8 +165,8 @@ public class ChronoCloneEntity extends Entity {
     }
 
     @Override
-    protected void readAdditionalSaveData(ValueInput input) {}
+    protected void readAdditionalSaveData(@NonNull ValueInput input) {}
 
     @Override
-    protected void addAdditionalSaveData(ValueOutput output) {}
+    protected void addAdditionalSaveData(@NonNull ValueOutput output) {}
 }

@@ -11,11 +11,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * When the recording overlay is on screen.
- *
- * <p>The hard part is not showing it, it is taking it down. The overlay reads a progress stamp off an
- * item, and the recorder has a documented path where a session dies leaving its stamp behind — an
- * overlay that believed the stamp would then cover the screen in red until the player noticed and
- * threw the item away.
  */
 class RecordingHudStateTest {
 
@@ -50,7 +45,7 @@ class RecordingHudStateTest {
         RecordingHudState state = new RecordingHudState();
         assertTrue(state.update(SESSION, 40, 3, false, 100));
 
-        // The item still says 40 ticks, forever. Nothing else will ever tell the client otherwise.
+        // The item still says 40 ticks, and nothing will ever say otherwise.
         long stalled = 100 + RecordingHudState.STALL_TICKS - 1;
         assertTrue(state.update(SESSION, 40, 3, false, stalled),
                 "gave up on a session that is only lagging");
@@ -86,7 +81,7 @@ class RecordingHudStateTest {
         state.update(SESSION, 10, 1, true, 100);
 
         assertTrue(state.isWarning(100));
-        // The server sets this flag for a single tick and clears it. One tick is at best one frame.
+        // The server sets this for a single tick, which is at best one frame.
         assertTrue(state.isWarning(100 + RecordingHudState.WARNING_TICKS - 1),
                 "the warning vanished before anyone could read it");
         assertFalse(state.isWarning(100 + RecordingHudState.WARNING_TICKS));

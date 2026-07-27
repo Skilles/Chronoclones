@@ -26,13 +26,9 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
- * Spec  makes the shard tooltip non-optional: an inscribed shard must be fully inspectable
+ * The shard tooltip is not optional: an inscribed shard must be fully inspectable
  * before it is imprinted, because on a shared server handing someone an opaque routine that mines
  * under their base is an actual attack.
- *
- * <p>Assertions are on translation keys and their arguments rather than rendered English: no
- * language file is loaded in tests, so {@code getString()} returns the bare key and never
- * substitutes arguments.
  */
 class RecordingTooltipsTest {
 
@@ -51,7 +47,7 @@ class RecordingTooltipsTest {
                         new TimedAction(5, new ChronoAction.UseItem(
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL)))),
-                240, "Bilal", UUID.randomUUID());
+                240, "Skilles", UUID.randomUUID());
     }
 
     private static ChronoAction breakAt(int x, int y, int z) {
@@ -109,7 +105,7 @@ class RecordingTooltipsTest {
         assertTrue(keys(lines).contains("tooltip.chronoclones.recording.author"));
 
         Object author = argOf(lines, "tooltip.chronoclones.recording.author", 0);
-        assertEquals("Bilal", ((Component) author).getString());
+        assertEquals("Skilles", ((Component) author).getString());
     }
 
     @Test
@@ -163,7 +159,7 @@ class RecordingTooltipsTest {
     void movementOnlyIsLabelled() {
         Recording r = new Recording(
                 List.of(new MotionSample(0, Vec3.ZERO, 0f, 0f)),
-                List.of(), 40, "Bilal", UUID.randomUUID());
+                List.of(), 40, "Skilles", UUID.randomUUID());
 
         assertTrue(keys(RecordingTooltips.describe(r))
                 .contains("tooltip.chronoclones.recording.no_actions"));

@@ -9,15 +9,12 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
+import org.jspecify.annotations.NonNull;
 
 /**
- * Client → server: move an anchor's routine by one step, or put it back where it started.
+ * Client to server: move an anchor's routine by one step.
  *
- * <p>The delta is in anchor-local space. The client does the camera-relative part — "the arrow I
- * pressed points away from me" — because that is a question about where the player is standing, and
- * the server has no business guessing at it. What arrives here is already a routine-space vector.
- *
- * @param delta how far to move, or {@link BlockPos#ZERO} to reset the offset entirely
+ * @param delta how far to move, or {@link BlockPos#ZERO} to reset
  */
 public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements CustomPacketPayload {
 
@@ -31,17 +28,12 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
                     AnchorNudgePayload::new);
 
     @Override
-    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+    public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
         return TYPE;
     }
 
     /**
      * Applies a nudge, if the sender has any business nudging that anchor.
-     *
-     * <p>Ownership is the check that matters once there is an owner — see {@link AnchorAuthority}.
-     *
-     * <p>Refusals are silent. There is nothing a legitimate client can do about them, and a message
-     * would only tell someone probing for anchors that they found one.
      */
     public static void handle(AnchorNudgePayload payload, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {

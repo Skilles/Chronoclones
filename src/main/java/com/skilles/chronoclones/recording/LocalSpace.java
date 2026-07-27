@@ -5,34 +5,18 @@ import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Conversion between world space and anchor-local space.
+ * Conversion between world space and anchor-local space, so one recording rotates onto anchors
+ * facing any direction.
  *
- * <p>This is the part of the mod the design doc singles out as most likely to be implemented
- * wrong, so the rules it depends on are stated explicitly here:
- *
- * <ul>
- * <li><b>Only cardinal rotations.</b> Arbitrary yaw does not map block-grid positions onto
- *     block-grid positions; only multiples of 90° do. Recording yaw is therefore snapped to a
- *     {@link Direction} at record start, and every rotation below is integer math on whole
- *     quarter-turns — no trigonometry anywhere in this class.</li>
- * <li><b>Local space is "as if facing north".</b> NORTH is the identity rotation, so a recording
- *     made facing north and replayed on a north-facing anchor is a pure translation.</li>
- * <li><b>One quarter-turn clockwise (viewed from above) is {@code (x, z) -> (-z, x)}</b> in
- *     Minecraft's axes (+X east, +Z south), and it increases Minecraft yaw by 90°. Position
- *     rotation and yaw rotation therefore stay consistent by construction.</li>
- * </ul>
- *
- * <p>Consequence, and the reason this is worth the care: the same recording on two anchors facing
- * different directions produces two correctly-rotated copies of the routine.
+ * <p>Cardinal rotations only, because arbitrary yaw does not map the block grid onto itself.
+ * Local space is "as if facing north", and a quarter-turn clockwise is
+ * {@code (x,z) -> (-z,x)}, which is also +90 degrees of yaw.
  */
 public final class LocalSpace {
 
     private LocalSpace() {}
 
-    /**
-     * Snaps a raw player yaw to the nearest cardinal direction. Mandatory at record start — see
-     * the class docs for why arbitrary yaw cannot work.
-     */
+    /** Mandatory at record start; see the class docs. */
     public static Direction snapToCardinal(float yaw) {
         return Direction.fromYRot(yaw);
     }

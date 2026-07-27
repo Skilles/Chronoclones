@@ -19,11 +19,10 @@ public final class ModEntities {
             ENTITY_TYPES.register("chrono_clone", () -> EntityType.Builder
                     .<ChronoCloneEntity>of(ChronoCloneEntity::new, MobCategory.MISC)
                     .sized(0.6f, 1.8f)
-                    // Ghosts are never persisted; anchors respawn them on load.
+                    // Clones are never persisted; anchors respawn them on load.
                     .noSave()
                     .fireImmune()
-                    // Driven every tick by the anchor, so the tracker must send every tick or
-                    // the client sees stepping. Spike 1b exists to confirm this is enough.
+                    // Driven every tick by the anchor, so the tracker must send every tick.
                     .updateInterval(1)
                     .clientTrackingRange(8)
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, Chronoclones.id("chrono_clone"))));

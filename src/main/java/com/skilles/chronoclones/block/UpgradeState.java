@@ -9,13 +9,6 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
  * The anchor's capabilities, derived from whatever is sitting in its upgrade slots.
- *
- * <p>Upgrades are items rather than block tiers specifically to avoid a combinatorial crafting
- * tree: five independent axes as five block variants would be unshippable, whereas five item types
- * that stack in slots is one recipe each.
- *
- * <p>Derived on read rather than stored, so pulling an upgrade out takes effect immediately and
- * there is no cached state to fall out of sync with the slots.
  */
 public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
 
@@ -35,11 +28,6 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
 
     /**
      * Reads the upgrade slots and totals each axis.
-     *
-     * <p>A thin adapter over {@link #of}: it only turns slot contents into per-axis counts. The
-     * clamping logic lives in {@code of} so it can be unit tested — constructing an
-     * {@code ItemResource} from an {@code Item} builds an {@code ItemStack} internally, which needs
-     * datapack-bound components and therefore cannot happen outside a running game.
      */
     public static UpgradeState from(ResourceHandler<ItemResource> upgrades) {
         int[] counts = new int[Axis.values().length];
@@ -61,9 +49,6 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
 
     /**
      * Builds a state from raw per-axis upgrade counts, clamped to their caps.
-     *
-     * <p>Multiple copies of the same upgrade stack, which is what makes three slots a real choice:
-     * three splitters buys four clones but no combat and no speed.
      */
     public static UpgradeState of(int clones, int rate, int fidelity) {
         return new UpgradeState(

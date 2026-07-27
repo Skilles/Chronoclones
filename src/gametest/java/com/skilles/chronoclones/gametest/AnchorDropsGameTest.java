@@ -19,10 +19,6 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
  * What survives an anchor being broken.
- *
- * <p>Both of these are item-loss bugs if they regress, and item loss is the failure players never
- * forgive. An anchor holds a routine that took a real person real minutes to record, plus whatever
- * its farm has mined since — so breaking one has to hand all of it back.
  */
 final class AnchorDropsGameTest {
 
@@ -68,10 +64,7 @@ final class AnchorDropsGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The anchor stores through the transfer API, not {@code Container}, so the vanilla spill does
-     * not see its contents.
-     */
+    /** The anchor stores through the transfer API, so the vanilla spill does not see it. */
     private static void spillsInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));

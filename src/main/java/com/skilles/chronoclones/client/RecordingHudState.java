@@ -6,16 +6,6 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Decides whether the recording overlay is showing, and what it says.
- *
- * <p>Kept apart from the drawing, and free of any client type, because the interesting part is not
- * the rectangles — it is knowing when to stop. The overlay reads a {@code RecordingProgress} stamp
- * off an item in the inventory, and a stamp is a fact about an item rather than about a live
- * session: the recorder's own code has a "lost session" path that logs a warning precisely because a
- * stamp can be left behind. An overlay that trusted the stamp would sit on screen forever.
- *
- * <p>So the rule is not "a stamp exists" but "a stamp is advancing". The elapsed counter is rewritten
- * every server tick; if it stops moving for {@link #STALL_TICKS} the session is gone, whatever the
- * item still says.
  */
 public final class RecordingHudState {
 
@@ -24,10 +14,6 @@ public final class RecordingHudState {
 
     /**
      * How long an out-of-range warning stays up.
-     *
-     * <p>The server sets that flag for a single tick and clears it. One tick is one frame at best,
-     * which is no warning at all — and this is the failure a player most needs to see, because the
-     * action they just performed was silently not recorded.
      */
     public static final long WARNING_TICKS = 50;
 
@@ -41,8 +27,7 @@ public final class RecordingHudState {
      * Folds in this frame's reading of the stamp.
      *
      * @param session null when no recorder in the inventory carries a stamp
-     * @param now     the client's game time, which stops when the world does — so a paused single
-     *                player game does not age the session out from under itself
+     * @param now     client game time, which stops when the world does
      * @return whether the overlay should draw
      */
     public boolean update(@Nullable UUID session, int elapsedTicks, int actionCount,
@@ -91,10 +76,6 @@ public final class RecordingHudState {
 
     /**
      * How full a cap is, clamped to 0..1.
-     *
-     * <p>Zero or negative caps come from a misconfigured server rather than from anything the player
-     * did; reporting them as full is the reading that does not divide by zero and does not claim
-     * there is room.
      */
     public static float fraction(int used, int cap) {
         if (cap <= 0) {

@@ -33,6 +33,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
+import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class ChronoAnchorBlock extends BaseEntityBlock {
@@ -49,6 +50,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     }
 
     @Override
+    @NonNull
     protected MapCodec<? extends BaseEntityBlock> codec() {
         return CODEC;
     }
@@ -58,30 +60,23 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         builder.add(FACING, ACTIVE);
     }
 
-    /**
-     * The anchor's facing is captured at placement and is the basis the recording is rebased onto
-     *. Rotating the anchor rotates the routine.
-     */
+    /** Facing is captured at placement. Rotating the anchor rotates the routine. */
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
     @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    protected @NonNull RenderShape getRenderShape(@NonNull BlockState state) {
         return RenderShape.MODEL;
     }
 
     /**
      * Ownership is assigned on placement, not carried on the item.
-     *
-     * <p>An anchor that keeps a routine through being mined must not also keep the identity it acts
-     * under, or mining someone's anchor would hand you a machine that grief-mines in their name.
-     * Placed by anything that is not a player, it gets no owner and stays inert.
      */
     @Override
-    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer,
-                            ItemStack stack) {
+    public void setPlacedBy(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state, @Nullable LivingEntity placer,
+                            @NonNull ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
         if (placer instanceof ServerPlayer player
                 && level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
@@ -90,12 +85,12 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     }
 
     @Override
-    public BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
+    public BlockEntity newBlockEntity(@NonNull BlockPos pos, @NonNull BlockState state) {
         return new ChronoAnchorBlockEntity(pos, state);
     }
 
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, @NonNull BlockState state, @NonNull BlockEntityType<T> type) {
         if (level.isClientSide()) {
             return null;
         }
@@ -104,7 +99,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     }
 
     @Override
-    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
+    protected @NonNull InteractionResult useWithoutItem(@NonNull BlockState state, Level level, @NonNull BlockPos pos, @NonNull Player player, @NonNull BlockHitResult hit) {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
@@ -116,23 +111,14 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
 
     /**
      * Right-clicking with a recorder in HOLDING state imprints it.
-     *
-     * <p>Ownership transfers to the imprinting player, not the recording's author — see
-     * {@link ChronoAnchorBlockEntity} for why that distinction is security-critical.
-     *
-     * <p>Anything that is not a recorder must return {@link InteractionResult#TRY_WITH_EMPTY_HAND},
-     * NOT {@code PASS}. Only the former makes the game fall through to {@link #useWithoutItem}, so
-     * returning {@code PASS} here silently stops the anchor's GUI from ever opening.
      */
     @Override
-    protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
-                                          Player player, InteractionHand hand, BlockHitResult hit) {
+    protected @NonNull InteractionResult useItemOn(ItemStack stack, @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
+                                                   @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hit) {
         boolean isRecorder = stack.is(ModItems.CHRONO_RECORDER.get());
         boolean isShard = stack.is(ModItems.CHRONO_SHARD.get());
 
-        // Only an item actually carrying — or able to receive — a routine is an interaction. Idle
-        // recorders and everything else defer so the GUI still opens. The recording component is
-        // network-synchronised, so client and server reach the same decision.
+        // Everything else defers so the GUI still opens.
         if (!isRecorder && !isShard) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
@@ -171,9 +157,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
 
     /**
      * Copies an anchor's routine onto a blank shard, consuming one blank.
-     *
-     * <p>The copy carries the original author, not the anchor owner — passing a routine along must
-     * not relabel who wrote it.
      */
     private static InteractionResult inscribeShard(ChronoAnchorBlockEntity anchor, ItemStack blanks,
                                                    ServerPlayer player, Level level, BlockPos pos) {
