@@ -1,11 +1,13 @@
 package com.skilles.chronoclones.gametest;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.menu.AnchorData;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -24,6 +26,34 @@ final class MenuPagingGameTest {
                 MenuPagingGameTest::shiftClickStaysOnThePage);
         ChronoclonesGameTests.add("menu_refuses_a_page_with_no_clone",
                 MenuPagingGameTest::refusesAPageWithNoClone);
+        ChronoclonesGameTests.add("menu_selection_needs_only_synced_data",
+                MenuPagingGameTest::selectionNeedsOnlySyncedData);
+    }
+
+    /**
+     * The clone count a page is checked against has to be the synced one.
+     *
+     * <p>UpgradeState is recomputed on the server tick and nowhere else, so a client asking its own
+     * block entity is always told there is one clone, and every tab but the first stops working.
+     */
+    private static void selectionNeedsOnlySyncedData(GameTestHelper helper) {
+        // An anchor that has never ticked, which is the state a client's copy is always in.
+        ChronoAnchorBlockEntity untickedAnchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+
+        SimpleContainerData synced = new SimpleContainerData(ChronoAnchorMenu.DATA_COUNT);
+        synced.set(AnchorData.ACTIVE_CLONES, 2);
+
+        ChronoAnchorMenu menu = new ChronoAnchorMenu(1, player.getInventory(), untickedAnchor, synced);
+        if (!menu.clickMenuButton(player, 1)) {
+            helper.fail("the second tab was refused a menu that had been told there are two clones");
+            return;
+        }
+        if (menu.getSelectedClone() != 1) {
+            helper.fail("the selection did not move to clone 2");
+        }
+        helper.succeed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

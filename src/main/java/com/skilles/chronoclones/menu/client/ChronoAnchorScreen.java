@@ -267,10 +267,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         status(extractor);
 
         cloneTabs(extractor);
-        if (CloneTabs.count(menu.getActiveClones()) == 0) {
-            AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.storage"),
-                    Layout.MARGIN + 4, Layout.STORAGE_HEADER_Y);
-        }
+        AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.storage"),
+                Layout.MARGIN + 4, Layout.STORAGE_HEADER_Y);
 
         AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.charge"),
                 Layout.MARGIN + 4, Layout.SECTION_LABEL_Y);

@@ -94,7 +94,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
                 addSlot(new ClonePageSlot(storage, storage::set, index,
                         Layout.GRID_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
-                        page, () -> selectedClone));
+                        page, this::getSelectedClone));
             }
         }
 
@@ -129,8 +129,9 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
     }
 
+    /** Clamped on read, so a clone going away takes its page with it. */
     public int getSelectedClone() {
-        return selectedClone;
+        return Math.min(selectedClone, Math.max(0, getActiveClones() - 1));
     }
 
     /**
@@ -138,9 +139,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     @Override
     public boolean clickMenuButton(@NonNull Player player, int buttonId) {
-        // Bounded by the clones that exist, not by the inventories that do: a page with no clone
-        // is never drawn again, so anything shift-clicked into it would be stranded there.
-        if (buttonId < 0 || buttonId >= Math.min(CLONES, anchor.getUpgrades().cloneCount())) {
+        // Against the synced count, not the anchor's own: UpgradeState is only ever recomputed on
+        // the server tick, so a client asking the block entity is always told there is one clone.
+        // A page with no clone behind it is never drawn again, so anything moved into it would be
+        // stranded there.
+        if (buttonId < 0 || buttonId >= Math.min(CLONES, getActiveClones())) {
             return false;
         }
         selectedClone = buttonId;
@@ -149,7 +152,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     /** Where the selected clone's squares start, for a shift-click that must not leave the page. */
     private int selectedPageStart() {
-        return selectedClone * ANCHOR_SLOTS;
+        return getSelectedClone() * ANCHOR_SLOTS;
     }
 
     /** Menu index of the fuel slot, which follows every clone's storage. */
