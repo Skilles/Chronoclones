@@ -127,15 +127,6 @@ final class AnchorTestFixture {
                         ModItems.CREATIVE_CHARGE_CELL.get()), 1);
     }
 
-    /**
-     * Unlocks every action type, for tests that are about an executor rather than the fidelity gate.
-     */
-    static void unlockAllActions(ChronoAnchorBlockEntity anchor) {
-        anchor.getUpgradeHandler().set(0,
-                net.neoforged.neoforge.transfer.item.ItemResource.of(ModItems.CHRONO_FOCUS.get()),
-                UpgradeState.MAX_FIDELITY);
-    }
-
     static BlockState stateAt(GameTestHelper helper, BlockPos relative) {
         return helper.getBlockState(relative);
     }

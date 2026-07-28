@@ -10,20 +10,18 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 /**
  * The anchor's capabilities, derived from whatever is sitting in its upgrade slots.
  */
-public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
+public record UpgradeState(int cloneCount, int ticksPerStep) {
 
-    /** A bare anchor: one clone, one tick per step, mining only. */
-    public static final UpgradeState BASE = new UpgradeState(1, 1, 0);
+    /** A bare anchor: one clone, one tick per step. */
+    public static final UpgradeState BASE = new UpgradeState(1, 1);
 
     public static final int MAX_CLONES = 4;
     public static final int MAX_RATE = 3;
-    public static final int MAX_FIDELITY = 3;
 
-    /** The three independent upgrade axes. */
+    /** The independent upgrade axes. */
     public enum Axis {
         CLONES,
-        RATE,
-        FIDELITY
+        RATE
     }
 
     /**
@@ -43,18 +41,16 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
             }
         }
 
-        return of(counts[Axis.CLONES.ordinal()], counts[Axis.RATE.ordinal()],
-                counts[Axis.FIDELITY.ordinal()]);
+        return of(counts[Axis.CLONES.ordinal()], counts[Axis.RATE.ordinal()]);
     }
 
     /**
      * Builds a state from raw per-axis upgrade counts, clamped to their caps.
      */
-    public static UpgradeState of(int clones, int rate, int fidelity) {
+    public static UpgradeState of(int clones, int rate) {
         return new UpgradeState(
                 Math.clamp(1L + Math.max(0, clones), 1, MAX_CLONES),
-                Math.clamp(1L + Math.max(0, rate), 1, MAX_RATE),
-                Math.clamp(Math.max(0, fidelity), 0, MAX_FIDELITY));
+                Math.clamp(1L + Math.max(0, rate), 1, MAX_RATE));
     }
 
     /** Which axis an item feeds, or null if it is not an upgrade. */
@@ -64,9 +60,6 @@ public record UpgradeState(int cloneCount, int ticksPerStep, int fidelityTier) {
         }
         if (item == ModItems.CHRONO_ACCELERATOR.get()) {
             return Axis.RATE;
-        }
-        if (item == ModItems.CHRONO_FOCUS.get()) {
-            return Axis.FIDELITY;
         }
         return null;
     }

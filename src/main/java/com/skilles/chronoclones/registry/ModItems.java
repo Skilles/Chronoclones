@@ -51,7 +51,6 @@ public final class ModItems {
     public static final DeferredItem<UpgradeItem> CHRONO_ACCELERATOR = upgrade("chrono_accelerator");
 
     /** Unlocks action types: break -> +place -> +attack -> +use. */
-    public static final DeferredItem<UpgradeItem> CHRONO_FOCUS = upgrade("chrono_focus");
 
     /**
      * Worn on the head: shows every anchor's routine in range, not only the one under the crosshair.

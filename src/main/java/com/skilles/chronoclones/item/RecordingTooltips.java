@@ -33,7 +33,7 @@ public final class RecordingTooltips {
             lines.add(Component.translatable("tooltip.chronoclones.recording.no_actions")
                     .withStyle(ChatFormatting.DARK_GRAY));
         } else {
-            // Enumerate every type present, in fidelity order, so nothing hides in an "other" bucket.
+            // Enumerate every type present, so nothing hides in an "other" bucket.
             for (ChronoActionType type : ChronoActionType.values()) {
                 int count = counts.getOrDefault(type, 0);
                 if (count > 0) {

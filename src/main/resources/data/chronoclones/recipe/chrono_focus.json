@@ -1,9 +1,0 @@
-{
-  "type": "minecraft:crafting_shaped",
-  "category": "misc",
-  "key": { "A": "minecraft:amethyst_shard", "Y": "minecraft:ender_eye" },
-  "pattern": [ " A ", "AYA", " A " ],
-  "result": {
-    "id": "chronoclones:chrono_focus"
-  }
-}

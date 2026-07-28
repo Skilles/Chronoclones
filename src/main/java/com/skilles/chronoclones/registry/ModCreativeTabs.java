@@ -24,7 +24,6 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.CHRONO_SHARD.get());
                         output.accept(ModItems.CHRONO_SPLITTER.get());
                         output.accept(ModItems.CHRONO_ACCELERATOR.get());
-                        output.accept(ModItems.CHRONO_FOCUS.get());
                         output.accept(ModItems.CHRONO_GOGGLES.get());
                         output.accept(ModItems.CREATIVE_CHARGE_CELL.get());
                     })

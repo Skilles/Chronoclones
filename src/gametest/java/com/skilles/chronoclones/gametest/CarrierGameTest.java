@@ -202,7 +202,6 @@ final class CarrierGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
                         new BlockPos(0, 0, -1), CHEST_MENU_SIZE, List.of(), clicks)));
-        AnchorTestFixture.unlockAllActions(anchor);
         return anchor;
     }
 

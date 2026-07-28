@@ -30,17 +30,16 @@ class UpgradeStateTest {
                 counts[axis.ordinal()]++;
             }
         }
-        return UpgradeState.of(counts[0], counts[1], counts[2]);
+        return UpgradeState.of(counts[0], counts[1]);
     }
 
     @Test
-    @DisplayName("an anchor with empty slots is the base state: one clone, mining only")
+    @DisplayName("an anchor with empty slots is the base state: one clone, one tick per step")
     void emptySlotsGiveBaseState() {
         UpgradeState state = install();
 
         assertEquals(1, state.cloneCount());
         assertEquals(1, state.ticksPerStep());
-        assertEquals(0, state.fidelityTier());
     }
 
     @Test
@@ -51,16 +50,14 @@ class UpgradeStateTest {
     }
 
     @Test
-    @DisplayName("axes are independent, so three slots is a genuine choice")
+    @DisplayName("axes are independent, so the slots are a genuine choice")
     void axesAreIndependent() {
         UpgradeState state = install(
                 ModItems.CHRONO_SPLITTER.get(),
-                ModItems.CHRONO_ACCELERATOR.get(),
-                ModItems.CHRONO_FOCUS.get());
+                ModItems.CHRONO_ACCELERATOR.get());
 
         assertEquals(2, state.cloneCount());
         assertEquals(2, state.ticksPerStep());
-        assertEquals(1, state.fidelityTier());
     }
 
     @Test
@@ -73,17 +70,15 @@ class UpgradeStateTest {
 
         assertEquals(4, state.cloneCount());
         assertEquals(1, state.ticksPerStep(), "no speed");
-        assertEquals(0, state.fidelityTier(), "still mining only");
     }
 
     @Test
     @DisplayName("every axis is capped, so a stacked slot cannot run away")
     void axesAreCapped() {
-        UpgradeState state = UpgradeState.of(64, 64, 64);
+        UpgradeState state = UpgradeState.of(64, 64);
 
         assertEquals(UpgradeState.MAX_CLONES, state.cloneCount());
         assertEquals(UpgradeState.MAX_RATE, state.ticksPerStep());
-        assertEquals(UpgradeState.MAX_FIDELITY, state.fidelityTier());
     }
 
     @Test
@@ -93,11 +88,10 @@ class UpgradeStateTest {
     }
 
     @Test
-    @DisplayName("isUpgrade recognises exactly the three upgrade items")
+    @DisplayName("isUpgrade recognises exactly the upgrade items")
     void isUpgradeIsExact() {
         assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_SPLITTER.get()));
         assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_ACCELERATOR.get()));
-        assertTrue(UpgradeState.isUpgrade(ModItems.CHRONO_FOCUS.get()));
 
         assertFalse(UpgradeState.isUpgrade(Items.DIAMOND));
         assertFalse(UpgradeState.isUpgrade(ModItems.CHRONO_GOGGLES.get()),

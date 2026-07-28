@@ -64,8 +64,8 @@ final class InteractionGameTest {
                 .setValue(LeverBlock.FACING, Direction.NORTH)
                 .setValue(LeverBlock.POWERED, false));
 
-        AnchorTestFixture.unlockAllActions(AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.AIR))));
+        AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.AIR)));
 
         // One pass, not a loop: a lever is a toggle and the routine repeats.
         helper.startSequence()
@@ -84,7 +84,6 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.BONE_MEAL)));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
@@ -105,7 +104,6 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.FLINT_AND_STEEL)));
-        AnchorTestFixture.unlockAllActions(anchor);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.FLINT_AND_STEEL), 1);
 
         helper.startSequence()
@@ -146,7 +144,6 @@ final class InteractionGameTest {
                         click(0, RIGHT, ContainerInput.PICKUP),
                         // Left-click the carrier's first slot: put all of it down.
                         click(CHEST_CARRIER_SLOT, LEFT, ContainerInput.PICKUP))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -172,7 +169,6 @@ final class InteractionGameTest {
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
-        AnchorTestFixture.unlockAllActions(anchor);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 2);
 
         ServerLevel level = helper.getLevel();
@@ -209,7 +205,6 @@ final class InteractionGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         click(0, LEFT, ContainerInput.QUICK_MOVE))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -234,7 +229,6 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         click(3, LEFT, ContainerInput.PICKUP),
                         click(7, LEFT, ContainerInput.PICKUP))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -266,7 +260,6 @@ final class InteractionGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         click(0, LEFT, ContainerInput.QUICK_MOVE))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -293,7 +286,6 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         List.of(carrying(menuSlot, Items.DIAMOND, 5)),
                         click(menuSlot, LEFT, ContainerInput.QUICK_MOVE))));
-        AnchorTestFixture.unlockAllActions(anchor);
         anchor.getCloneInventory(0).set(inventorySlot, ItemResource.of(Items.DIAMOND), 5);
 
         ServerLevel level = helper.getLevel();
@@ -330,7 +322,6 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -370,7 +361,6 @@ final class InteractionGameTest {
                         List.of(carrying(FURNACE_CARRIER_SLOT, Items.COAL, 1)),
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, LEFT, ContainerInput.PICKUP))));
-        AnchorTestFixture.unlockAllActions(anchor);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.COAL), 1);
 
         ServerLevel level = helper.getLevel();
@@ -408,7 +398,6 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
-        AnchorTestFixture.unlockAllActions(anchor);
 
         // Neither square is named by the session's one click.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);

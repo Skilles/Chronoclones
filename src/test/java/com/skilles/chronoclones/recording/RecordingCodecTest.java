@@ -202,14 +202,6 @@ class RecordingCodecTest {
         assertEquals(20, ChronoActionType.ATTACK_ENTITY.chargeCost());
     }
 
-    @Test
-    @DisplayName("fidelity tiers gate actions in order")
-    void fidelityTiersAreOrdered() {
-        assertTrue(ChronoActionType.BREAK_BLOCK.fidelityTier() < ChronoActionType.PLACE_BLOCK.fidelityTier());
-        assertTrue(ChronoActionType.PLACE_BLOCK.fidelityTier() < ChronoActionType.ATTACK_ENTITY.fidelityTier());
-        assertTrue(ChronoActionType.ATTACK_ENTITY.fidelityTier() < ChronoActionType.USE_ITEM.fidelityTier());
-    }
-
     private static void assertRecordingsEqual(Recording expected, Recording actual) {
         assertEquals(expected.lengthTicks(), actual.lengthTicks());
         assertEquals(expected.authorName(), actual.authorName());

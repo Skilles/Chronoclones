@@ -187,8 +187,7 @@ public final class ActionExecutor {
 
         Item item = action.item().value();
         if (!(item instanceof BlockItem blockItem)) {
-            // The recording captured a non-placeable item for a place action; nothing sensible to do.
-            return Result.fail(FailureReason.NOT_PERMITTED, action.localPos());
+            return Result.fail(FailureReason.NOT_PLACEABLE, action.localPos());
         }
 
         int slot = findSlotWith(inventory, item, heldSlot);

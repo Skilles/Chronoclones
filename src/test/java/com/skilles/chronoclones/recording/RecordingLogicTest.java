@@ -54,38 +54,6 @@ class RecordingLogicTest {
     }
 
     @Test
-    @DisplayName("fidelity tiers gate actions: BREAK -> PLACE -> ATTACK -> USE")
-    void fidelityTiersAreOrdered() {
-        assertTrue(ChronoActionType.BREAK_BLOCK.fidelityTier() < ChronoActionType.PLACE_BLOCK.fidelityTier());
-        assertTrue(ChronoActionType.PLACE_BLOCK.fidelityTier() < ChronoActionType.ATTACK_ENTITY.fidelityTier());
-        assertTrue(ChronoActionType.ATTACK_ENTITY.fidelityTier() < ChronoActionType.USE_ITEM.fidelityTier());
-    }
-
-    @Test
-    @DisplayName("the fidelity gate admits exactly the tiers at or below the upgrade level")
-    void fidelityGateAdmitsCorrectTypes() {
-        // Tier 0: a fresh anchor mines and nothing else.
-        assertTrue(ChronoActionType.BREAK_BLOCK.permittedAt(0));
-        assertFalse(ChronoActionType.PLACE_BLOCK.permittedAt(0));
-        assertFalse(ChronoActionType.ATTACK_ENTITY.permittedAt(0));
-        assertFalse(ChronoActionType.USE_ITEM.permittedAt(0));
-
-        // Tier 1 adds placing, still no combat: combat sits behind progression.
-        assertTrue(ChronoActionType.BREAK_BLOCK.permittedAt(1));
-        assertTrue(ChronoActionType.PLACE_BLOCK.permittedAt(1));
-        assertFalse(ChronoActionType.ATTACK_ENTITY.permittedAt(1));
-
-        // Tier 2 adds combat.
-        assertTrue(ChronoActionType.ATTACK_ENTITY.permittedAt(2));
-        assertFalse(ChronoActionType.USE_ITEM.permittedAt(2));
-
-        // Tier 3 admits everything.
-        for (ChronoActionType type : ChronoActionType.values()) {
-            assertTrue(type.permittedAt(3), type + " should be permitted at the top tier");
-        }
-    }
-
-    @Test
     @DisplayName("length in seconds is ticks / 20")
     void lengthSeconds() {
         assertEquals(10, recording(200).lengthSeconds());

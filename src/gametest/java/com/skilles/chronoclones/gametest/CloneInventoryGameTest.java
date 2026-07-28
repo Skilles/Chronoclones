@@ -80,13 +80,11 @@ final class CloneInventoryGameTest {
 
     /** An anchor whose routine places one stone, recorded as held in {@code heldSlot}. */
     private static ChronoAnchorBlockEntity placingAnchor(GameTestHelper helper, int heldSlot) {
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+        return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.PlaceBlock(
                         new BlockPos(0, 0, -1), Direction.UP,
                         BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE),
                         Blocks.STONE.defaultBlockState()), heldSlot));
-        AnchorTestFixture.unlockAllActions(anchor);
-        return anchor;
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -139,7 +137,7 @@ final class CloneInventoryGameTest {
 
         helper.startSequence()
                 // Long enough for the anchor to have noticed the splitter before it goes away.
-                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(1, ItemResource.EMPTY, 0))
+                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(0, ItemResource.EMPTY, 0))
                 .thenExecuteAfter(4, () -> {
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.DIAMOND) != 0) {
                         helper.fail("the dropped clone kept its inventory, out of reach of the GUI");
@@ -183,9 +181,8 @@ final class CloneInventoryGameTest {
         return output.buildResult();
     }
 
-    /** Slot 1: slot 0 belongs to {@link AnchorTestFixture#unlockAllActions}. */
     private static void splitters(ChronoAnchorBlockEntity anchor, int count) {
-        anchor.getUpgradeHandler().set(1, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), count);
+        anchor.getUpgradeHandler().set(0, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), count);
     }
 
     private static int droppedCount(GameTestHelper helper, net.minecraft.world.item.Item item) {

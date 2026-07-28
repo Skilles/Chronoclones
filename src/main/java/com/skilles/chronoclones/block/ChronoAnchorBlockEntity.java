@@ -443,14 +443,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             TimedAction timed = actions.get(runtime.actionCursor());
             ChronoAction action = timed.action();
 
-            // Fidelity gates which action types this anchor may run.
-            if (!action.type().permittedAt(upgrades.fidelityTier())) {
-                runtime.consumeAction();
-                recordFailure(serverLevel, FailureReason.NOT_PERMITTED, localPosOf(action),
-                        runtime.playhead(), facing);
-                continue;
-            }
-
             // Leave the cursor so the action retries next tick.
             if (!LevelActionBudget.tryClaim(serverLevel)) {
                 return;

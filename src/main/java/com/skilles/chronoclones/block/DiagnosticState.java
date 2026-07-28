@@ -46,8 +46,8 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         /** Drops would not fit. Halts, so nothing is ever destroyed without being stored. */
         INVENTORY_FULL("inventory_full", true),
         NO_CHARGE("no_charge", true),
-        /** Action type not permitted at the anchor's fidelity tier. */
-        NOT_PERMITTED("not_permitted", false),
+        /** The recording placed something that is not a block. */
+        NOT_PLACEABLE("not_placeable", false),
         /** No matching item in the anchor inventory to place. */
         NO_ITEM("no_item", false),
         /** Target position is occupied by something that cannot be replaced. */
