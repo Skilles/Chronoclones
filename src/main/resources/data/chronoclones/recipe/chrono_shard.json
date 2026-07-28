@@ -1,7 +1,7 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "key": { "A": "minecraft:amethyst_shard", "E": "minecraft:chrono_shard" },
+  "key": { "A": "minecraft:amethyst_shard", "E": "minecraft:echo_shard" },
   "pattern": [ " A ", "AEA", " A " ],
   "result": {
     "id": "chronoclones:chrono_shard",

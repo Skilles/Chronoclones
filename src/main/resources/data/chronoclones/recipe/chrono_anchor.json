@@ -1,7 +1,7 @@
 {
   "type": "minecraft:crafting_shaped",
   "category": "misc",
-  "key": { "D": "minecraft:deepslate_tiles", "S": "minecraft:sculk", "E": "minecraft:chrono_shard" },
+  "key": { "D": "minecraft:deepslate_tiles", "S": "minecraft:sculk", "E": "minecraft:echo_shard" },
   "pattern": [ "DSD", "SES", "DSD" ],
   "result": {
     "id": "chronoclones:chrono_anchor"
