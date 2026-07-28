@@ -60,6 +60,14 @@ final class AnchorTestFixture {
         return routine(List.of(action));
     }
 
+    /** The same, recorded as if the player held the item in {@code heldSlot}. */
+    static Recording routine(ChronoAction action, int heldSlot) {
+        return new Recording(
+                List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
+                List.of(new TimedAction(1, action, heldSlot)),
+                20, AUTHOR_NAME, AUTHOR_ID);
+    }
+
     /** Several actions on consecutive ticks, for paths whose point is that they happen in sequence. */
     static Recording routine(List<ChronoAction> actions) {
         List<TimedAction> timed = new java.util.ArrayList<>(actions.size());

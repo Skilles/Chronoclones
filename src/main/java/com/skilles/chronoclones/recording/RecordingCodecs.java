@@ -246,13 +246,15 @@ public final class RecordingCodecs {
 
     public static final Codec<TimedAction> TIMED_ACTION = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(TimedAction::tick),
-            ACTION.fieldOf("action").forGetter(TimedAction::action)
+            ACTION.fieldOf("action").forGetter(TimedAction::action),
+            Codec.INT.optionalFieldOf("held_slot", TimedAction.ANY_SLOT).forGetter(TimedAction::heldSlot)
     ).apply(i, TimedAction::new));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, TimedAction> TIMED_ACTION_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.VAR_INT, TimedAction::tick,
                     ACTION_STREAM, TimedAction::action,
+                    ByteBufCodecs.INT, TimedAction::heldSlot,
                     TimedAction::new);
 
     // ------------------------------------------------------------------ recording

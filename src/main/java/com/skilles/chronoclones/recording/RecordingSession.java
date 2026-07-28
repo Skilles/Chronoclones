@@ -108,12 +108,12 @@ public final class RecordingSession {
      *
      * @return the cap that was hit, or null
      */
-    public StopReason record(ChronoAction action, Vec3 worldPos) {
+    public StopReason record(ChronoAction action, Vec3 worldPos, int heldSlot) {
         if (!withinRadius(worldPos)) {
             outOfRangeWarning = true;
             return null;
         }
-        actions.add(new TimedAction(tick, action));
+        actions.add(new TimedAction(tick, action, heldSlot));
 
         if (actions.size() >= ChronoclonesConfig.MAX_ACTIONS.getAsInt()) {
             return StopReason.ACTION_CAP;

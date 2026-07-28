@@ -41,6 +41,7 @@ import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.CombinedResourceHandler;
+import net.neoforged.neoforge.transfer.RangedResourceHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
@@ -79,6 +80,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /** Every clone's inventory as one handler, for hoppers and pipes. */
     private final ResourceHandler<ItemResource> combinedInventory =
             new CombinedResourceHandler<>(cloneInventories);
+
+    /** The same inventories with the storage rows ahead of the hotbar, for what a clone mines. */
+    private final List<ResourceHandler<ItemResource>> depositViews = cloneInventories.stream()
+            .map(ChronoAnchorBlockEntity::storageBeforeHotbar)
+            .toList();
+
+    /**
+     * Mined loot fills the storage rows first, leaving the hotbar row to the routine's own tools.
+     */
+    private static ResourceHandler<ItemResource> storageBeforeHotbar(ItemStacksResourceHandler inventory) {
+        return new CombinedResourceHandler<>(
+                RangedResourceHandler.of(inventory, Inventory.SELECTION_SIZE, inventory.size()),
+                RangedResourceHandler.of(inventory, 0, Inventory.SELECTION_SIZE));
+    }
 
     private @Nullable Recording recording;
     private @Nullable MotionTrack motionTrack;
@@ -377,7 +392,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         runtime.consumeAction();
 
         ActionExecutor.Result result = ActionExecutor.finishBreak(serverLevel, action, placement,
-                ownerId, ownerName, inventoryOf(runtime));
+                ownerId, ownerName, depositViews.get(runtime.index()));
         if (result.succeeded()) {
             charge = charge.spend(cost);
             setChanged();
@@ -457,18 +472,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             runtime.consumeAction();
 
             ItemStacksResourceHandler inventory = inventoryOf(runtime);
+            int heldSlot = timed.heldSlot();
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
-                        serverLevel, a, placement, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
                         serverLevel, a, placement, ownerId, ownerName);
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
-                        serverLevel, a, placement, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
-                        serverLevel, a, placement, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
-                        serverLevel, a, placement, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
                         serverLevel, a, placement, ownerId, ownerName, inventory);
             };

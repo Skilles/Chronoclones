@@ -33,57 +33,98 @@ final class CloneInventoryGameTest {
     static void register() {
         ChronoclonesGameTests.add("clone_cannot_reach_another_inventory",
                 CloneInventoryGameTest::cannotReachAnotherInventory);
-        ChronoclonesGameTests.add("drops_go_to_the_clone_that_mined",
-                CloneInventoryGameTest::dropsGoToTheMiner);
+        ChronoclonesGameTests.add("each_clone_draws_from_its_own_inventory",
+                CloneInventoryGameTest::eachCloneDrawsFromItsOwn);
         ChronoclonesGameTests.add("pulled_splitter_spills_its_clone",
                 CloneInventoryGameTest::pulledSplitterSpills);
         ChronoclonesGameTests.add("legacy_inventory_loads_into_the_first_clone",
                 CloneInventoryGameTest::legacyInventoryMigrates);
+        ChronoclonesGameTests.add("held_slot_is_drawn_from_first",
+                CloneInventoryGameTest::heldSlotIsDrawnFromFirst);
+        ChronoclonesGameTests.add("held_slot_falls_back_to_a_search",
+                CloneInventoryGameTest::heldSlotFallsBackToASearch);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    /** The recorded square is where the clone reaches, not merely somewhere the item is. */
+    private static void heldSlotIsDrawnFromFirst(GameTestHelper helper) {
+        int recorded = 4;
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper, recorded);
+        anchor.getCloneInventory(0).set(recorded, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.STONE), 1);
 
-    /** Stock only the second clone: the first must starve rather than borrow. */
-    private static void cannotReachAnotherInventory(GameTestHelper helper) {
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> {
+                    if (!anchor.getCloneInventory(0).getResource(recorded).isEmpty()) {
+                        helper.fail("the recorded square still holds its stone; some other was spent");
+                    }
+                    if (anchor.getCloneInventory(0).getAmountAsInt(0) != 1) {
+                        helper.fail("square 0 was raided while the recorded square was full");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Stock rarely lands where the recording left it, so the square is a preference. */
+    private static void heldSlotFallsBackToASearch(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper, 4);
+        anchor.getCloneInventory(0).set(17, ItemResource.of(Items.STONE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> {
+                    if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
+                        helper.fail("the routine refused stone that was one square over");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** An anchor whose routine places one stone, recorded as held in {@code heldSlot}. */
+    private static ChronoAnchorBlockEntity placingAnchor(GameTestHelper helper, int heldSlot) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.PlaceBlock(
                         new BlockPos(0, 0, -1), Direction.UP,
                         BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE),
-                        Blocks.STONE.defaultBlockState())));
+                        Blocks.STONE.defaultBlockState()), heldSlot));
         AnchorTestFixture.unlockAllActions(anchor);
-        splitters(anchor, 1);
+        return anchor;
+    }
 
+    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+
+    /** One clone, stock in the second inventory: it must starve rather than borrow. */
+    private static void cannotReachAnotherInventory(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
         anchor.getCloneInventory(1).set(0, ItemResource.of(Items.STONE), 16);
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
                     BlockState placed = helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR));
                     if (!placed.isAir()) {
-                        helper.fail("clone 0 placed " + placed + " out of clone 1's inventory");
+                        helper.fail("the only clone placed " + placed + " out of an inventory it does not own");
                     }
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.STONE) != 16) {
-                        helper.fail("clone 1's stone was spent by a clone that does not own it");
+                        helper.fail("stock was spent from an inventory no running clone owns");
                     }
                 })
                 .thenSucceed();
     }
 
-    /** Two clones share a routine but not a pocket. */
-    private static void dropsGoToTheMiner(GameTestHelper helper) {
-        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
-                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+    /** Two clones, stock in the second: the second is the one that can act on it. */
+    private static void eachCloneDrawsFromItsOwn(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
         splitters(anchor, 1);
+        anchor.getCloneInventory(1).set(0, ItemResource.of(Items.STONE), 16);
 
         helper.startSequence()
-                .thenExecuteAfter(20, () -> {
-                    int first = AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.COBBLESTONE);
-                    int second = AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.COBBLESTONE);
-                    if (first + second == 0) {
-                        helper.fail("neither clone stored what it mined");
+                .thenExecuteAfter(10, () -> {
+                    if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
+                        helper.fail("the second clone never spent the stock it owns");
                     }
-                    if (first > 0 && second > 0) {
-                        helper.fail("one block broken but both clones were paid for it");
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.STONE) != 15) {
+                        helper.fail("the placed stone came from somewhere other than its owner");
+                    }
+                    if (!anchor.getCloneInventory(0).getResource(0).isEmpty()) {
+                        helper.fail("the first clone's inventory grew stone it was never given");
                     }
                 })
                 .thenSucceed();
@@ -98,7 +139,7 @@ final class CloneInventoryGameTest {
 
         helper.startSequence()
                 // Long enough for the anchor to have noticed the splitter before it goes away.
-                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(0, ItemResource.EMPTY, 0))
+                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(1, ItemResource.EMPTY, 0))
                 .thenExecuteAfter(4, () -> {
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.DIAMOND) != 0) {
                         helper.fail("the dropped clone kept its inventory, out of reach of the GUI");
@@ -142,8 +183,9 @@ final class CloneInventoryGameTest {
         return output.buildResult();
     }
 
+    /** Slot 1: slot 0 belongs to {@link AnchorTestFixture#unlockAllActions}. */
     private static void splitters(ChronoAnchorBlockEntity anchor, int count) {
-        anchor.getUpgradeHandler().set(0, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), count);
+        anchor.getUpgradeHandler().set(1, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), count);
     }
 
     private static int droppedCount(GameTestHelper helper, net.minecraft.world.item.Item item) {

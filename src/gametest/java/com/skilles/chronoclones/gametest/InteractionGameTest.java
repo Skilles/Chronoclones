@@ -46,9 +46,9 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("container_deposits_into_a_container", InteractionGameTest::depositsIntoAContainer);
         ChronoclonesGameTests.add("container_full_slot_leaves_the_item_alone",
                 InteractionGameTest::fullSlotLeavesTheItemAlone);
-        ChronoclonesGameTests.add("container_failed_staging_keeps_the_inventory",
-                InteractionGameTest::failedStagingKeepsTheInventory);
-        ChronoclonesGameTests.add("container_needs_its_carried_items", InteractionGameTest::needsItsCarriedItems);
+        ChronoclonesGameTests.add("container_untouched_stock_comes_home",
+                InteractionGameTest::untouchedStockComesHome);
+        ChronoclonesGameTests.add("container_runs_understocked", InteractionGameTest::runsUnderstocked);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -280,20 +280,21 @@ final class InteractionGameTest {
 
 
     /**
-     * Depositing, which is the case the carrier layout exists for.
+     * Depositing, the case a routine that empties itself into a chest depends on.
      */
     private static void depositsIntoAContainer(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
-        int carrierSlot = CHEST_MAIN_INVENTORY_START + 4;
+        int inventorySlot = 13;
+        int menuSlot = CHEST_MAIN_INVENTORY_START + inventorySlot - 9;
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
-                        List.of(carrying(carrierSlot, Items.DIAMOND, 5)),
-                        click(carrierSlot, LEFT, ContainerInput.QUICK_MOVE))));
+                        List.of(carrying(menuSlot, Items.DIAMOND, 5)),
+                        click(menuSlot, LEFT, ContainerInput.QUICK_MOVE))));
         AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 5);
+        anchor.getCloneInventory(0).set(inventorySlot, ItemResource.of(Items.DIAMOND), 5);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -318,8 +319,10 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** A session that needs something the anchor has none of says so, rather than clicking air. */
-    private static void needsItsCarriedItems(GameTestHelper helper) {
+    /**
+     * An understocked session clicks empty squares rather than refusing to run.
+     */
+    private static void runsUnderstocked(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
@@ -331,8 +334,8 @@ final class InteractionGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
-                        helper.fail("expected NO_ITEM for a session whose items are not stocked, got "
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NONE) {
+                        helper.fail("an empty clone should replay its clicks over empty squares, got "
                                 + anchor.getLastFailure().reason());
                     }
                 })
@@ -395,9 +398,9 @@ final class InteractionGameTest {
     }
 
     /**
-     * A session that cannot be stocked leaves the anchor's contents alone.
+     * A session borrows the whole inventory, so what its clicks never name comes back untouched.
      */
-    private static void failedStagingKeepsTheInventory(GameTestHelper helper) {
+    private static void untouchedStockComesHome(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
@@ -407,7 +410,7 @@ final class InteractionGameTest {
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
         AnchorTestFixture.unlockAllActions(anchor);
 
-        // Stocked with something else entirely, so the layout cannot be satisfied.
+        // Neither square is named by the session's one click.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);
         anchor.getCloneInventory(0).set(1, ItemResource.of(Items.IRON_INGOT), 7);
 
@@ -416,7 +419,7 @@ final class InteractionGameTest {
                     int gold = countIn(anchor.getInventory(), Items.GOLD_INGOT);
                     int iron = countIn(anchor.getInventory(), Items.IRON_INGOT);
                     if (gold != 12 || iron != 7) {
-                        helper.fail("a session that could not be stocked ate the anchor's inventory: "
+                        helper.fail("a session ate stock its clicks never named: "
                                 + gold + " gold and " + iron + " iron left of 12 and 7");
                     }
                 })

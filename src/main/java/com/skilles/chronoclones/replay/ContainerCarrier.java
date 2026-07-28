@@ -1,16 +1,10 @@
 package com.skilles.chronoclones.replay;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.skilles.chronoclones.recording.ChronoAction;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -19,122 +13,35 @@ import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Lends the anchor's inventory to the fake player for the length of one container session.
+ * Lends a clone's inventory to the fake player for the length of one container session.
+ *
+ * <p>A clone's inventory is shaped like a player's, so the recorded clicks land on the squares the
+ * player clicked without anything having to be staged into place.
  */
 public final class ContainerCarrier {
 
     private ContainerCarrier() {}
 
-    /**
-     * Sets the stage: empties the anchor into the fake player, with the recorded items in the slots
-     * the session's clicks expect.
-     *
-     * @return false if a layout entry found nothing at all to stage
-     */
-    public static boolean load(ItemStacksResourceHandler inventory, FakePlayer player,
-                               AbstractContainerMenu menu,
-                               List<ChronoAction.UseContainer.CarrierSlot> layout) {
+    /** Moves the clone's inventory into the fake player, square for square. */
+    public static void load(ItemStacksResourceHandler inventory, FakePlayer player,
+                            AbstractContainerMenu menu) {
         Inventory target = player.getInventory();
         target.clearContent();
         menu.setCarried(ItemStack.EMPTY);
 
-        // Drain the anchor first, so staging and leftovers draw from the same pool and nothing is
-        // counted twice.
-        List<ItemStack> pool = new ArrayList<>();
-        for (int slot = 0; slot < inventory.size(); slot++) {
+        for (int slot = 0; slot < Math.min(inventory.size(), Inventory.INVENTORY_SIZE); slot++) {
             ItemResource resource = inventory.getResource(slot);
             int amount = inventory.getAmountAsInt(slot);
-            if (!resource.isEmpty() && amount > 0) {
-                pool.add(resource.toStack(amount));
+            if (resource.isEmpty() || amount <= 0) {
+                continue;
             }
+            target.setItem(slot, resource.toStack(amount));
             inventory.set(slot, ItemResource.EMPTY, 0);
         }
-
-        // Which squares staging has claimed, so leftovers cannot land in one. Inventory.add
-        // merges into the first partial stack it finds, which would undo the staged count.
-        boolean[] claimed = new boolean[Inventory.INVENTORY_SIZE];
-
-        for (ChronoAction.UseContainer.CarrierSlot wanted : layout) {
-            if (wanted.menuSlot() >= menu.slots.size()) {
-                continue;
-            }
-            Slot slot = menu.slots.get(wanted.menuSlot());
-            if (slot.container != target) {
-                continue;
-            }
-
-            // Bounded by what the recording held, which is also what stops one square emptying the
-            // anchor and leaving the next one to report the routine unstocked.
-            ItemStack staged = draw(pool, wanted.stack());
-            if (staged.isEmpty()) {
-                // The anchor is already emptied into the pool, so bailing out without spilling
-                // would destroy everything it was holding.
-                spill(pool, target, claimed);
-                return false;
-            }
-            target.setItem(slot.getContainerSlot(), staged);
-            if (slot.getContainerSlot() < claimed.length) {
-                claimed[slot.getContainerSlot()] = true;
-            }
-        }
-
-        // Everything the layout did not claim, wherever it fits.
-        spill(pool, target, claimed);
-        return true;
     }
 
     /**
-     * Moves whatever is left of the pool into the player, where {@link #drain} can find it.
-     */
-    private static void spill(List<ItemStack> pool, Inventory target, boolean[] claimed) {
-        for (ItemStack leftover : pool) {
-            if (leftover.isEmpty()) {
-                continue;
-            }
-            int free = firstFree(target, claimed);
-            if (free < 0) {
-                // Topping up a staged slot is wrong; losing the stack is worse.
-                target.add(leftover);
-                continue;
-            }
-            target.setItem(free, leftover);
-        }
-    }
-
-    private static int firstFree(Inventory target, boolean[] claimed) {
-        for (int slot = 0; slot < claimed.length; slot++) {
-            if (!claimed[slot] && target.getItem(slot).isEmpty()) {
-                return slot;
-            }
-        }
-        return -1;
-    }
-
-    /**
-     * Takes up to {@code wanted}'s count of {@code wanted}'s item out of the pool.
-     */
-    private static ItemStack draw(List<ItemStack> pool, ItemStack wanted) {
-        int limit = Math.min(wanted.getCount(), wanted.getMaxStackSize());
-
-        ItemStack drawn = ItemStack.EMPTY;
-        for (int i = 0; i < pool.size() && drawn.getCount() < limit; i++) {
-            ItemStack candidate = pool.get(i);
-            if (candidate.isEmpty() || !candidate.is(wanted.getItem())) {
-                continue;
-            }
-            int take = Math.min(candidate.getCount(), limit - drawn.getCount());
-            if (drawn.isEmpty()) {
-                drawn = candidate.copyWithCount(take);
-            } else {
-                drawn.grow(take);
-            }
-            candidate.shrink(take);
-        }
-        return drawn;
-    }
-
-    /**
-     * Moves everything the fake player is holding back into the anchor, dropping what will not fit.
+     * Moves everything the fake player is holding back, dropping what will not fit.
      */
     public static void drain(ServerLevel level, BlockPos anchorPos,
                              ItemStacksResourceHandler inventory, FakePlayer player,
@@ -155,8 +62,23 @@ public final class ContainerCarrier {
                 continue;
             }
             source.setItem(slot, ItemStack.EMPTY);
-            give(level, anchorPos, inventory, stack);
+            restore(level, anchorPos, inventory, slot, stack);
         }
+    }
+
+    /**
+     * Puts a stack back in the square it was lent from, or anywhere at all if that has been taken.
+     *
+     * <p>Slots past the inventory proper are armour and the offhand, which a session can reach with
+     * a swap and which have nowhere of their own to come home to.
+     */
+    private static void restore(ServerLevel level, BlockPos anchorPos,
+                                ItemStacksResourceHandler inventory, int slot, ItemStack stack) {
+        if (slot < inventory.size() && inventory.getResource(slot).isEmpty()) {
+            inventory.set(slot, ItemResource.of(stack), stack.getCount());
+            return;
+        }
+        give(level, anchorPos, inventory, stack);
     }
 
     private static void give(ServerLevel level, BlockPos anchorPos,

@@ -31,35 +31,52 @@ public final class HeldItemLoan {
     public static final Loan EMPTY_HANDED = new Loan(-1, ItemStack.EMPTY);
 
     /**
-     * Takes the whole of one matching slot out of the anchor.
+     * Takes the whole of one matching slot out of the anchor, preferring {@code preferredSlot}.
      *
      * @return the loan, or null if the anchor has none of {@code item}
      */
-    public static Loan take(ResourceHandler<ItemResource> inventory, Item item) {
+    public static Loan take(ResourceHandler<ItemResource> inventory, Item item, int preferredSlot) {
         if (item == net.minecraft.world.item.Items.AIR) {
             return EMPTY_HANDED;
         }
 
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            if (resource.isEmpty() || resource.getItem() != item) {
-                continue;
-            }
-            int amount = inventory.getAmountAsInt(slot);
-            if (amount <= 0) {
-                continue;
-            }
+        Loan preferred = takeFrom(inventory, item, preferredSlot);
+        if (preferred != null) {
+            return preferred;
+        }
 
-            try (Transaction tx = Transaction.openRoot()) {
-                int taken = inventory.extract(slot, resource, amount, tx);
-                if (taken <= 0) {
-                    continue;
-                }
-                tx.commit();
-                return new Loan(slot, resource.toStack(taken));
+        // Stock rarely lands where the recording left it, so the slot is a preference, not a rule.
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            Loan loan = takeFrom(inventory, item, slot);
+            if (loan != null) {
+                return loan;
             }
         }
         return null;
+    }
+
+    private static @org.jspecify.annotations.Nullable Loan takeFrom(
+            ResourceHandler<ItemResource> inventory, Item item, int slot) {
+        if (slot < 0 || slot >= inventory.size()) {
+            return null;
+        }
+        ItemResource resource = inventory.getResource(slot);
+        if (resource.isEmpty() || resource.getItem() != item) {
+            return null;
+        }
+        int amount = inventory.getAmountAsInt(slot);
+        if (amount <= 0) {
+            return null;
+        }
+
+        try (Transaction tx = Transaction.openRoot()) {
+            int taken = inventory.extract(slot, resource, amount, tx);
+            if (taken <= 0) {
+                return null;
+            }
+            tx.commit();
+            return new Loan(slot, resource.toStack(taken));
+        }
     }
 
     /**

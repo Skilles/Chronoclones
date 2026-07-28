@@ -168,7 +168,7 @@ public final class ActionExecutor {
     public static Result executePlace(ServerLevel level, ChronoAction.PlaceBlock action,
                                       Placement placement,
                                       java.util.UUID ownerId, String ownerName,
-                                      ResourceHandler<ItemResource> inventory) {
+                                      ResourceHandler<ItemResource> inventory, int heldSlot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -191,7 +191,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NOT_PERMITTED, action.localPos());
         }
 
-        int slot = findSlotWith(inventory, item);
+        int slot = findSlotWith(inventory, item, heldSlot);
         if (slot < 0) {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
         }
@@ -234,14 +234,25 @@ public final class ActionExecutor {
         }
     }
 
-    private static int findSlotWith(ResourceHandler<ItemResource> inventory, Item item) {
+    /** The recorded slot if it still holds the item, otherwise the first slot that does. */
+    private static int findSlotWith(ResourceHandler<ItemResource> inventory, Item item, int preferredSlot) {
+        if (holds(inventory, preferredSlot, item)) {
+            return preferredSlot;
+        }
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item && inventory.getAmountAsInt(slot) > 0) {
+            if (holds(inventory, slot, item)) {
                 return slot;
             }
         }
         return -1;
+    }
+
+    private static boolean holds(ResourceHandler<ItemResource> inventory, int slot, Item item) {
+        if (slot < 0 || slot >= inventory.size()) {
+            return false;
+        }
+        ItemResource resource = inventory.getResource(slot);
+        return !resource.isEmpty() && resource.getItem() == item && inventory.getAmountAsInt(slot) > 0;
     }
 
     // ------------------------------------------------------------------ attack
@@ -313,7 +324,7 @@ public final class ActionExecutor {
     public static Result executeUseOnBlock(ServerLevel level, ChronoAction.UseOnBlock action,
                                            Placement placement,
                                            java.util.UUID ownerId, String ownerName,
-                                           ResourceHandler<ItemResource> inventory) {
+                                           ResourceHandler<ItemResource> inventory, int heldSlot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -329,7 +340,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), heldSlot);
         if (loan == null) {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
         }
@@ -357,9 +368,9 @@ public final class ActionExecutor {
     public static Result executeUseItem(ServerLevel level, ChronoAction.UseItem action,
                                         Placement placement,
                                         java.util.UUID ownerId, String ownerName,
-                                        ResourceHandler<ItemResource> inventory) {
+                                        ResourceHandler<ItemResource> inventory, int heldSlot) {
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), heldSlot);
         if (loan == null) {
             return Result.fail(FailureReason.NO_ITEM, BlockPos.ZERO);
         }
@@ -383,7 +394,7 @@ public final class ActionExecutor {
     public static Result executeInteractEntity(ServerLevel level, ChronoAction.InteractEntity action,
                                                Placement placement,
                                                java.util.UUID ownerId, String ownerName,
-                                               ResourceHandler<ItemResource> inventory) {
+                                               ResourceHandler<ItemResource> inventory, int heldSlot) {
 
         Vec3 worldPos = placement.toWorld(action.localPos());
         BlockPos localBlock = BlockPos.containing(action.localPos());
@@ -415,7 +426,7 @@ public final class ActionExecutor {
                         .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
                         .orElseThrow());
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), heldSlot);
         if (loan == null) {
             return Result.fail(FailureReason.NO_ITEM, localBlock);
         }
@@ -490,10 +501,7 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            if (!ContainerCarrier.load(inventory, owner, menu, action.carrier())) {
-                ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
-                return Result.fail(FailureReason.NO_ITEM, action.localPos());
-            }
+            ContainerCarrier.load(inventory, owner, menu);
             try {
                 for (ChronoAction.UseContainer.Click click : action.clicks()) {
                     if (click.slot() >= menu.slots.size()) {

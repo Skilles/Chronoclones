@@ -298,7 +298,9 @@ public final class RecordingCapture {
 
     private static void capture(ServerPlayer player, RecordingSession session,
                                 ChronoAction action, Vec3 worldPos) {
-        RecordingSession.StopReason stop = session.record(action, worldPos);
+        // The slot, not just the item: a clone reaches into the square the player reached into.
+        RecordingSession.StopReason stop =
+                session.record(action, worldPos, player.getInventory().getSelectedSlot());
         if (stop != null) {
             ItemStack recorder = findSessionRecorder(player, session);
             if (recorder != null) {

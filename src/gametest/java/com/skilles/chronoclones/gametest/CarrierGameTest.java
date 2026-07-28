@@ -10,6 +10,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -21,17 +22,19 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 import static com.skilles.chronoclones.gametest.AnchorTestFixture.countIn;
 
 /**
- * Stocking the fake player before a container session runs.
+ * Lending a clone's inventory to a container session, square for square.
  */
 final class CarrierGameTest {
 
     private CarrierGameTest() {}
 
     static void register() {
-        ChronoclonesGameTests.add("carrier_every_square_gets_its_share",
-                CarrierGameTest::everySquareGetsItsShare);
-        ChronoclonesGameTests.add("carrier_takes_only_what_was_recorded",
-                CarrierGameTest::takesOnlyWhatWasRecorded);
+        ChronoclonesGameTests.add("carrier_lends_the_square_the_click_names",
+                CarrierGameTest::lendsTheSquareTheClickNames);
+        ChronoclonesGameTests.add("carrier_lends_the_hotbar_row_too",
+                CarrierGameTest::lendsTheHotbarRowToo);
+        ChronoclonesGameTests.add("carrier_returns_to_the_square_it_lent_from",
+                CarrierGameTest::returnsToTheSquareItLentFrom);
         ChronoclonesGameTests.add("carrier_clicks_the_square_it_recorded",
                 CarrierGameTest::clicksTheSquareItRecorded);
         ChronoclonesGameTests.add("carrier_stack_survives_an_imprint",
@@ -40,52 +43,81 @@ final class CarrierGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
 
-    // Vanilla lays container slots out first, then the player's main inventory, then the hotbar.
-    private static final int CHEST_MENU_SIZE = 27 + 36;
-    private static final int CHEST_MAIN_INVENTORY_START = 27;
+    /** A single chest: 27 of its own, then the player's storage rows, then the hotbar. */
+    private static final int CHEST_SLOTS = 27;
+    private static final int CHEST_MENU_SIZE = CHEST_SLOTS + Inventory.INVENTORY_SIZE;
 
     private static final int LEFT = 0;
+    private static final int RIGHT = 1;
 
-    /**
-     * A session that stocks two squares stocks both of them.
-     */
-    private static void everySquareGetsItsShare(GameTestHelper helper) {
-        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        helper.setBlock(target, Blocks.BARREL);
-
-        int first = CHEST_MAIN_INVENTORY_START;
-        int second = CHEST_MAIN_INVENTORY_START + 1;
-
-        ChronoAnchorBlockEntity anchor = deposit(helper,
-                List.of(new ChronoAction.UseContainer.CarrierSlot(first, new ItemStack(Items.DIAMOND, 2)),
-                        new ChronoAction.UseContainer.CarrierSlot(second, new ItemStack(Items.DIAMOND, 2))),
-                List.of(click(first, ContainerInput.QUICK_MOVE),
-                        click(second, ContainerInput.QUICK_MOVE)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 8);
-
-        assertBarrelHolds(helper, target, Items.DIAMOND, 4,
-                "both squares were stocked with the two diamonds they recorded");
+    /** Where a clone's inventory slot appears in the open chest menu. */
+    private static int menuSlotOf(int inventorySlot) {
+        return Inventory.isHotbarSlot(inventorySlot)
+                ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.SELECTION_SIZE) + inventorySlot
+                : CHEST_SLOTS + inventorySlot - Inventory.SELECTION_SIZE;
     }
 
     /**
-     * The recorded amount is the amount, however much the anchor is holding.
+     * The click names a square, and that square holds what the anchor holds in it.
      */
-    private static void takesOnlyWhatWasRecorded(GameTestHelper helper) {
+    private static void lendsTheSquareTheClickNames(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
-        int square = CHEST_MAIN_INVENTORY_START;
+        int lent = 9;
+        int untouched = 20;
         ChronoAnchorBlockEntity anchor = deposit(helper,
-                List.of(new ChronoAction.UseContainer.CarrierSlot(square, new ItemStack(Items.DIAMOND, 5))),
-                List.of(click(square, ContainerInput.QUICK_MOVE)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 32);
+                List.of(click(menuSlotOf(lent), LEFT, ContainerInput.QUICK_MOVE)));
+        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+        anchor.getCloneInventory(0).set(untouched, ItemResource.of(Items.OAK_LOG), 5);
 
-        assertBarrelHolds(helper, target, Items.DIAMOND, 5, "only the recorded five moved");
         helper.startSequence()
-                .thenExecuteAfter(16, () -> {
-                    if (countIn(anchor.getInventory(), Items.DIAMOND) != 27) {
-                        helper.fail("the remainder did not stay home: anchor holds "
-                                + countIn(anchor.getInventory(), Items.DIAMOND) + " of 27");
+                .thenExecuteAfter(15, () -> {
+                    assertBarrelHolds(helper, target, Items.DIAMOND, 32);
+                    if (!anchor.getCloneInventory(0).getResource(lent).isEmpty()) {
+                        helper.fail("the lent square was refilled behind the session's back");
+                    }
+                    // A session borrows the whole inventory, so everything else must survive it.
+                    if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 5) {
+                        helper.fail("the logs the session never touched did not come home");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** The hotbar sits at the far end of the menu, 27 squares from where the storage rows start. */
+    private static void lendsTheHotbarRowToo(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int hotbar = 3;
+        ChronoAnchorBlockEntity anchor = deposit(helper,
+                List.of(click(menuSlotOf(hotbar), LEFT, ContainerInput.QUICK_MOVE)));
+        anchor.getCloneInventory(0).set(hotbar, ItemResource.of(Items.DIAMOND), 7);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> assertBarrelHolds(helper, target, Items.DIAMOND, 7))
+                .thenSucceed();
+    }
+
+    /** What the session did not spend goes back where it came from, not wherever there is room. */
+    private static void returnsToTheSquareItLentFrom(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int lent = 14;
+        ChronoAnchorBlockEntity anchor = deposit(helper, List.of(
+                // Right-click takes half to the cursor, left-click puts it in the barrel.
+                click(menuSlotOf(lent), RIGHT, ContainerInput.PICKUP),
+                click(0, LEFT, ContainerInput.PICKUP)));
+        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    assertBarrelHolds(helper, target, Items.DIAMOND, 16);
+                    int home = anchor.getCloneInventory(0).getAmountAsInt(lent);
+                    if (home != 16) {
+                        helper.fail("expected the other 16 back in square " + lent + ", found " + home);
                     }
                 })
                 .thenSucceed();
@@ -99,11 +131,11 @@ final class CarrierGameTest {
         helper.setBlock(target, Blocks.BARREL);
         AnchorTestFixture.fillSlot(helper, target, 0, new ItemStack(Items.DIRT, 64));
 
-        int square = CHEST_MAIN_INVENTORY_START;
+        int lent = 9;
         ChronoAnchorBlockEntity anchor = deposit(helper,
-                List.of(new ChronoAction.UseContainer.CarrierSlot(square, new ItemStack(Items.OAK_LOG, 1))),
-                List.of(click(square, ContainerInput.PICKUP), click(0, ContainerInput.PICKUP)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 1);
+                List.of(click(menuSlotOf(lent), LEFT, ContainerInput.PICKUP),
+                        click(0, LEFT, ContainerInput.PICKUP)));
+        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.OAK_LOG), 1);
 
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(target);
@@ -139,9 +171,11 @@ final class CarrierGameTest {
         ItemStack recorded = new ItemStack(Items.DIAMOND, 5);
         recorded.set(DataComponents.CUSTOM_NAME, Component.literal("Keystone"));
 
-        ChronoAnchorBlockEntity anchor = deposit(helper,
-                List.of(new ChronoAction.UseContainer.CarrierSlot(CHEST_MAIN_INVENTORY_START, recorded)),
-                List.of(click(CHEST_MAIN_INVENTORY_START, ContainerInput.QUICK_MOVE)));
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE,
+                        List.of(new ChronoAction.UseContainer.CarrierSlot(menuSlotOf(9), recorded)),
+                        List.of(click(menuSlotOf(9), LEFT, ContainerInput.QUICK_MOVE)))));
 
         if (anchor.getRecording() == null) {
             helper.fail("the anchor kept no recording");
@@ -164,38 +198,29 @@ final class CarrierGameTest {
     // ---------------------------------------------------------------------- helpers
 
     private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
-                                                 List<ChronoAction.UseContainer.CarrierSlot> carrier,
-                                                 List<ChronoAction.UseContainer.Click> clicks) {
+                                                   List<ChronoAction.UseContainer.Click> clicks) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
-                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE, carrier, clicks)));
+                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE, List.of(), clicks)));
         AnchorTestFixture.unlockAllActions(anchor);
         return anchor;
     }
 
     private static void assertBarrelHolds(GameTestHelper helper, BlockPos target,
-                                          net.minecraft.world.item.Item item, int count,
-                                          String what) {
-        ServerLevel level = helper.getLevel();
-        BlockPos absolute = helper.absolutePos(target);
-
-        helper.startSequence()
-                .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absolute, null);
-                    if (barrel == null) {
-                        helper.fail("the barrel exposes no item handler");
-                        return;
-                    }
-                    if (countIn(barrel, item) != count) {
-                        helper.fail("expected " + what + " - barrel holds "
-                                + countIn(barrel, item) + " of " + count);
-                    }
-                })
-                .thenSucceed();
+                                          net.minecraft.world.item.Item item, int count) {
+        ResourceHandler<ItemResource> barrel = helper.getLevel().getCapability(
+                Capabilities.Item.BLOCK, helper.absolutePos(target), null);
+        if (barrel == null) {
+            helper.fail("the barrel exposes no item handler");
+            return;
+        }
+        if (countIn(barrel, item) != count) {
+            helper.fail("expected " + count + " " + item + " in the barrel, found "
+                    + countIn(barrel, item));
+        }
     }
 
-    private static ChronoAction.UseContainer.Click click(int slot, ContainerInput input) {
-        return new ChronoAction.UseContainer.Click(slot, LEFT, input);
+    private static ChronoAction.UseContainer.Click click(int slot, int button, ContainerInput input) {
+        return new ChronoAction.UseContainer.Click(slot, button, input);
     }
 }
