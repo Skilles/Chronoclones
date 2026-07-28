@@ -20,15 +20,20 @@ import org.jspecify.annotations.NonNull;
 public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS;
+    private static final int CLONES = ChronoAnchorBlockEntity.CLONE_INVENTORIES;
 
     /** Defined alongside the slot names, so the buffer and the readers cannot drift apart. */
     public static final int DATA_COUNT = AnchorData.COUNT;
 
-    /** One clone's storage, plus fuel and the three modules. */
-    private static final int TOTAL_ANCHOR_SLOTS = ANCHOR_SLOTS + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
+    /** Every clone's storage, plus fuel and the three modules. */
+    private static final int TOTAL_ANCHOR_SLOTS =
+            ANCHOR_SLOTS * CLONES + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
 
     private final ChronoAnchorBlockEntity anchor;
     private final ContainerData data;
+
+    /** Which clone's squares are the visible ones. Each side sets its own on the same click. */
+    private int selectedClone;
 
     /**
      * Client-side constructor, reached via the extra data written by {@code openMenu(provider, pos)}.
@@ -43,12 +48,17 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.anchor = anchor;
         this.data = data;
 
-        // Laid out like a player's own inventory, the storage rows above the hotbar row.
-        ItemStacksResourceHandler storage = anchor.getCloneInventory(0);
-        for (int index = 0; index < ANCHOR_SLOTS; index++) {
-            addSlot(new ResourceHandlerSlot(storage, storage::set, index,
-                    8 + Layout.storageColumn(index) * 18,
-                    Layout.STORAGE_Y + Layout.storageRow(index) * 18));
+        // Every clone's squares, stacked on the same coordinates. Laid out like a player's own
+        // inventory, the storage rows above the hotbar row.
+        for (int clone = 0; clone < CLONES; clone++) {
+            ItemStacksResourceHandler storage = anchor.getCloneInventory(clone);
+            int page = clone;
+            for (int index = 0; index < ANCHOR_SLOTS; index++) {
+                addSlot(new ClonePageSlot(storage, storage::set, index,
+                        8 + Layout.storageColumn(index) * 18,
+                        Layout.STORAGE_Y + Layout.storageRow(index) * 18,
+                        page, () -> selectedClone));
+            }
         }
 
         // Fuel, then three upgrades, on the row below the storage grid.
@@ -80,6 +90,29 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         for (int col = 0; col < 9; col++) {
             addSlot(new Slot(playerInventory, col, 8 + col * 18, Layout.HOTBAR_Y));
         }
+    }
+
+    public int getSelectedClone() {
+        return selectedClone;
+    }
+
+    /**
+     * The tab strip, arriving as a menu button so no payload of our own is needed.
+     */
+    @Override
+    public boolean clickMenuButton(@NonNull Player player, int buttonId) {
+        // Bounded by the clones that exist, not by the inventories that do: a page with no clone
+        // is never drawn again, so anything shift-clicked into it would be stranded there.
+        if (buttonId < 0 || buttonId >= Math.min(CLONES, anchor.getUpgrades().cloneCount())) {
+            return false;
+        }
+        selectedClone = buttonId;
+        return true;
+    }
+
+    /** Where the selected clone's squares start, for a shift-click that must not leave the page. */
+    private int selectedPageStart() {
+        return selectedClone * ANCHOR_SLOTS;
     }
 
     public int getPlayhead() {
@@ -133,6 +166,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int STATUS_Y = 18;
         public static final int UPGRADE_INFO_Y = 28;
 
+        /** The clone tabs share the row above the storage grid with the upgrade readout. */
+        public static final int TAB_Y = 28;
+        public static final int TAB_RIGHT_EDGE = WIDTH - 8;
+
         public static final int STORAGE_Y = 40;
 
         /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
@@ -183,15 +220,21 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
                 return ItemStack.EMPTY;
             }
         } else {
+            // Only the visible clone's squares: moveItemStackTo does not check isActive, so
+            // without this a shift-click scatters across pages nobody can see.
+            int page = selectedPageStart();
+            int pageEnd = page + ANCHOR_SLOTS;
+            int fuel = ANCHOR_SLOTS * CLONES;
+
             // Upgrades and fuel route to their own slots first.
             boolean moved;
             if (UpgradeState.isUpgrade(stack.getItem())) {
-                moved = moveItemStackTo(stack, ANCHOR_SLOTS + 1, TOTAL_ANCHOR_SLOTS, false);
+                moved = moveItemStackTo(stack, fuel + 1, TOTAL_ANCHOR_SLOTS, false);
             } else if (player.level().fuelValues().burnDuration(stack) > 0) {
-                moved = moveItemStackTo(stack, ANCHOR_SLOTS, ANCHOR_SLOTS + 1, false)
-                        || moveItemStackTo(stack, 0, ANCHOR_SLOTS, false);
+                moved = moveItemStackTo(stack, fuel, fuel + 1, false)
+                        || moveItemStackTo(stack, page, pageEnd, false);
             } else {
-                moved = moveItemStackTo(stack, 0, ANCHOR_SLOTS, false);
+                moved = moveItemStackTo(stack, page, pageEnd, false);
             }
             if (!moved) {
                 return ItemStack.EMPTY;

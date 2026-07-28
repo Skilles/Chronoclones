@@ -5,6 +5,7 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -155,6 +156,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.text(font, title, titleLabelX, titleLabelY, TEXT);
         extractor.text(font, playerInventoryTitle, inventoryLabelX, inventoryLabelY, TEXT);
         sectionLabels(extractor);
+        cloneTabs(extractor);
 
         if (menu.getLengthTicks() <= 0) {
             extractor.text(font, Component.translatable("gui.chronoclones.anchor.no_recording"),
@@ -179,6 +181,43 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             extractor.text(font, Component.translatable(reason.translationKey(), where),
                     8, Layout.DIAGNOSTIC_Y, reason.halts() ? HALTED : WARNING);
         }
+    }
+
+    /**
+     * The clone tabs, at the right of the row above the storage grid.
+     */
+    private void cloneTabs(GuiGraphicsExtractor extractor) {
+        int tabs = CloneTabs.count(menu.getActiveClones());
+        int selected = menu.getSelectedClone();
+
+        for (int tab = 0; tab < tabs; tab++) {
+            int x = CloneTabs.xOf(tab, tabs, Layout.TAB_RIGHT_EDGE);
+            int y = Layout.TAB_Y;
+            boolean current = tab == selected;
+
+            extractor.fill(x, y, x + CloneTabs.WIDTH, y + CloneTabs.HEIGHT,
+                    current ? ACCENT : PANEL_EDGE);
+            extractor.fill(x + 1, y + 1, x + CloneTabs.WIDTH - 1, y + CloneTabs.HEIGHT - 1, PANEL_BG);
+
+            String label = String.valueOf(tab + 1);
+            extractor.text(font, label, x + (CloneTabs.WIDTH - font.width(label)) / 2, y + 1,
+                    current ? ACCENT : MUTED);
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
+        int tabs = CloneTabs.count(menu.getActiveClones());
+        int tab = CloneTabs.at((int) event.x() - leftPos, (int) event.y() - topPos, tabs,
+                Layout.TAB_RIGHT_EDGE, Layout.TAB_Y);
+
+        if (tab >= 0 && tab != menu.getSelectedClone() && minecraft != null && minecraft.gameMode != null) {
+            // Both sides act on the same click: the menu has no synced field for the selection.
+            menu.clickMenuButton(minecraft.player, tab);
+            minecraft.gameMode.handleInventoryButtonClick(menu.containerId, tab);
+            return true;
+        }
+        return super.mouseClicked(event, doubled);
     }
 
     private void sectionLabels(GuiGraphicsExtractor extractor) {
