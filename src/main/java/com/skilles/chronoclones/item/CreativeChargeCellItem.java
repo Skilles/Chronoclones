@@ -29,7 +29,5 @@ public class CreativeChargeCellItem extends Item {
                                 Consumer<Component> adder, @NonNull TooltipFlag flag) {
         adder.accept(Component.translatable("tooltip.chronoclones.charge_cell")
                 .withStyle(ChatFormatting.LIGHT_PURPLE));
-        adder.accept(Component.translatable("tooltip.chronoclones.charge_cell.creative")
-                .withStyle(ChatFormatting.DARK_GRAY));
     }
 }
