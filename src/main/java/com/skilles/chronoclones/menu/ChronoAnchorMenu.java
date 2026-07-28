@@ -1,7 +1,11 @@
 package com.skilles.chronoclones.menu;
 
+import java.util.List;
+
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.block.UpgradeState;
+import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -16,6 +20,7 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 public class ChronoAnchorMenu extends AbstractContainerMenu {
 
@@ -35,18 +40,50 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** Which clone's squares are the visible ones. Each side sets its own on the same click. */
     private int selectedClone;
 
+    /** The tick each recorded action falls on, for the timeline. Empty on the server side. */
+    private final int[] actionTicks;
+
     /**
-     * Client-side constructor, reached via the extra data written by {@code openMenu(provider, pos)}.
+     * Client-side constructor, reached via the extra data written when the menu is opened.
      */
     public ChronoAnchorMenu(int containerId, Inventory playerInventory, RegistryFriendlyByteBuf extraData) {
         this(containerId, playerInventory, resolve(playerInventory, extraData.readBlockPos()),
-                new SimpleContainerData(DATA_COUNT));
+                new SimpleContainerData(DATA_COUNT), readTimeline(extraData));
     }
 
     public ChronoAnchorMenu(int containerId, Inventory playerInventory, ChronoAnchorBlockEntity anchor, ContainerData data) {
+        this(containerId, playerInventory, anchor, data, NO_TIMELINE);
+    }
+
+    private static final int[] NO_TIMELINE = new int[0];
+
+    public static void writeTimeline(RegistryFriendlyByteBuf buffer, @Nullable Recording recording) {
+        List<TimedAction> actions = recording == null ? List.of() : recording.actions();
+        buffer.writeVarInt(actions.size());
+        for (TimedAction action : actions) {
+            buffer.writeVarInt(action.tick());
+        }
+    }
+
+    private static int[] readTimeline(RegistryFriendlyByteBuf buffer) {
+        int[] ticks = new int[buffer.readVarInt()];
+        for (int i = 0; i < ticks.length; i++) {
+            ticks[i] = buffer.readVarInt();
+        }
+        return ticks;
+    }
+
+    /** The tick each action falls on, in order. Only the client is given these. */
+    public int[] getActionTicks() {
+        return actionTicks;
+    }
+
+    public ChronoAnchorMenu(int containerId, Inventory playerInventory, ChronoAnchorBlockEntity anchor,
+                            ContainerData data, int[] actionTicks) {
         super(ModMenus.CHRONO_ANCHOR.get(), containerId);
         this.anchor = anchor;
         this.data = data;
+        this.actionTicks = actionTicks;
 
         // Every clone's squares, stacked on the same coordinates. Laid out like a player's own
         // inventory, the storage rows above the hotbar row.
@@ -55,7 +92,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
             int page = clone;
             for (int index = 0; index < ANCHOR_SLOTS; index++) {
                 addSlot(new ClonePageSlot(storage, storage::set, index,
-                        8 + Layout.storageColumn(index) * 18,
+                        Layout.GRID_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
                         page, () -> selectedClone));
             }
@@ -84,11 +121,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     private void addPlayerInventory(Inventory playerInventory) {
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInventory, col + row * 9 + 9, 8 + col * 18, Layout.PLAYER_Y + row * 18));
+                addSlot(new Slot(playerInventory, col + row * 9 + 9, Layout.GRID_X + col * 18, Layout.PLAYER_Y + row * 18));
             }
         }
         for (int col = 0; col < 9; col++) {
-            addSlot(new Slot(playerInventory, col, 8 + col * 18, Layout.HOTBAR_Y));
+            addSlot(new Slot(playerInventory, col, Layout.GRID_X + col * 18, Layout.HOTBAR_Y));
         }
     }
 
@@ -115,8 +152,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return selectedClone * ANCHOR_SLOTS;
     }
 
-    public int getPlayhead() {
-        return data.get(AnchorData.PLAYHEAD);
+    /** Menu index of the fuel slot, which follows every clone's storage. */
+    public static final int FUEL_SLOT = ANCHOR_SLOTS * CLONES;
+
+    public int getPlayhead(int clone) {
+        return data.get(AnchorData.playhead(clone));
     }
 
     public int getLengthTicks() {
@@ -154,23 +194,64 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     }
 
     /**
-     * Slot geometry, shared by the menu and the screen.
+     * Slot geometry, shared by the menu and the screen. Every y is the top of its band.
      */
     public static final class Layout {
-        public static final int WIDTH = 176;
-        public static final int HEIGHT = 255;
+        public static final int WIDTH = 184;
+        public static final int HEIGHT = 261;
 
-        /**
-         * The readout lines, each on its own row.
-         */
-        public static final int STATUS_Y = 18;
-        public static final int UPGRADE_INFO_Y = 28;
+        /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
+        public static final int LINE_HEIGHT = 9;
+        public static final int SLOT_BORDER = 1;
 
-        /** The clone tabs share the row above the storage grid with the upgrade readout. */
-        public static final int TAB_Y = 28;
-        public static final int TAB_RIGHT_EDGE = WIDTH - 8;
+        /** Panels and the grids inside them run between these. */
+        public static final int MARGIN = 7;
+        public static final int CONTENT_WIDTH = WIDTH - 2 * MARGIN;
 
-        public static final int STORAGE_Y = 40;
+        /** Derived, so the nine columns stay centred whatever the window's width becomes. */
+        public static final int GRID_X = (WIDTH - 9 * 18) / 2;
+
+        public static final int TITLE_Y = 3;
+
+        public static final int TIMELINE_Y = 15;
+        public static final int TIMELINE_HEIGHT = 5;
+
+        public static final int PILLS_Y = 23;
+        public static final int PILLS_HEIGHT = 14;
+
+        public static final int STORAGE_PANEL_Y = 40;
+        public static final int STORAGE_PANEL_HEIGHT = 86;
+        public static final int STORAGE_HEADER_Y = 43;
+        public static final int STORAGE_Y = 53;
+        public static final int STORAGE_ROWS = 4;
+
+        /** The clone tabs share the storage header row, right-aligned. */
+        public static final int TAB_Y = STORAGE_HEADER_Y - 1;
+        public static final int TAB_RIGHT_EDGE = WIDTH - MARGIN - 4;
+
+        public static final int MODULE_PANEL_Y = 129;
+        public static final int MODULE_PANEL_HEIGHT = 34;
+        public static final int CHARGE_PANEL_WIDTH = 97;
+        public static final int MODULE_PANEL_X = MARGIN + CHARGE_PANEL_WIDTH + 4;
+
+        /** "Charge" and "Modules", above the row they describe. */
+        public static final int SECTION_LABEL_Y = 132;
+
+        public static final int MODULE_Y = 142;
+        public static final int FUEL_X = 12;
+        public static final int UPGRADE_X = 115;
+
+        public static final int CHARGE_X = 36;
+        public static final int CHARGE_Y = 143;
+        public static final int CHARGE_WIDTH = 60;
+        public static final int CHARGE_HEIGHT = 6;
+        public static final int CHARGE_TEXT_Y = 151;
+
+        public static final int DIAGNOSTIC_Y = 166;
+        public static final int DIAGNOSTIC_HEIGHT = 11;
+
+        public static final int PLAYER_Y = 181;
+        public static final int HOTBAR_Y = 238;
 
         /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
         public static int storageRow(int inventorySlot) {
@@ -180,27 +261,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static int storageColumn(int inventorySlot) {
             return inventorySlot % 9;
         }
-
-        /** "Fuel", "Charge" and "Modules", above the row they describe. */
-        public static final int SECTION_LABEL_Y = 114;
-
-        /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
-        public static final int LINE_HEIGHT = 9;
-        public static final int SLOT_BORDER = 1;
-
-        public static final int MODULE_Y = 126;
-        public static final int FUEL_X = 8;
-        public static final int UPGRADE_X = 116;
-
-        public static final int CHARGE_X = 30;
-        public static final int CHARGE_Y = 130;
-        public static final int CHARGE_WIDTH = 78;
-        public static final int CHARGE_HEIGHT = 8;
-
-        public static final int DIAGNOSTIC_Y = 148;
-        public static final int PLAYER_LABEL_Y = 160;
-        public static final int PLAYER_Y = 172;
-        public static final int HOTBAR_Y = 230;
 
         private Layout() {}
     }

@@ -25,15 +25,12 @@ class AnchorLayoutTest {
     /** Every band the screen draws into, top to bottom, in the order it expects them. */
     private static List<Row> rows() {
         List<Row> rows = new ArrayList<>();
-        // The title uses vanilla's titleLabelY, which is 6 and not ours to set.
-        rows.add(new Row("title", 6, Layout.LINE_HEIGHT));
-        rows.add(new Row("progress", Layout.STATUS_Y, Layout.LINE_HEIGHT));
-        rows.add(new Row("upgrades", Layout.UPGRADE_INFO_Y, Layout.LINE_HEIGHT));
-        rows.add(slots("storage", Layout.STORAGE_Y, 4));
-        rows.add(new Row("section labels", Layout.SECTION_LABEL_Y, Layout.LINE_HEIGHT));
-        rows.add(slots("fuel, charge and modules", Layout.MODULE_Y, 1));
-        rows.add(new Row("diagnostic", Layout.DIAGNOSTIC_Y, Layout.LINE_HEIGHT));
-        rows.add(new Row("inventory label", Layout.PLAYER_LABEL_Y, Layout.LINE_HEIGHT));
+        rows.add(new Row("title", Layout.TITLE_Y, Layout.LINE_HEIGHT));
+        rows.add(new Row("timeline", Layout.TIMELINE_Y, Layout.TIMELINE_HEIGHT));
+        rows.add(new Row("pills", Layout.PILLS_Y, Layout.PILLS_HEIGHT));
+        rows.add(new Row("storage panel", Layout.STORAGE_PANEL_Y, Layout.STORAGE_PANEL_HEIGHT));
+        rows.add(new Row("charge and modules", Layout.MODULE_PANEL_Y, Layout.MODULE_PANEL_HEIGHT));
+        rows.add(new Row("diagnostic", Layout.DIAGNOSTIC_Y, Layout.DIAGNOSTIC_HEIGHT));
         rows.add(slots("player inventory", Layout.PLAYER_Y, 3));
         rows.add(slots("hotbar", Layout.HOTBAR_Y, 1));
         return rows;
@@ -69,14 +66,52 @@ class AnchorLayoutTest {
     }
 
     @Test
-    @DisplayName("the charge bar sits inside the module row rather than beside it")
-    void chargeBarIsInTheModuleRow() {
-        // It shares the row with the fuel slot and the module slots, so it is the one element whose
-        // vertical placement is a containment rather than a gap.
-        assertTrue(Layout.CHARGE_Y >= Layout.MODULE_Y,
-                "the charge bar starts above the row it belongs to");
-        assertTrue(Layout.CHARGE_Y + Layout.CHARGE_HEIGHT <= Layout.MODULE_Y + 18,
-                "the charge bar hangs below the row it belongs to");
+    @DisplayName("the storage grid and its header stay inside their panel")
+    void storagePanelContainsItsContents() {
+        Row panel = new Row("storage panel", Layout.STORAGE_PANEL_Y, Layout.STORAGE_PANEL_HEIGHT);
+
+        assertTrue(Layout.STORAGE_HEADER_Y >= panel.top(), "the header sits above its panel");
+        assertTrue(Layout.TAB_Y >= panel.top(), "the clone tabs sit above the panel they belong to");
+        assertTrue(Layout.STORAGE_HEADER_Y + Layout.LINE_HEIGHT <= Layout.STORAGE_Y,
+                "the header runs into the first row of squares");
+        assertTrue(Layout.STORAGE_Y + Layout.STORAGE_ROWS * 18 <= panel.bottom(),
+                "the grid runs out of the bottom of its panel");
+    }
+
+    @Test
+    @DisplayName("the charge readout and the modules stay inside their row")
+    void moduleRowContainsItsContents() {
+        int top = Layout.MODULE_PANEL_Y;
+        int bottom = top + Layout.MODULE_PANEL_HEIGHT;
+
+        assertTrue(Layout.SECTION_LABEL_Y >= top, "the section labels sit above their panels");
+        assertTrue(Layout.SECTION_LABEL_Y + Layout.LINE_HEIGHT <= Layout.MODULE_Y,
+                "the section labels run into the slot row");
+        assertTrue(Layout.MODULE_Y + 18 <= bottom, "the slot row hangs below its panel");
+        assertTrue(Layout.CHARGE_Y >= Layout.MODULE_Y, "the charge bar starts above its row");
+        assertTrue(Layout.CHARGE_TEXT_Y + Layout.LINE_HEIGHT <= bottom,
+                "the charge percentage hangs below its panel");
+    }
+
+    @Test
+    @DisplayName("the charge and module panels sit side by side without touching")
+    void panelsDoNotOverlapHorizontally() {
+        assertTrue(Layout.MARGIN + Layout.CHARGE_PANEL_WIDTH < Layout.MODULE_PANEL_X,
+                "the charge panel runs into the module panel");
+        assertTrue(Layout.CHARGE_X + Layout.CHARGE_WIDTH <= Layout.MARGIN + Layout.CHARGE_PANEL_WIDTH,
+                "the charge bar runs out of its panel");
+        assertTrue(Layout.UPGRADE_X >= Layout.MODULE_PANEL_X, "the module slots start before their panel");
+        assertTrue(Layout.UPGRADE_X + 3 * 18 <= Layout.WIDTH - Layout.MARGIN,
+                "the module slots run out of the window");
+        assertTrue(Layout.FUEL_X + 16 < Layout.CHARGE_X, "the fuel slot runs into the charge bar");
+    }
+
+    @Test
+    @DisplayName("the slot grids are centred in the window")
+    void gridsAreCentred() {
+        int gridWidth = 9 * 18;
+        assertEquals(Layout.WIDTH - Layout.GRID_X - gridWidth, Layout.GRID_X,
+                "the nine columns are not evenly inset");
     }
 
     @Test

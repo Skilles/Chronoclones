@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.block;
 
 import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.item.ChronoShardItem;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.registry.ModBlockEntities;
@@ -104,7 +105,12 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
-            player.openMenu(anchor, pos);
+            // The action ticks ride the menu's own opening buffer: they never change while it is
+            // open, and ContainerData cannot carry a list.
+            player.openMenu(anchor, buffer -> {
+                buffer.writeBlockPos(pos);
+                ChronoAnchorMenu.writeTimeline(buffer, anchor.getRecording());
+            });
         }
         return InteractionResult.SUCCESS;
     }

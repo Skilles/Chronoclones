@@ -126,8 +126,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
+            if (index >= AnchorData.PLAYHEAD) {
+                int clone = index - AnchorData.PLAYHEAD;
+                return clone < runtimes.size() ? runtimes.get(clone).playhead() : 0;
+            }
             return switch (index) {
-                case AnchorData.PLAYHEAD -> runtimes.isEmpty() ? 0 : runtimes.get(0).playhead();
                 case AnchorData.LENGTH_TICKS -> recording == null ? 0 : recording.lengthTicks();
                 case AnchorData.ACTION_COUNT -> recording == null ? 0 : recording.actions().size();
                 case AnchorData.FAILURE_REASON -> lastFailure.reason().ordinal();
