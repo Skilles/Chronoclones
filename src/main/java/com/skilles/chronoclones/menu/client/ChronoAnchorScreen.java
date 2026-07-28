@@ -83,7 +83,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, PANEL_BG);
 
         // Storage grid, then fuel and upgrades, then the player inventory: menu slot order.
-        for (int row = 0; row < 2; row++) {
+        for (int row = 0; row < 4; row++) {
             for (int col = 0; col < 9; col++) {
                 slotBox(extractor, xo + 8 + col * 18, yo + Layout.STORAGE_Y + row * 18);
             }

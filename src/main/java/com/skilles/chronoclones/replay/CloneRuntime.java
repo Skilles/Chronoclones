@@ -10,15 +10,22 @@ import org.jspecify.annotations.Nullable;
  */
 public final class CloneRuntime {
 
+    private final int index;
     private final int phaseOffset;
     private int playhead;
     private int actionCursor;
     private @Nullable ChronoCloneEntity clone;
 
-    public CloneRuntime(int phaseOffset) {
+    public CloneRuntime(int index, int phaseOffset) {
+        this.index = index;
         this.phaseOffset = phaseOffset;
         this.playhead = phaseOffset;
         this.actionCursor = 0;
+    }
+
+    /** Which of the anchor's inventories this clone draws from and stores into. */
+    public int index() {
+        return index;
     }
 
     /** Phase offset for clone {@code i} of {@code n}: evenly distributed along the timeline. */

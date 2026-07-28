@@ -106,7 +106,7 @@ final class InteractionGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.FLINT_AND_STEEL)));
         AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.FLINT_AND_STEEL), 1);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.FLINT_AND_STEEL), 1);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -173,7 +173,7 @@ final class InteractionGameTest {
                         click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
         AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.OAK_LOG), 2);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 2);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -293,7 +293,7 @@ final class InteractionGameTest {
                         List.of(carrying(carrierSlot, Items.DIAMOND, 5)),
                         click(carrierSlot, LEFT, ContainerInput.QUICK_MOVE))));
         AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 5);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 5);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -368,7 +368,7 @@ final class InteractionGameTest {
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, LEFT, ContainerInput.PICKUP))));
         AnchorTestFixture.unlockAllActions(anchor);
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.COAL), 1);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.COAL), 1);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -408,8 +408,8 @@ final class InteractionGameTest {
         AnchorTestFixture.unlockAllActions(anchor);
 
         // Stocked with something else entirely, so the layout cannot be satisfied.
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.GOLD_INGOT), 12);
-        anchor.getInventoryHandler().set(1, ItemResource.of(Items.IRON_INGOT), 7);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);
+        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.IRON_INGOT), 7);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {

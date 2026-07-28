@@ -8,6 +8,7 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -28,7 +29,7 @@ class AnchorLayoutTest {
         rows.add(new Row("title", 6, Layout.LINE_HEIGHT));
         rows.add(new Row("progress", Layout.STATUS_Y, Layout.LINE_HEIGHT));
         rows.add(new Row("upgrades", Layout.UPGRADE_INFO_Y, Layout.LINE_HEIGHT));
-        rows.add(slots("storage", Layout.STORAGE_Y, 2));
+        rows.add(slots("storage", Layout.STORAGE_Y, 4));
         rows.add(new Row("section labels", Layout.SECTION_LABEL_Y, Layout.LINE_HEIGHT));
         rows.add(slots("fuel, charge and modules", Layout.MODULE_Y, 1));
         rows.add(new Row("diagnostic", Layout.DIAGNOSTIC_Y, Layout.LINE_HEIGHT));
@@ -79,11 +80,27 @@ class AnchorLayoutTest {
     }
 
     @Test
-    @DisplayName("the window fits the smallest screen the game will scale to")
-    void windowFitsTheSmallestScreen() {
-        // Minecraft clamps the GUI scale so the viewport stays at least 320x240, and the
-        // readouts at the bottom are what a taller window would lose.
-        assertTrue(Layout.HEIGHT <= 240,
-                "the window is " + Layout.HEIGHT + " tall and would be clipped at every GUI scale");
+    @DisplayName("no row is lost on the smallest screen the game will scale to")
+    void everyRowSurvivesTheSmallestScreen() {
+        // A clone's storage is a whole player inventory, so the window no longer fits the 240px
+        // Minecraft guarantees. Vanilla centres it, so the overflow is halved at each edge.
+        int clipped = Math.max(0, Layout.HEIGHT - 240) / 2;
+        assertTrue(clipped < 18,
+                "the window is " + Layout.HEIGHT + " tall, losing " + clipped
+                        + "px at each edge, which is a whole slot row");
+    }
+
+    @Test
+    @DisplayName("a clone's storage is laid out like the player inventory it mirrors")
+    void storageMirrorsThePlayerInventory() {
+        // The hotbar sits at the bottom of both grids, so a recorded slot lands where the eye
+        // expects it rather than nine squares away.
+        for (int slot = 0; slot < 9; slot++) {
+            assertEquals(3, Layout.storageRow(slot), "hotbar slot " + slot + " is not on the last row");
+            assertEquals(slot, Layout.storageColumn(slot));
+        }
+        assertEquals(0, Layout.storageRow(9));
+        assertEquals(2, Layout.storageRow(35));
+        assertEquals(8, Layout.storageColumn(35));
     }
 }

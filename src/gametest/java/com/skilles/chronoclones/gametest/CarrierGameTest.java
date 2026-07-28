@@ -61,7 +61,7 @@ final class CarrierGameTest {
                         new ChronoAction.UseContainer.CarrierSlot(second, new ItemStack(Items.DIAMOND, 2))),
                 List.of(click(first, ContainerInput.QUICK_MOVE),
                         click(second, ContainerInput.QUICK_MOVE)));
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 8);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 8);
 
         assertBarrelHolds(helper, target, Items.DIAMOND, 4,
                 "both squares were stocked with the two diamonds they recorded");
@@ -78,7 +78,7 @@ final class CarrierGameTest {
         ChronoAnchorBlockEntity anchor = deposit(helper,
                 List.of(new ChronoAction.UseContainer.CarrierSlot(square, new ItemStack(Items.DIAMOND, 5))),
                 List.of(click(square, ContainerInput.QUICK_MOVE)));
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.DIAMOND), 32);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 32);
 
         assertBarrelHolds(helper, target, Items.DIAMOND, 5, "only the recorded five moved");
         helper.startSequence()
@@ -103,7 +103,7 @@ final class CarrierGameTest {
         ChronoAnchorBlockEntity anchor = deposit(helper,
                 List.of(new ChronoAction.UseContainer.CarrierSlot(square, new ItemStack(Items.OAK_LOG, 1))),
                 List.of(click(square, ContainerInput.PICKUP), click(0, ContainerInput.PICKUP)));
-        anchor.getInventoryHandler().set(0, ItemResource.of(Items.OAK_LOG), 1);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 1);
 
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(target);

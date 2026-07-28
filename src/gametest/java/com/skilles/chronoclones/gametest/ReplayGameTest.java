@@ -96,7 +96,7 @@ final class ReplayGameTest {
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         // Fill every storage slot with something that cannot merge with cobblestone.
-        var inventory = anchor.getInventoryHandler();
+        var inventory = anchor.getCloneInventory(0);
         for (int slot = 0; slot < inventory.size(); slot++) {
             inventory.set(slot, ItemResource.of(Items.BEDROCK), 64);
         }

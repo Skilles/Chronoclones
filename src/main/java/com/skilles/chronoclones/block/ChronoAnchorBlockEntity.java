@@ -40,6 +40,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.transfer.CombinedResourceHandler;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
@@ -52,15 +53,32 @@ import org.jspecify.annotations.Nullable;
  */
 public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider {
 
-    public static final int INVENTORY_SLOTS = 18;
+    /** Shaped like a player's, so a recorded slot means the same thing on both sides. */
+    public static final int CLONE_INVENTORY_SLOTS = Inventory.INVENTORY_SIZE;
+
+    /** One per possible clone, allocated up front so a splitter coming and going resizes nothing. */
+    public static final int CLONE_INVENTORIES = UpgradeState.MAX_CLONES;
+
     public static final int UPGRADE_SLOTS = 3;
 
-    private final ItemStacksResourceHandler inventory = new ItemStacksResourceHandler(INVENTORY_SLOTS) {
-        @Override
-        protected void onContentsChanged(int index, @NonNull ItemStack previousContents) {
-            setChanged();
+    private final List<ItemStacksResourceHandler> cloneInventories = newCloneInventories();
+
+    private List<ItemStacksResourceHandler> newCloneInventories() {
+        List<ItemStacksResourceHandler> handlers = new ArrayList<>(CLONE_INVENTORIES);
+        for (int i = 0; i < CLONE_INVENTORIES; i++) {
+            handlers.add(new ItemStacksResourceHandler(CLONE_INVENTORY_SLOTS) {
+                @Override
+                protected void onContentsChanged(int index, @NonNull ItemStack previousContents) {
+                    setChanged();
+                }
+            });
         }
-    };
+        return handlers;
+    }
+
+    /** Every clone's inventory as one handler, for hoppers and pipes. */
+    private final ResourceHandler<ItemResource> combinedInventory =
+            new CombinedResourceHandler<>(cloneInventories);
 
     private @Nullable Recording recording;
     private @Nullable MotionTrack motionTrack;
@@ -123,11 +141,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public ResourceHandler<ItemResource> getInventory() {
-        return inventory;
+        return combinedInventory;
     }
 
-    public ItemStacksResourceHandler getInventoryHandler() {
-        return inventory;
+    public ItemStacksResourceHandler getCloneInventory(int clone) {
+        return cloneInventories.get(clone);
     }
 
     public ContainerData getContainerData() {
@@ -242,9 +260,26 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
         int count = upgrades.cloneCount();
         for (int i = 0; i < count; i++) {
-            runtimes.add(new CloneRuntime(
+            runtimes.add(new CloneRuntime(i,
                     CloneRuntime.phaseOffsetFor(i, count, recording.lengthTicks())));
         }
+    }
+
+    /**
+     * Re-reads the upgrade slots, dropping the inventory of any clone that just went away.
+     */
+    private void reconcileUpgrades(ServerLevel serverLevel) {
+        UpgradeState current = UpgradeState.from(upgradeSlots);
+        int had = upgrades.cloneCount();
+        upgrades = current;
+        if (current.cloneCount() == had) {
+            return;
+        }
+
+        for (int clone = current.cloneCount(); clone < had; clone++) {
+            spill(serverLevel, worldPosition, cloneInventories.get(clone));
+        }
+        rebuildRuntimes();
     }
 
     // ------------------------------------------------------------------ replay
@@ -254,6 +289,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
 
+        // Above the early return: pulling a splitter spills, routine or no routine.
+        reconcileUpgrades(serverLevel);
+
         if (!enabled || recording == null || motionTrack == null || ownerId == null) {
             if (!runtimes.isEmpty()) {
                 discardClones();
@@ -261,15 +299,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 setActive(false);
             }
             return;
-        }
-
-        // Before the halt check: both halting reasons name a resource the player restores.
-        UpgradeState current = UpgradeState.from(upgradeSlots);
-        if (current.cloneCount() != upgrades.cloneCount()) {
-            upgrades = current;
-            rebuildRuntimes();
-        } else {
-            upgrades = current;
         }
 
         consumeFuel();
@@ -347,8 +376,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         stopMining(serverLevel, runtime);
         runtime.consumeAction();
 
-        ActionExecutor.Result result =
-                ActionExecutor.finishBreak(serverLevel, action, placement, ownerId, ownerName, inventory);
+        ActionExecutor.Result result = ActionExecutor.finishBreak(serverLevel, action, placement,
+                ownerId, ownerName, inventoryOf(runtime));
         if (result.succeeded()) {
             charge = charge.spend(cost);
             setChanged();
@@ -427,6 +456,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             runtime.consumeAction();
 
+            ItemStacksResourceHandler inventory = inventoryOf(runtime);
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
@@ -462,12 +492,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    /** True if any storage slot could accept something, used to clear an INVENTORY_FULL halt. */
+    private ItemStacksResourceHandler inventoryOf(CloneRuntime runtime) {
+        return cloneInventories.get(runtime.index());
+    }
+
+    /** True if any active clone could still store something, used to clear an INVENTORY_FULL halt. */
     private boolean hasInventoryRoom() {
-        for (int slot = 0; slot < inventory.size(); slot++) {
-            if (inventory.getResource(slot).isEmpty()
-                    || inventory.getAmountAsInt(slot) < inventory.getCapacityAsInt(slot, inventory.getResource(slot))) {
-                return true;
+        for (int clone = 0; clone < upgrades.cloneCount(); clone++) {
+            ItemStacksResourceHandler inventory = cloneInventories.get(clone);
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                ItemResource resource = inventory.getResource(slot);
+                if (resource.isEmpty()
+                        || inventory.getAmountAsInt(slot) < inventory.getCapacityAsInt(slot, resource)) {
+                    return true;
+                }
             }
         }
         return false;
@@ -623,7 +661,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (level == null) {
             return;
         }
-        spill(level, pos, inventory);
+        cloneInventories.forEach(clone -> spill(level, pos, clone));
         spill(level, pos, fuelSlot);
         spill(level, pos, upgradeSlots);
     }
@@ -674,10 +712,36 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     // ------------------------------------------------------------- persistence
 
+    private static String inventoryKey(int clone) {
+        return "inventory_" + clone;
+    }
+
+    /**
+     * Moves an anchor saved before clones had their own inventories into the first one.
+     */
+    private void adoptLegacyInventory(ValueInput saved) {
+        // Through a handler of the old size: deserialize adopts the saved list wholesale and would
+        // otherwise shrink a clone's inventory to the 18 slots anchors used to have.
+        ItemStacksResourceHandler legacy = new ItemStacksResourceHandler(LEGACY_INVENTORY_SLOTS);
+        legacy.deserialize(saved);
+
+        ItemStacksResourceHandler first = cloneInventories.getFirst();
+        for (int slot = 0; slot < Math.min(legacy.size(), first.size()); slot++) {
+            ItemResource resource = legacy.getResource(slot);
+            if (!resource.isEmpty()) {
+                first.set(slot, resource, legacy.getAmountAsInt(slot));
+            }
+        }
+    }
+
+    private static final int LEGACY_INVENTORY_SLOTS = 18;
+
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
-        inventory.serialize(output.child("inventory"));
+        for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
+            cloneInventories.get(clone).serialize(output.child(inventoryKey(clone)));
+        }
         fuelSlot.serialize(output.child("fuel"));
         upgradeSlots.serialize(output.child("upgrades"));
         output.store("charge", ChargeBuffer.CODEC, charge);
@@ -700,7 +764,12 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
-        input.child("inventory").ifPresent(inventory::deserialize);
+        for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
+            int index = clone;
+            input.child(inventoryKey(clone))
+                    .ifPresent(child -> cloneInventories.get(index).deserialize(child));
+        }
+        input.child("inventory").ifPresent(this::adoptLegacyInventory);
         input.child("fuel").ifPresent(fuelSlot::deserialize);
         input.child("upgrades").ifPresent(upgradeSlots::deserialize);
         charge = input.read("charge", ChargeBuffer.CODEC).orElse(ChargeBuffer.EMPTY);

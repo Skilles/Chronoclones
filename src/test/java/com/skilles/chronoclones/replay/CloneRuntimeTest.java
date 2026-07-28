@@ -59,7 +59,7 @@ class CloneRuntimeTest {
     @Test
     @DisplayName("a runtime begins at its phase offset, not at zero")
     void runtimeStartsAtItsOffset() {
-        CloneRuntime runtime = new CloneRuntime(50);
+        CloneRuntime runtime = new CloneRuntime(0, 50);
         assertEquals(50, runtime.playhead());
         assertEquals(50, runtime.phaseOffset());
     }
@@ -67,7 +67,7 @@ class CloneRuntimeTest {
     @Test
     @DisplayName("looping wraps the playhead and rewinds the action cursor together")
     void loopResetsPlayheadAndCursor() {
-        CloneRuntime runtime = new CloneRuntime(0);
+        CloneRuntime runtime = new CloneRuntime(0, 0);
         runtime.advance(100);
         runtime.consumeAction();
         runtime.consumeAction();
@@ -83,7 +83,7 @@ class CloneRuntimeTest {
     @Test
     @DisplayName("looping preserves overshoot rather than snapping to zero")
     void loopPreservesOvershoot() {
-        CloneRuntime runtime = new CloneRuntime(0);
+        CloneRuntime runtime = new CloneRuntime(0, 0);
         runtime.advance(103);
         runtime.loop(100);
         assertEquals(3, runtime.playhead());
@@ -93,7 +93,7 @@ class CloneRuntimeTest {
     @DisplayName("an offset clone loops back into range and stays there over many cycles")
     void offsetChronoLoopsCleanly() {
         int length = 120;
-        CloneRuntime runtime = new CloneRuntime(CloneRuntime.phaseOffsetFor(2, 3, length));
+        CloneRuntime runtime = new CloneRuntime(2, CloneRuntime.phaseOffsetFor(2, 3, length));
 
         List<Integer> visited = new ArrayList<>();
         for (int tick = 0; tick < length * 20; tick++) {
@@ -111,7 +111,7 @@ class CloneRuntimeTest {
     @Test
     @DisplayName("a zero-length recording cannot wedge the loop")
     void zeroLengthIsSafe() {
-        CloneRuntime runtime = new CloneRuntime(0);
+        CloneRuntime runtime = new CloneRuntime(0, 0);
         runtime.advance(5);
         runtime.loop(0);
         assertEquals(0, runtime.playhead());

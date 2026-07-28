@@ -19,14 +19,13 @@ import org.jspecify.annotations.NonNull;
 
 public class ChronoAnchorMenu extends AbstractContainerMenu {
 
-    private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.INVENTORY_SLOTS;
+    private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS;
 
     /** Defined alongside the slot names, so the buffer and the readers cannot drift apart. */
     public static final int DATA_COUNT = AnchorData.COUNT;
 
-    /** 18 storage + 1 fuel + 3 upgrade. */
-    private static final int TOTAL_ANCHOR_SLOTS =
-            ChronoAnchorBlockEntity.INVENTORY_SLOTS + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
+    /** One clone's storage, plus fuel and the three modules. */
+    private static final int TOTAL_ANCHOR_SLOTS = ANCHOR_SLOTS + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
 
     private final ChronoAnchorBlockEntity anchor;
     private final ContainerData data;
@@ -44,13 +43,12 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.anchor = anchor;
         this.data = data;
 
-        ItemStacksResourceHandler storage = anchor.getInventoryHandler();
-        // 18 storage slots, 9 across x 2
-        for (int row = 0; row < 2; row++) {
-            for (int col = 0; col < 9; col++) {
-                int index = col + row * 9;
-                addSlot(new ResourceHandlerSlot(storage, storage::set, index, 8 + col * 18, Layout.STORAGE_Y + row * 18));
-            }
+        // Laid out like a player's own inventory, the storage rows above the hotbar row.
+        ItemStacksResourceHandler storage = anchor.getCloneInventory(0);
+        for (int index = 0; index < ANCHOR_SLOTS; index++) {
+            addSlot(new ResourceHandlerSlot(storage, storage::set, index,
+                    8 + Layout.storageColumn(index) * 18,
+                    Layout.STORAGE_Y + Layout.storageRow(index) * 18));
         }
 
         // Fuel, then three upgrades, on the row below the storage grid.
@@ -127,7 +125,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     public static final class Layout {
         public static final int WIDTH = 176;
-        public static final int HEIGHT = 219;
+        public static final int HEIGHT = 255;
 
         /**
          * The readout lines, each on its own row.
@@ -137,26 +135,35 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
         public static final int STORAGE_Y = 40;
 
+        /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
+        public static int storageRow(int inventorySlot) {
+            return Inventory.isHotbarSlot(inventorySlot) ? 3 : (inventorySlot - 9) / 9;
+        }
+
+        public static int storageColumn(int inventorySlot) {
+            return inventorySlot % 9;
+        }
+
         /** "Fuel", "Charge" and "Modules", above the row they describe. */
-        public static final int SECTION_LABEL_Y = 78;
+        public static final int SECTION_LABEL_Y = 114;
 
         /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
         public static final int LINE_HEIGHT = 9;
         public static final int SLOT_BORDER = 1;
 
-        public static final int MODULE_Y = 90;
+        public static final int MODULE_Y = 126;
         public static final int FUEL_X = 8;
         public static final int UPGRADE_X = 116;
 
         public static final int CHARGE_X = 30;
-        public static final int CHARGE_Y = 94;
+        public static final int CHARGE_Y = 130;
         public static final int CHARGE_WIDTH = 78;
         public static final int CHARGE_HEIGHT = 8;
 
-        public static final int DIAGNOSTIC_Y = 112;
-        public static final int PLAYER_LABEL_Y = 124;
-        public static final int PLAYER_Y = 136;
-        public static final int HOTBAR_Y = 194;
+        public static final int DIAGNOSTIC_Y = 148;
+        public static final int PLAYER_LABEL_Y = 160;
+        public static final int PLAYER_Y = 172;
+        public static final int HOTBAR_Y = 230;
 
         private Layout() {}
     }
