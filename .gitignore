@@ -45,5 +45,5 @@ repo/
 ### Runtime logs
 logs/
 
-# The texture generator is kept locally but never committed.
+### Local tools
 tools/
