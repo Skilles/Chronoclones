@@ -13,9 +13,15 @@ final class DrawerLayout {
     static final int WIDTH = 96;
 
     /**
-     * Width of the handle.
+     * Width of the handle, including the part that hides behind the window.
      */
-    static final int TAB_WIDTH = 10;
+    static final int TAB_WIDTH = 15;
+
+    /**
+     * How far the handle tucks under the window's edge, so it reads as growing out of the window
+     * rather than as a button parked against it.
+     */
+    static final int TAB_OVERLAP = 3;
 
     /**
      * Which side to open on.
@@ -31,7 +37,9 @@ final class DrawerLayout {
 
     /** The tab, always flush against the window's edge so it does not move as the drawer slides. */
     static int tabX(boolean onLeft, int leftPos, int imageWidth) {
-        return onLeft ? leftPos - TAB_WIDTH : leftPos + imageWidth;
+        return onLeft
+                ? leftPos - TAB_WIDTH + TAB_OVERLAP
+                : leftPos + imageWidth - TAB_OVERLAP;
     }
 
     /**

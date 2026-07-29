@@ -14,7 +14,7 @@ import org.jspecify.annotations.NonNull;
 final class DrawerTab extends AbstractButton {
 
     static final int WIDTH = DrawerLayout.TAB_WIDTH;
-    static final int HEIGHT = 14;
+    static final int HEIGHT = 20;
 
     private final Font font;
     private final BooleanSupplier open;
@@ -39,16 +39,21 @@ final class DrawerTab extends AbstractButton {
         int x = getX();
         int y = getY();
 
-        graphics.fill(x, y, x + WIDTH, y + HEIGHT,
-                isHoveredOrFocused() ? AnchorPanels.PANEL_EDGE : AnchorPanels.SLOT_EDGE);
-        graphics.fill(x + 1, y + 1, x + WIDTH - 1, y + HEIGHT - 1, AnchorPanels.PANEL);
+        // Lit means open, not focused: a clicked button keeps focus, so the drawer stayed lit
+        // after it had slid shut.
+        boolean lit = open.getAsBoolean() || isHovered();
 
-        // Which way it will move, not which side it is on.
-        boolean pointsLeft = open.getAsBoolean() == !onLeft;
-        String chevron = pointsLeft ? "<" : ">";
-        graphics.text(font, chevron,
-                x + (WIDTH - font.width(chevron)) / 2, y + (HEIGHT - font.lineHeight) / 2 + 1,
-                AnchorPanels.ACCENT);
+        AnchorPanels.panel(graphics, x, y, WIDTH, HEIGHT);
+
+        // The gear centres on the part that is not tucked under the window.
+        int visible = WIDTH - DrawerLayout.TAB_OVERLAP;
+        int iconX = onLeft
+                ? x + (visible - AnchorPanels.ICON_SIZE) / 2
+                : x + DrawerLayout.TAB_OVERLAP + (visible - AnchorPanels.ICON_SIZE) / 2;
+
+        AnchorPanels.icon(graphics, AnchorPanels.ICON_GEAR,
+                iconX, y + (HEIGHT - AnchorPanels.ICON_SIZE) / 2,
+                lit ? AnchorPanels.ACCENT : AnchorPanels.MUTED);
     }
 
     @Override

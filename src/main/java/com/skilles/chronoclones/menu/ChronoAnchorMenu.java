@@ -92,7 +92,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
             int page = clone;
             for (int index = 0; index < ANCHOR_SLOTS; index++) {
                 addSlot(new ClonePageSlot(storage, storage::set, index,
-                        Layout.GRID_X + Layout.storageColumn(index) * 18,
+                        Layout.STORAGE_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
                         page, this::getSelectedClone));
             }
@@ -104,7 +104,8 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
         ItemStacksResourceHandler upgrades = anchor.getUpgradeHandler();
         for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
-            addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i, Layout.UPGRADE_X + i * 18, Layout.MODULE_Y));
+            addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i,
+                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18));
         }
 
         addPlayerInventory(playerInventory);
@@ -200,61 +201,80 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      * Slot geometry, shared by the menu and the screen. Every y is the top of its band.
      */
     public static final class Layout {
-        public static final int WIDTH = 184;
-        public static final int HEIGHT = 261;
+        public static final int WIDTH = 230;
+        public static final int HEIGHT = 250;
 
         /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
         public static final int LINE_HEIGHT = 9;
         public static final int SLOT_BORDER = 1;
 
-        /** Panels and the grids inside them run between these. */
         public static final int MARGIN = 7;
         public static final int CONTENT_WIDTH = WIDTH - 2 * MARGIN;
 
-        /** Derived, so the nine columns stay centred whatever the window's width becomes. */
-        public static final int GRID_X = (WIDTH - 9 * 18) / 2;
+        /** Panel border plus its inner padding: where a panel's contents may start. */
+        public static final int PANEL_INSET = 5;
 
-        public static final int TITLE_Y = 3;
+        /**
+         * Section names sit astride their panel's top border, which is a row of height the window
+         * does not have to find from anywhere.
+         */
+        public static final int LEGEND_X = MARGIN + 8;
+        public static final int LEGEND_RISE = 4;
 
-        public static final int TIMELINE_Y = 15;
-        public static final int TIMELINE_HEIGHT = 5;
+        public static final int TITLE_Y = 6;
 
-        public static final int PILLS_Y = 23;
-        public static final int PILLS_HEIGHT = 14;
+        /** A gap every band keeps, so a section name never lands on its neighbour's border. */
+        public static final int BAND_GAP = 6;
 
-        public static final int STORAGE_PANEL_Y = 40;
-        public static final int STORAGE_PANEL_HEIGHT = 86;
-        public static final int STORAGE_HEADER_Y = 43;
-        public static final int STORAGE_Y = 53;
+        public static final int TIMELINE_Y = 22;
+        public static final int TIMELINE_HEIGHT = 7;
+
+        public static final int PILLS_Y = 37;
+        public static final int PILLS_HEIGHT = 18;
+
+        // ---------------------------------------------------------- the storage band
+
+        public static final int BAND_Y = 65;
+        public static final int BAND_HEIGHT = 82;
+
+        /**
+         * Fuel, the charge column and the modules stand beside the storage grid rather than under
+         * it. Four squares stacked are exactly as tall as four rows of nine, so the band costs the
+         * window nothing that the grid was not already spending.
+         */
+        public static final int RAIL_X = MARGIN;
+        public static final int RAIL_WIDTH = 40;
+        public static final int RAIL_SLOT_X = RAIL_X + PANEL_INSET;
+
+        public static final int MODULE_Y = BAND_Y + PANEL_INSET;
+        public static final int FUEL_X = RAIL_SLOT_X;
+        public static final int UPGRADE_X = RAIL_SLOT_X;
+
+        /** Upright, so the bar is as tall as the squares it stands next to. */
+        public static final int CHARGE_X = RAIL_SLOT_X + 22;
+        public static final int CHARGE_Y = MODULE_Y;
+        public static final int CHARGE_WIDTH = 7;
+        public static final int CHARGE_HEIGHT = 72;
+
+        public static final int STORAGE_PANEL_X = RAIL_X + RAIL_WIDTH + 4;
+        public static final int STORAGE_PANEL_WIDTH = WIDTH - MARGIN - STORAGE_PANEL_X;
+        public static final int STORAGE_Y = BAND_Y + PANEL_INSET;
         public static final int STORAGE_ROWS = 4;
+        public static final int STORAGE_X = STORAGE_PANEL_X + PANEL_INSET;
 
-        /** The clone tabs share the storage header row, right-aligned. */
-        public static final int TAB_Y = STORAGE_HEADER_Y - 1;
-        public static final int TAB_RIGHT_EDGE = WIDTH - MARGIN - 4;
+        /** The clone tabs straddle the storage panel's top border, at the other end from its name. */
+        public static final int TAB_Y = BAND_Y - 5;
+        public static final int TAB_RIGHT_EDGE = WIDTH - MARGIN - 6;
 
-        public static final int MODULE_PANEL_Y = 129;
-        public static final int MODULE_PANEL_HEIGHT = 34;
-        public static final int CHARGE_PANEL_WIDTH = 97;
-        public static final int MODULE_PANEL_X = MARGIN + CHARGE_PANEL_WIDTH + 4;
+        // ---------------------------------------------------------- below the band
 
-        /** "Charge" and "Modules", above the row they describe. */
-        public static final int SECTION_LABEL_Y = 132;
+        public static final int INVENTORY_PANEL_Y = 157;
+        public static final int INVENTORY_PANEL_HEIGHT = 87;
 
-        public static final int MODULE_Y = 142;
-        public static final int FUEL_X = 12;
-        public static final int UPGRADE_X = 115;
-
-        public static final int CHARGE_X = 36;
-        public static final int CHARGE_Y = 143;
-        public static final int CHARGE_WIDTH = 60;
-        public static final int CHARGE_HEIGHT = 6;
-        public static final int CHARGE_TEXT_Y = 151;
-
-        public static final int DIAGNOSTIC_Y = 166;
-        public static final int DIAGNOSTIC_HEIGHT = 11;
-
-        public static final int PLAYER_Y = 181;
-        public static final int HOTBAR_Y = 238;
+        /** Centred in its own panel, which the storage grid cannot be with the rail beside it. */
+        public static final int GRID_X = (WIDTH - 9 * 18) / 2;
+        public static final int PLAYER_Y = 162;
+        public static final int HOTBAR_Y = 221;
 
         /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
         public static int storageRow(int inventorySlot) {

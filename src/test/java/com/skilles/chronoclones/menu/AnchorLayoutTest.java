@@ -28,17 +28,9 @@ class AnchorLayoutTest {
         rows.add(new Row("title", Layout.TITLE_Y, Layout.LINE_HEIGHT));
         rows.add(new Row("timeline", Layout.TIMELINE_Y, Layout.TIMELINE_HEIGHT));
         rows.add(new Row("pills", Layout.PILLS_Y, Layout.PILLS_HEIGHT));
-        rows.add(new Row("storage panel", Layout.STORAGE_PANEL_Y, Layout.STORAGE_PANEL_HEIGHT));
-        rows.add(new Row("charge and modules", Layout.MODULE_PANEL_Y, Layout.MODULE_PANEL_HEIGHT));
-        rows.add(new Row("diagnostic", Layout.DIAGNOSTIC_Y, Layout.DIAGNOSTIC_HEIGHT));
-        rows.add(slots("player inventory", Layout.PLAYER_Y, 3));
-        rows.add(slots("hotbar", Layout.HOTBAR_Y, 1));
+        rows.add(new Row("storage band", Layout.BAND_Y, Layout.BAND_HEIGHT));
+        rows.add(new Row("inventory panel", Layout.INVENTORY_PANEL_Y, Layout.INVENTORY_PANEL_HEIGHT));
         return rows;
-    }
-
-    /** A band of slot rows, grown by the border the boxes draw outside themselves. */
-    private static Row slots(String name, int top, int count) {
-        return new Row(name, top - Layout.SLOT_BORDER, count * 18 + Layout.SLOT_BORDER);
     }
 
     @Test
@@ -66,44 +58,69 @@ class AnchorLayoutTest {
     }
 
     @Test
-    @DisplayName("the storage grid and its header stay inside their panel")
-    void storagePanelContainsItsContents() {
-        Row panel = new Row("storage panel", Layout.STORAGE_PANEL_Y, Layout.STORAGE_PANEL_HEIGHT);
+    @DisplayName("the player inventory and hotbar stay inside their panel")
+    void inventoryPanelContainsItsGrids() {
+        int top = Layout.INVENTORY_PANEL_Y;
+        int bottom = top + Layout.INVENTORY_PANEL_HEIGHT;
 
-        assertTrue(Layout.STORAGE_HEADER_Y >= panel.top(), "the header sits above its panel");
-        assertTrue(Layout.TAB_Y >= panel.top(), "the clone tabs sit above the panel they belong to");
-        assertTrue(Layout.STORAGE_HEADER_Y + Layout.LINE_HEIGHT <= Layout.STORAGE_Y,
-                "the header runs into the first row of squares");
-        assertTrue(Layout.STORAGE_Y + Layout.STORAGE_ROWS * 18 <= panel.bottom(),
+        assertTrue(Layout.PLAYER_Y >= top + Layout.PANEL_INSET,
+                "the first inventory row is under the panel's own border");
+        assertTrue(Layout.PLAYER_Y + 3 * 18 <= Layout.HOTBAR_Y, "the rows run into the hotbar");
+        assertTrue(Layout.HOTBAR_Y + 18 <= bottom - Layout.PANEL_INSET + 1,
+                "the hotbar runs out of the bottom of its panel");
+        assertTrue(bottom <= Layout.HEIGHT, "the panel runs out of the window");
+    }
+
+    @Test
+    @DisplayName("the rail and the storage grid are the same four squares tall")
+    void bandContainsBothOfItsColumns() {
+        int top = Layout.BAND_Y;
+        int bottom = top + Layout.BAND_HEIGHT;
+        int grid = Layout.STORAGE_ROWS * 18;
+
+        // The rail exists because four squares stacked are exactly four rows of nine tall. Lose
+        // that and the band grows to whichever column is taller, which is the height it saved.
+        assertEquals(grid, 4 * 18, "the rail no longer matches the grid it stands beside");
+        assertTrue(Layout.STORAGE_Y >= top + Layout.PANEL_INSET,
+                "the grid is under the panel's own border");
+        assertTrue(Layout.STORAGE_Y + grid <= bottom - Layout.PANEL_INSET + 1,
                 "the grid runs out of the bottom of its panel");
+        assertTrue(Layout.MODULE_Y + 4 * 18 <= bottom - Layout.PANEL_INSET + 1,
+                "the rail's squares run out of the bottom of their panel");
+        assertTrue(Layout.CHARGE_Y + Layout.CHARGE_HEIGHT <= bottom - Layout.PANEL_INSET + 1,
+                "the charge column runs out of the bottom of its panel");
     }
 
     @Test
-    @DisplayName("the charge readout and the modules stay inside their row")
-    void moduleRowContainsItsContents() {
-        int top = Layout.MODULE_PANEL_Y;
-        int bottom = top + Layout.MODULE_PANEL_HEIGHT;
-
-        assertTrue(Layout.SECTION_LABEL_Y >= top, "the section labels sit above their panels");
-        assertTrue(Layout.SECTION_LABEL_Y + Layout.LINE_HEIGHT <= Layout.MODULE_Y,
-                "the section labels run into the slot row");
-        assertTrue(Layout.MODULE_Y + 18 <= bottom, "the slot row hangs below its panel");
-        assertTrue(Layout.CHARGE_Y >= Layout.MODULE_Y, "the charge bar starts above its row");
-        assertTrue(Layout.CHARGE_TEXT_Y + Layout.LINE_HEIGHT <= bottom,
-                "the charge percentage hangs below its panel");
+    @DisplayName("the rail stands beside the storage panel rather than over it")
+    void railClearsTheStoragePanel() {
+        assertTrue(Layout.RAIL_X + Layout.RAIL_WIDTH < Layout.STORAGE_PANEL_X,
+                "the rail runs into the storage panel");
+        assertTrue(Layout.CHARGE_X + Layout.CHARGE_WIDTH
+                        <= Layout.RAIL_X + Layout.RAIL_WIDTH - Layout.PANEL_INSET + 1,
+                "the charge column runs out of the rail");
+        assertTrue(Layout.FUEL_X + 16 <= Layout.CHARGE_X, "the fuel square runs into the charge column");
+        assertTrue(Layout.STORAGE_X + 9 * 18 <= Layout.WIDTH - Layout.MARGIN,
+                "the storage grid runs out of the window");
     }
 
     @Test
-    @DisplayName("the charge and module panels sit side by side without touching")
-    void panelsDoNotOverlapHorizontally() {
-        assertTrue(Layout.MARGIN + Layout.CHARGE_PANEL_WIDTH < Layout.MODULE_PANEL_X,
-                "the charge panel runs into the module panel");
-        assertTrue(Layout.CHARGE_X + Layout.CHARGE_WIDTH <= Layout.MARGIN + Layout.CHARGE_PANEL_WIDTH,
-                "the charge bar runs out of its panel");
-        assertTrue(Layout.UPGRADE_X >= Layout.MODULE_PANEL_X, "the module slots start before their panel");
-        assertTrue(Layout.UPGRADE_X + 3 * 18 <= Layout.WIDTH - Layout.MARGIN,
-                "the module slots run out of the window");
-        assertTrue(Layout.FUEL_X + 16 < Layout.CHARGE_X, "the fuel slot runs into the charge bar");
+    @DisplayName("a section name straddles its panel and still clears the band above")
+    void legendsClearTheBandAbove() {
+        // A name and the tabs both knock a hole in the border they straddle to make room for
+        // themselves. Touching the band above is enough to punch that hole through its edge too,
+        // so these want a real gap rather than merely not overlapping.
+        assertGap("the storage name", Layout.BAND_Y - Layout.LEGEND_RISE,
+                Layout.PILLS_Y + Layout.PILLS_HEIGHT);
+        assertGap("the inventory name", Layout.INVENTORY_PANEL_Y - Layout.LEGEND_RISE,
+                Layout.BAND_Y + Layout.BAND_HEIGHT);
+        assertGap("the clone tabs", Layout.TAB_Y, Layout.PILLS_Y + Layout.PILLS_HEIGHT);
+    }
+
+    private static void assertGap(String what, int top, int bandAboveBottom) {
+        int gap = top - bandAboveBottom;
+        assertTrue(gap >= Layout.BAND_GAP - Layout.LEGEND_RISE,
+                what + " leaves " + gap + "px above it, which is not clear of the band above");
     }
 
     @Test
@@ -114,15 +131,24 @@ class AnchorLayoutTest {
                 "the nine columns are not evenly inset");
     }
 
+    /** The canvas Minecraft guarantees whatever the window size and GUI scale. */
+    private static final int MIN_CANVAS = 240;
+
     @Test
-    @DisplayName("no row is lost on the smallest screen the game will scale to")
-    void everyRowSurvivesTheSmallestScreen() {
-        // A clone's storage is a whole player inventory, so the window no longer fits the 240px
-        // Minecraft guarantees. Vanilla centres it, so the overflow is halved at each edge.
-        int clipped = Math.max(0, Layout.HEIGHT - 240) / 2;
-        assertTrue(clipped < 18,
-                "the window is " + Layout.HEIGHT + " tall, losing " + clipped
-                        + "px at each edge, which is a whole slot row");
+    @DisplayName("everything clickable survives the smallest screen the game will scale to")
+    void clickableRowsSurviveTheSmallestScreen() {
+        // A clone's storage is a whole player inventory, so the window is taller than the canvas
+        // Minecraft guarantees. Vanilla centres it, so half the overflow goes off each edge and
+        // the title is the part that is lost. Nothing the mouse needs may go with it: a slot drawn
+        // past the edge cannot be reached, because the pointer cannot leave the screen.
+        int clipped = Math.max(0, Layout.HEIGHT - MIN_CANVAS) / 2;
+
+        assertTrue(Layout.TAB_Y >= clipped,
+                "the clone tabs are pushed off the top by " + clipped + "px");
+        assertTrue(Layout.STORAGE_Y >= clipped,
+                "the first row of storage is pushed off the top by " + clipped + "px");
+        assertTrue(Layout.HOTBAR_Y < Layout.HEIGHT - clipped,
+                "the hotbar row is pushed off the bottom by " + clipped + "px");
     }
 
     @Test

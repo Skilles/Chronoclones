@@ -187,7 +187,7 @@ final class CloneInventoryGameTest {
 
     private static int droppedCount(GameTestHelper helper, net.minecraft.world.item.Item item) {
         List<ItemEntity> drops = helper.getLevel().getEntitiesOfClass(ItemEntity.class,
-                new AABB(helper.absolutePos(ANCHOR)).inflate(2.0));
+                new AABB(helper.absolutePos(ANCHOR)).inflate(5.0));
         int total = 0;
         for (ItemEntity entity : drops) {
             if (entity.getItem().is(item)) {

@@ -9,6 +9,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import org.jspecify.annotations.NonNull;
 
@@ -20,10 +21,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     /** A quarter per tick: five frames of movement, enough to read as a drawer and not as a stutter. */
     private static final float DRAWER_STEP = 0.25f;
-    private static final int DRAWER_TAB_Y = 16;
+    /** Level with the storage band, so the handle reads as attached to a section. */
+    private static final int DRAWER_TAB_Y = Layout.BAND_Y;
     private static final int DRAWER_PADDING = 6;
     private static final int DRAWER_TITLE_Y = 6;
-    private static final int DRAWER_HEIGHT = 70;
+    private static final int DRAWER_HEIGHT = Layout.BAND_HEIGHT;
 
     /** How far the drawer is open, 0 to 1. Advanced a step per tick, so it slides rather than snaps. */
     private float openness;
@@ -42,11 +44,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         drawerOnLeft = DrawerLayout.opensLeft(width, leftPos, imageWidth);
 
-        addRenderableWidget(new DrawerTab(font,
+        // TODO - make a better tab for settings once we have some
+        /*addRenderableWidget(new DrawerTab(font,
                 Component.translatable("gui.chronoclones.anchor.settings"),
                 drawerOnLeft, () -> drawerOpen, () -> drawerOpen = !drawerOpen))
                 .setPosition(DrawerLayout.tabX(drawerOnLeft, leftPos, imageWidth),
-                        topPos + DRAWER_TAB_Y);
+                        topPos + DRAWER_TAB_Y);*/
     }
 
     @Override
@@ -68,15 +71,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         // Before the window, so a drawer still sliding out passes behind it rather than over it.
         drawer(extractor, xo, yo, partialTick);
 
-        AnchorPanels.box(extractor, xo - 1, yo - 1, imageWidth + 2, imageHeight + 2,
-                AnchorPanels.WINDOW_EDGE, AnchorPanels.WINDOW);
+        AnchorPanels.panel(extractor, xo - 2, yo - 2, imageWidth + 4, imageHeight + 4);
+        extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, AnchorPanels.WINDOW);
 
         timeline(extractor, xo, yo);
         pills(extractor, xo, yo);
+        rail(extractor, xo, yo);
         storagePanel(extractor, xo, yo);
-        chargePanel(extractor, xo, yo);
-        modulePanel(extractor, xo, yo);
-        diagnosticBanner(extractor, xo, yo);
         playerInventory(extractor, xo, yo);
     }
 
@@ -91,8 +92,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         int width = Layout.CONTENT_WIDTH;
         int height = Layout.TIMELINE_HEIGHT;
 
-        AnchorPanels.box(extractor, x, y, width, height,
-                AnchorPanels.PANEL_EDGE, AnchorPanels.TRACK);
+        AnchorPanels.track(extractor, x, y, width, height);
 
         int length = menu.getLengthTicks();
         if (length <= 0) {
@@ -100,13 +100,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
 
         for (int tick : menu.getActionTicks()) {
-            int at = x + 1 + (width - 2) * Math.clamp(tick, 0, length) / length;
-            extractor.fill(at, y + 1, at + 1, y + height - 1, AnchorPanels.ACCENT);
+            int at = x + (width - 1) * Math.clamp(tick, 0, length) / length;
+            extractor.fill(at, y, at + 1, y + height, AnchorPanels.ACCENT);
         }
 
         for (int clone = 0; clone < menu.getActiveClones(); clone++) {
             int playhead = Math.clamp(menu.getPlayhead(clone), 0, length);
-            int at = x + 1 + (width - 2) * playhead / length;
+            int at = x + (width - 1) * playhead / length;
             AnchorPanels.playhead(extractor, at, y - 1, AnchorPanels.TEXT);
         }
     }
@@ -123,33 +123,40 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             AnchorPanels.panel(extractor, x, y, width, Layout.PILLS_HEIGHT);
 
             int textY = y + (Layout.PILLS_HEIGHT - font.lineHeight) / 2 + 1;
-            extractor.text(font, pill.value(), x + PILL_PADDING, textY, AnchorPanels.ACCENT);
-            extractor.text(font, pill.label(),
-                    x + PILL_PADDING + font.width(pill.value()) + PILL_SPACING, textY,
-                    AnchorPanels.MUTED);
+            int at = x + PILL_PADDING;
+
+            AnchorPanels.icon(extractor, pill.icon(), at,
+                    y + (Layout.PILLS_HEIGHT - AnchorPanels.ICON_SIZE) / 2, AnchorPanels.ACCENT);
+            at += AnchorPanels.ICON_SIZE + PILL_SPACING;
+
+            extractor.text(font, pill.value(), at, textY, AnchorPanels.ACCENT);
+            at += font.width(pill.value()) + PILL_SPACING;
+
+            extractor.text(font, pill.label(), at, textY, AnchorPanels.MUTED);
 
             x += width + pillGap();
         }
     }
 
-    private record Pill(String value, String label) {}
+    private record Pill(Identifier icon, String value, String label) {}
 
     private static final int PILL_PADDING = 5;
     private static final int PILL_SPACING = 4;
 
     private Pill[] pillContents() {
         return new Pill[] {
-                new Pill(String.valueOf(menu.getActionCount()),
+                new Pill(AnchorPanels.ICON_ACTIONS, String.valueOf(menu.getActionCount()),
                         text("gui.chronoclones.anchor.pill.actions")),
-                new Pill(String.valueOf(menu.getActiveClones()),
+                new Pill(AnchorPanels.ICON_CLONES, String.valueOf(menu.getActiveClones()),
                         text("gui.chronoclones.anchor.pill.clones")),
-                new Pill("×" + menu.getTicksPerStep(),
+                new Pill(AnchorPanels.ICON_RATE, "×" + menu.getTicksPerStep(),
                         text("gui.chronoclones.anchor.pill.rate")),
         };
     }
 
     private int pillWidth(Pill pill) {
-        return PILL_PADDING * 2 + font.width(pill.value()) + PILL_SPACING + font.width(pill.label());
+        return PILL_PADDING * 2 + AnchorPanels.ICON_SIZE + PILL_SPACING
+                + font.width(pill.value()) + PILL_SPACING + font.width(pill.label());
     }
 
     /** Whatever the three pills do not use, shared between them. */
@@ -162,67 +169,47 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     }
 
     private void storagePanel(GuiGraphicsExtractor extractor, int xo, int yo) {
-        AnchorPanels.panel(extractor, xo + Layout.MARGIN, yo + Layout.STORAGE_PANEL_Y,
-                Layout.CONTENT_WIDTH, Layout.STORAGE_PANEL_HEIGHT);
+        AnchorPanels.panel(extractor, xo + Layout.STORAGE_PANEL_X, yo + Layout.BAND_Y,
+                Layout.STORAGE_PANEL_WIDTH, Layout.BAND_HEIGHT);
 
         for (int row = 0; row < Layout.STORAGE_ROWS; row++) {
             for (int col = 0; col < 9; col++) {
-                AnchorPanels.slot(extractor, xo + Layout.GRID_X + col * 18,
+                AnchorPanels.slot(extractor, xo + Layout.STORAGE_X + col * 18,
                         yo + Layout.STORAGE_Y + row * 18);
             }
         }
     }
 
-    private void chargePanel(GuiGraphicsExtractor extractor, int xo, int yo) {
-        AnchorPanels.panel(extractor, xo + Layout.MARGIN, yo + Layout.MODULE_PANEL_Y,
-                Layout.CHARGE_PANEL_WIDTH, Layout.MODULE_PANEL_HEIGHT);
+    /**
+     * Fuel, charge and the modules, standing beside the storage grid rather than under it.
+     */
+    private void rail(GuiGraphicsExtractor extractor, int xo, int yo) {
+        AnchorPanels.panel(extractor, xo + Layout.RAIL_X, yo + Layout.BAND_Y,
+                Layout.RAIL_WIDTH, Layout.BAND_HEIGHT);
 
         AnchorPanels.slot(extractor, xo + Layout.FUEL_X, yo + Layout.MODULE_Y);
         if (!menu.slots.get(ChronoAnchorMenu.FUEL_SLOT).hasItem()) {
-            AnchorPanels.fuelIcon(extractor, xo + Layout.FUEL_X + 4, yo + Layout.MODULE_Y + 3,
-                    AnchorPanels.SLOT_EDGE);
+            AnchorPanels.icon(extractor, AnchorPanels.ICON_FUEL, xo + Layout.FUEL_X + 4,
+                    yo + Layout.MODULE_Y + 4, AnchorPanels.SLOT_EDGE);
         }
-
-        AnchorPanels.bar(extractor, xo + Layout.CHARGE_X, yo + Layout.CHARGE_Y,
-                Layout.CHARGE_WIDTH, Layout.CHARGE_HEIGHT, chargeFraction(), AnchorPanels.ACCENT);
-
-        String percent = Math.round(chargeFraction() * 100) + "%";
-        extractor.text(font, percent, xo + Layout.CHARGE_X, yo + Layout.CHARGE_TEXT_Y,
-                AnchorPanels.ACCENT);
-    }
-
-    private void modulePanel(GuiGraphicsExtractor extractor, int xo, int yo) {
-        AnchorPanels.panel(extractor, xo + Layout.MODULE_PANEL_X, yo + Layout.MODULE_PANEL_Y,
-                Layout.WIDTH - Layout.MARGIN - Layout.MODULE_PANEL_X, Layout.MODULE_PANEL_HEIGHT);
 
         for (int i = 0; i < 3; i++) {
-            int x = xo + Layout.UPGRADE_X + i * 18;
-            AnchorPanels.slot(extractor, x, yo + Layout.MODULE_Y);
+            int y = yo + Layout.MODULE_Y + (i + 1) * 18;
+            AnchorPanels.slot(extractor, xo + Layout.UPGRADE_X, y);
             if (!menu.slots.get(ChronoAnchorMenu.FUEL_SLOT + 1 + i).hasItem()) {
-                AnchorPanels.moduleIcon(extractor, x + 3, yo + Layout.MODULE_Y + 3,
-                        AnchorPanels.SLOT_EDGE);
+                AnchorPanels.icon(extractor, AnchorPanels.ICON_MODULE, xo + Layout.UPGRADE_X + 4,
+                        y + 4, AnchorPanels.SLOT_EDGE);
             }
         }
-    }
 
-    /**
-     * Always drawn: calm when the routine is running, so nothing shifts when it stops being.
-     */
-    private void diagnosticBanner(GuiGraphicsExtractor extractor, int xo, int yo) {
-        DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
-        int edge = bannerEdge(reason);
-        int fill = bannerFill(reason);
-
-        int x = xo + Layout.MARGIN;
-        int y = yo + Layout.DIAGNOSTIC_Y;
-        AnchorPanels.box(extractor, x, y, Layout.CONTENT_WIDTH, Layout.DIAGNOSTIC_HEIGHT, edge, fill);
-
-        if (reason != DiagnosticState.FailureReason.NONE) {
-            AnchorPanels.warningIcon(extractor, x + 4, y + 2, edge, fill);
-        }
+        AnchorPanels.barUp(extractor, xo + Layout.CHARGE_X, yo + Layout.CHARGE_Y,
+                Layout.CHARGE_WIDTH, Layout.CHARGE_HEIGHT, chargeFraction(), AnchorPanels.ACCENT);
     }
 
     private void playerInventory(GuiGraphicsExtractor extractor, int xo, int yo) {
+        AnchorPanels.panel(extractor, xo + Layout.MARGIN, yo + Layout.INVENTORY_PANEL_Y,
+                Layout.CONTENT_WIDTH, Layout.INVENTORY_PANEL_HEIGHT);
+
         for (int row = 0; row < 3; row++) {
             for (int col = 0; col < 9; col++) {
                 AnchorPanels.slot(extractor, xo + Layout.GRID_X + col * 18,
@@ -246,8 +233,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         int x = DrawerLayout.bodyX(drawerOnLeft, xo, imageWidth, open);
         int top = yo + DRAWER_TAB_Y;
-        AnchorPanels.box(extractor, x, top, open, DRAWER_HEIGHT,
-                AnchorPanels.WINDOW_EDGE, AnchorPanels.WINDOW);
+        AnchorPanels.panel(extractor, x, top, open, DRAWER_HEIGHT);
 
         // The title only once there is room for it, rather than sliding in clipped from the edge.
         if (open >= DrawerLayout.WIDTH) {
@@ -266,47 +252,44 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.text(font, title, Layout.MARGIN, Layout.TITLE_Y, AnchorPanels.TEXT);
         status(extractor);
 
+        DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
+        if (reason != DiagnosticState.FailureReason.NONE) {
+            AnchorPanels.icon(extractor, AnchorPanels.ICON_WARNING, warningX(),
+                    Layout.TITLE_Y, bannerEdge(reason));
+        }
+
+        AnchorPanels.legend(extractor, font, text("gui.chronoclones.anchor.section.storage"),
+                Layout.STORAGE_PANEL_X + 8, Layout.BAND_Y);
+        AnchorPanels.legend(extractor, font, playerInventoryTitle.getString(),
+                Layout.LEGEND_X, Layout.INVENTORY_PANEL_Y);
+
         cloneTabs(extractor);
-        AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.storage"),
-                Layout.MARGIN + 4, Layout.STORAGE_HEADER_Y);
-
-        AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.charge"),
-                Layout.MARGIN + 4, Layout.SECTION_LABEL_Y);
-        AnchorPanels.heading(extractor, font, text("gui.chronoclones.anchor.section.modules"),
-                Layout.MODULE_PANEL_X + 4, Layout.SECTION_LABEL_Y);
-
-        diagnosticText(extractor);
     }
 
-    /** Right-aligned against the title: the routine's length, or that there is not one. */
+    /** Right-aligned against the title: how full, and how far through. */
     private void status(GuiGraphicsExtractor extractor) {
         Component line = menu.getLengthTicks() <= 0
                 ? Component.translatable("gui.chronoclones.anchor.no_recording")
                 : Component.translatable("gui.chronoclones.anchor.elapsed",
                         menu.getPlayhead(0) / 20, menu.getLengthTicks() / 20);
 
-        extractor.text(font, line, Layout.WIDTH - Layout.MARGIN - font.width(line),
-                Layout.TITLE_Y, menu.getLengthTicks() <= 0 ? AnchorPanels.MUTED : AnchorPanels.ACCENT);
+        int right = Layout.WIDTH - Layout.MARGIN;
+        extractor.text(font, line, right - font.width(line), Layout.TITLE_Y,
+                menu.getLengthTicks() <= 0 ? AnchorPanels.MUTED : AnchorPanels.ACCENT);
+
+        // The upright bar has no room to letter itself, so the number lives up here.
+        String percent = Math.round(chargeFraction() * 100) + "%";
+        extractor.text(font, percent, right - font.width(line) - PILL_SPACING * 2 - font.width(percent),
+                Layout.TITLE_Y, AnchorPanels.MUTED);
     }
 
-    private void diagnosticText(GuiGraphicsExtractor extractor) {
-        DiagnosticState.FailureReason reason = reasonOf(menu.getFailureOrdinal());
-        int y = Layout.DIAGNOSTIC_Y + 1;
-
-        if (reason == DiagnosticState.FailureReason.NONE) {
-            extractor.text(font, Component.translatable("diagnostic.chronoclones.none"),
-                    Layout.MARGIN + 6, y, AnchorPanels.ACCENT);
-            return;
-        }
-
-        BlockPos at = menu.getFailurePos();
-        String where = String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ());
-        extractor.text(font, Component.translatable(reason.translationKey(), where),
-                Layout.MARGIN + 16, y, bannerEdge(reason));
+    /** Just past the title, so a routine in trouble says so without a band of its own. */
+    private int warningX() {
+        return Layout.MARGIN + font.width(title) + 6;
     }
 
     /**
-     * The clone tabs, sharing the storage header row.
+     * The clone tabs, straddling the storage panel's top border.
      */
     private void cloneTabs(GuiGraphicsExtractor extractor) {
         int tabs = CloneTabs.count(menu.getActiveClones());
@@ -317,12 +300,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             int y = Layout.TAB_Y;
             boolean current = tab == selected;
 
-            AnchorPanels.box(extractor, x, y, CloneTabs.WIDTH, CloneTabs.HEIGHT,
-                    current ? AnchorPanels.ACCENT : AnchorPanels.PANEL_EDGE,
-                    current ? AnchorPanels.PANEL : AnchorPanels.WINDOW);
+            extractor.fill(x, y, x + CloneTabs.WIDTH, y + CloneTabs.HEIGHT, AnchorPanels.WINDOW);
+            AnchorPanels.outline(extractor, x, y, CloneTabs.WIDTH, CloneTabs.HEIGHT,
+                    current ? AnchorPanels.ACCENT : AnchorPanels.SLOT_EDGE);
 
             String label = String.valueOf(tab + 1);
-            extractor.text(font, label, x + (CloneTabs.WIDTH - font.width(label)) / 2, y + 1,
+            extractor.text(font, label, x + (CloneTabs.WIDTH - font.width(label)) / 2,
+                    y + (CloneTabs.HEIGHT - font.lineHeight) / 2 + 1,
                     current ? AnchorPanels.ACCENT : AnchorPanels.MUTED);
         }
     }
@@ -363,9 +347,16 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         } else if (within(mouseX, mouseY, Layout.FUEL_X, Layout.MODULE_Y, 16, 16)) {
             tooltip(extractor, mouseX, mouseY,
                     Component.translatable("gui.chronoclones.anchor.section.fuel.tip"));
-        } else if (within(mouseX, mouseY, Layout.UPGRADE_X, Layout.MODULE_Y, 16 + 2 * 18, 16)) {
+        } else if (within(mouseX, mouseY, Layout.UPGRADE_X, Layout.MODULE_Y + 18, 16, 16 + 2 * 18)) {
             tooltip(extractor, mouseX, mouseY,
                     Component.translatable("gui.chronoclones.anchor.section.modules.tip"));
+        } else if (within(mouseX, mouseY, warningX(), Layout.TITLE_Y,
+                AnchorPanels.ICON_SIZE, AnchorPanels.ICON_SIZE)
+                && reasonOf(menu.getFailureOrdinal()) != DiagnosticState.FailureReason.NONE) {
+            BlockPos at = menu.getFailurePos();
+            tooltip(extractor, mouseX, mouseY, Component.translatable(
+                    reasonOf(menu.getFailureOrdinal()).translationKey(),
+                    String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ())));
         } else if (within(mouseX, mouseY, Layout.MARGIN, Layout.TIMELINE_Y,
                 Layout.CONTENT_WIDTH, Layout.TIMELINE_HEIGHT) && menu.getLengthTicks() > 0) {
             tooltip(extractor, mouseX, mouseY, Component.translatable(
@@ -395,18 +386,9 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         return Component.translatable(key).getString();
     }
 
+    /** Amber for something the routine will get past, red for something it will not. */
     private static int bannerEdge(DiagnosticState.FailureReason reason) {
-        if (reason == DiagnosticState.FailureReason.NONE) {
-            return AnchorPanels.ACCENT;
-        }
         return reason.halts() ? AnchorPanels.HALTED : AnchorPanels.WARNING;
-    }
-
-    private static int bannerFill(DiagnosticState.FailureReason reason) {
-        if (reason == DiagnosticState.FailureReason.NONE) {
-            return AnchorPanels.RUNNING_FILL;
-        }
-        return reason.halts() ? AnchorPanels.HALTED_FILL : AnchorPanels.WARNING_FILL;
     }
 
     private static DiagnosticState.FailureReason reasonOf(int ordinal) {

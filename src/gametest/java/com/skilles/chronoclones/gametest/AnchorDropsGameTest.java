@@ -31,6 +31,11 @@ final class AnchorDropsGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
 
+    private static final double SEARCH_RADIUS = 5.0;
+
+    /** Long enough for the drops to have been added to the level and come to rest. */
+    private static final int SETTLE_TICKS = 8;
+
     /** A routine must not be destroyable with a pickaxe (loot table {@code copy_components}). */
     private static void dropsWithRoutine(GameTestHelper helper) {
         Recording original = AnchorTestFixture.breakOneBlock(Blocks.STONE);
@@ -41,7 +46,7 @@ final class AnchorDropsGameTest {
         level.destroyBlock(absolute, true);
 
         helper.startSequence()
-                .thenExecuteAfter(2, () -> {
+                .thenExecuteAfter(SETTLE_TICKS, () -> {
                     ItemStack dropped = findDrop(level, absolute, ModItems.CHRONO_ANCHOR.get().asItem());
                     if (dropped == null) {
                         helper.fail("breaking the anchor dropped no anchor at all");
@@ -75,7 +80,7 @@ final class AnchorDropsGameTest {
         level.destroyBlock(absolute, true);
 
         helper.startSequence()
-                .thenExecuteAfter(2, () -> {
+                .thenExecuteAfter(SETTLE_TICKS, () -> {
                     ItemStack dropped = findDrop(level, absolute, Items.DIAMOND);
                     if (dropped == null) {
                         helper.fail("the anchor's stored items vanished when it was broken");
@@ -88,10 +93,15 @@ final class AnchorDropsGameTest {
                 .thenSucceed();
     }
 
-    /** Scoped to a small box around the anchor: game tests share one world. */
+    /**
+     * Scoped to a box around the anchor, since game tests share one world.
+     *
+     * <p>Wide enough for the scatter: a spilled stack is thrown with random motion, and four
+     * inventories now spill at once, which is what made two blocks an intermittent miss.
+     */
     private static ItemStack findDrop(ServerLevel level, BlockPos absolute, net.minecraft.world.item.Item item) {
         List<ItemEntity> drops = level.getEntitiesOfClass(ItemEntity.class,
-                new AABB(absolute).inflate(2.0));
+                new AABB(absolute).inflate(SEARCH_RADIUS));
         for (ItemEntity entity : drops) {
             if (entity.getItem().is(item)) {
                 return entity.getItem();
