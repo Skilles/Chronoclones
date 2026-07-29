@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.replay;
 
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
+import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -31,21 +32,21 @@ public final class HeldItemLoan {
     public static final Loan EMPTY_HANDED = new Loan(-1, ItemStack.EMPTY);
 
     /**
-     * Takes the whole of one matching slot out of the anchor, preferring {@code preferredSlot}.
+     * Takes the whole of one matching slot out of the anchor, as {@code rule} allows.
      *
-     * @return the loan, or null if the anchor has none of {@code item}
+     * @return the loan, or null if the anchor has none of {@code item} where it may look
      */
-    public static Loan take(ResourceHandler<ItemResource> inventory, Item item, int preferredSlot) {
+    public static Loan take(ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
         if (item == net.minecraft.world.item.Items.AIR) {
             return EMPTY_HANDED;
         }
 
-        Loan preferred = takeFrom(inventory, item, preferredSlot);
-        if (preferred != null) {
+        Loan preferred = takeFrom(inventory, item, rule.preferred());
+        if (preferred != null || rule.strict()) {
             return preferred;
         }
 
-        // Stock rarely lands where the recording left it, so the slot is a preference, not a rule.
+        // Stock rarely lands where the recording left it, so the slot is a preference by default.
         for (int slot = 0; slot < inventory.size(); slot++) {
             Loan loan = takeFrom(inventory, item, slot);
             if (loan != null) {

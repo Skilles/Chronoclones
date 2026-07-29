@@ -1,6 +1,8 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
@@ -15,6 +17,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
@@ -244,17 +247,83 @@ public final class RecordingCodecs {
 
     // ------------------------------------------------------------------ timed action
 
+    // ------------------------------------------------------------------ settings
+
+    static final Codec<ActionSettings.SlotRule> SLOT_RULE = RecordCodecBuilder.create(i -> i.group(
+            StringRepresentable.fromEnum(ActionSettings.SlotRule.Mode::values)
+                    .optionalFieldOf("mode", ActionSettings.SlotRule.Mode.PREFER)
+                    .forGetter(ActionSettings.SlotRule::mode),
+            Codec.INT.optionalFieldOf("slot", ActionSettings.SlotRule.NONE)
+                    .forGetter(ActionSettings.SlotRule::slot)
+    ).apply(i, ActionSettings.SlotRule::new));
+
+    static final Codec<ActionSettings.TargetRule> TARGET_RULE = RecordCodecBuilder.create(i -> i.group(
+            BuiltInRegistries.ENTITY_TYPE.holderByNameCodec().listOf()
+                    .optionalFieldOf("filter", List.of())
+                    .forGetter(ActionSettings.TargetRule::filter),
+            Codec.DOUBLE.optionalFieldOf("radius", ActionSettings.TargetRule.DEFAULT_RADIUS)
+                    .forGetter(ActionSettings.TargetRule::radius),
+            Codec.BOOL.optionalFieldOf("sticky", false).forGetter(ActionSettings.TargetRule::sticky),
+            StringRepresentable.fromEnum(ActionSettings.TargetRule.Completion::values)
+                    .optionalFieldOf("completion", ActionSettings.TargetRule.Completion.ONCE)
+                    .forGetter(ActionSettings.TargetRule::completion)
+    ).apply(i, ActionSettings.TargetRule::new));
+
+    public static final Codec<ActionSettings> ACTION_SETTINGS = RecordCodecBuilder.create(i -> i.group(
+            Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings::name),
+            SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
+                    .forGetter(ActionSettings::slot),
+            TARGET_RULE.optionalFieldOf("target", ActionSettings.TargetRule.DEFAULT)
+                    .forGetter(ActionSettings::target)
+    ).apply(i, ActionSettings::new));
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.SlotRule> SLOT_RULE_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.idMapper(
+                            id -> ActionSettings.SlotRule.Mode.values()[id], Enum::ordinal),
+                    ActionSettings.SlotRule::mode,
+                    ByteBufCodecs.INT, ActionSettings.SlotRule::slot,
+                    ActionSettings.SlotRule::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.TargetRule> TARGET_RULE_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE)
+                            .apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ActionSettings.TargetRule::filter,
+                    ByteBufCodecs.DOUBLE, ActionSettings.TargetRule::radius,
+                    ByteBufCodecs.BOOL, ActionSettings.TargetRule::sticky,
+                    ByteBufCodecs.idMapper(
+                            id -> ActionSettings.TargetRule.Completion.values()[id], Enum::ordinal),
+                    ActionSettings.TargetRule::completion,
+                    ActionSettings.TargetRule::new);
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings> ACTION_SETTINGS_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.STRING_UTF8, ActionSettings::name,
+                    SLOT_RULE_STREAM, ActionSettings::slot,
+                    TARGET_RULE_STREAM, ActionSettings::target,
+                    ActionSettings::new);
+
+    // ------------------------------------------------------------------ timed action
+
+    /**
+     * The {@code held_slot} field is only ever read: routines saved before settings existed carry
+     * their square there, and it becomes the slot rule's preference.
+     */
     public static final Codec<TimedAction> TIMED_ACTION = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(TimedAction::tick),
             ACTION.fieldOf("action").forGetter(TimedAction::action),
-            Codec.INT.optionalFieldOf("held_slot", TimedAction.ANY_SLOT).forGetter(TimedAction::heldSlot)
-    ).apply(i, TimedAction::new));
+            ACTION_SETTINGS.optionalFieldOf("settings").forGetter(t -> Optional.of(t.settings())),
+            Codec.INT.optionalFieldOf("held_slot").forGetter(t -> Optional.<Integer>empty())
+    ).apply(i, (tick, action, settings, legacySlot) -> new TimedAction(tick, action,
+            settings.orElseGet(() -> ActionSettings.DEFAULT.withSlot(ActionSettings.SlotRule.prefer(
+                    legacySlot.orElse(ActionSettings.SlotRule.NONE)))))));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, TimedAction> TIMED_ACTION_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.VAR_INT, TimedAction::tick,
                     ACTION_STREAM, TimedAction::action,
-                    ByteBufCodecs.INT, TimedAction::heldSlot,
+                    ACTION_SETTINGS_STREAM, TimedAction::settings,
                     TimedAction::new);
 
     // ------------------------------------------------------------------ recording

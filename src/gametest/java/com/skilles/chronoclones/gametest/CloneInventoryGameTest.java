@@ -3,6 +3,7 @@ package com.skilles.chronoclones.gametest;
 import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.registry.ModItems;
 
@@ -45,6 +46,49 @@ final class CloneInventoryGameTest {
                 CloneInventoryGameTest::heldSlotFallsBackToASearch);
         ChronoclonesGameTests.add("mined_loot_fills_the_hotbar_first",
                 CloneInventoryGameTest::minedLootFillsTheHotbarFirst);
+        ChronoclonesGameTests.add("exact_slot_rule_refuses_to_search",
+                CloneInventoryGameTest::exactSlotRuleRefusesToSearch);
+        ChronoclonesGameTests.add("any_slot_rule_ignores_the_recorded_square",
+                CloneInventoryGameTest::anySlotRuleIgnoresTheRecordedSquare);
+    }
+
+    /** EXACT is for a routine that sorts as it works: the named square or nothing. */
+    private static void exactSlotRuleRefusesToSearch(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper,
+                new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, 4));
+        anchor.getCloneInventory(0).set(17, ItemResource.of(Items.STONE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> {
+                    if (!helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
+                        helper.fail("an exact rule went looking outside the square it names");
+                    }
+                    if (anchor.getLastFailure().reason()
+                            != com.skilles.chronoclones.block.DiagnosticState.FailureReason.NO_ITEM) {
+                        helper.fail("expected NO_ITEM, got " + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** ANY has no square to prefer, so it takes the first stone it finds. */
+    private static void anySlotRuleIgnoresTheRecordedSquare(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = placingAnchor(helper,
+                new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.ANY, 4));
+        anchor.getCloneInventory(0).set(4, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).set(2, ItemResource.of(Items.STONE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> {
+                    if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
+                        helper.fail("an any rule placed nothing at all");
+                        return;
+                    }
+                    if (!anchor.getCloneInventory(0).getResource(2).isEmpty()) {
+                        helper.fail("an any rule still reached for the recorded square first");
+                    }
+                })
+                .thenSucceed();
     }
 
     /** A clone picks up the way a player does: the first free square, which is the hotbar. */
@@ -112,11 +156,17 @@ final class CloneInventoryGameTest {
 
     /** An anchor whose routine places one stone, recorded as held in {@code heldSlot}. */
     private static ChronoAnchorBlockEntity placingAnchor(GameTestHelper helper, int heldSlot) {
+        return placingAnchor(helper, ActionSettings.SlotRule.prefer(heldSlot));
+    }
+
+    private static ChronoAnchorBlockEntity placingAnchor(GameTestHelper helper,
+                                                         ActionSettings.SlotRule rule) {
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.PlaceBlock(
                         new BlockPos(0, 0, -1), Direction.UP,
                         BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE),
-                        Blocks.STONE.defaultBlockState()), heldSlot));
+                        Blocks.STONE.defaultBlockState()),
+                        ActionSettings.DEFAULT.withSlot(rule)));
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

@@ -8,6 +8,7 @@ import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import com.skilles.chronoclones.menu.AnchorData;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
@@ -452,19 +453,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             runtime.consumeAction();
 
             ItemStacksResourceHandler inventory = inventoryOf(runtime);
-            int heldSlot = timed.heldSlot();
+            ActionSettings.SlotRule slot = timed.settings().slot();
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
                         serverLevel, a, placement, ownerId, ownerName);
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, heldSlot);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
                         serverLevel, a, placement, ownerId, ownerName, inventory);
             };

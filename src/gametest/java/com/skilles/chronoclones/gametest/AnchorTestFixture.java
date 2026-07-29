@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.block.UpgradeState;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
@@ -62,9 +63,14 @@ final class AnchorTestFixture {
 
     /** The same, recorded as if the player held the item in {@code heldSlot}. */
     static Recording routine(ChronoAction action, int heldSlot) {
+        return routine(action, ActionSettings.DEFAULT.withSlot(ActionSettings.SlotRule.prefer(heldSlot)));
+    }
+
+    /** The same, with the interpretation the editor would have written. */
+    static Recording routine(ChronoAction action, ActionSettings settings) {
         return new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
-                List.of(new TimedAction(1, action, heldSlot)),
+                List.of(new TimedAction(1, action, settings)),
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 
