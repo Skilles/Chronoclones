@@ -8,6 +8,7 @@ import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import com.skilles.chronoclones.menu.AnchorData;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
+import com.skilles.chronoclones.ChronoclonesConfig;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.Recording;
@@ -27,6 +28,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -392,6 +394,48 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     /**
+     * One swing, or as many as it takes when the player's swings ended in a kill.
+     *
+     * @return true if the action finished this tick
+     */
+    private boolean attackOneTick(ServerLevel serverLevel, CloneRuntime runtime,
+                                  ChronoAction.AttackEntity action, ActionSettings settings,
+                                  Placement placement, Direction facing, int cost) {
+        ActionSettings.TargetRule rule = settings.target();
+        LivingEntity sticky = rule.sticky() ? runtime.target(serverLevel) : null;
+
+        ActionExecutor.AttackResult attack = ActionExecutor.executeAttack(
+                serverLevel, action, placement, ownerId, ownerName, rule, sticky);
+        runtime.setTarget(attack.targetId());
+
+        // A swing absorbed by invulnerability frames did no work, so it buys none.
+        if (attack.hitLanded()) {
+            charge = charge.spend(cost);
+            setChanged();
+        }
+
+        boolean unfinished = rule.completion() == ActionSettings.TargetRule.Completion.UNTIL_DEAD
+                && attack.targetAlive();
+        if (unfinished && runtime.targetTicks() < ChronoclonesConfig.MAX_ACTION_TICKS.getAsInt()) {
+            runtime.awaitTarget();
+            return false;
+        }
+
+        runtime.releaseTarget();
+        runtime.consumeAction();
+
+        if (!attack.result().succeeded()) {
+            recordFailure(serverLevel, attack.result().reason(), attack.result().localPos(),
+                    runtime.playhead(), facing);
+        } else if (unfinished) {
+            // Out of patience rather than out of targets, which is a different thing to report.
+            recordFailure(serverLevel, FailureReason.UNFINISHED,
+                    BlockPos.containing(action.localPos()), runtime.playhead(), facing);
+        }
+        return true;
+    }
+
+    /**
      * The cracking overlay, keyed to the clone doing the digging.
      */
     private void showCracks(ServerLevel serverLevel, CloneRuntime runtime, BlockPos worldPos,
@@ -450,6 +494,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 continue;
             }
 
+            // So does an attack the player finished, until its target is finished too.
+            if (action instanceof ChronoAction.AttackEntity attacking) {
+                if (!attackOneTick(serverLevel, runtime, attacking, timed.settings(), placement,
+                        facing, cost)) {
+                    return;
+                }
+                continue;
+            }
+
             runtime.consumeAction();
 
             ItemStacksResourceHandler inventory = inventoryOf(runtime);
@@ -458,14 +511,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
                         serverLevel, a, placement, ownerId, ownerName, inventory, slot);
-                case ChronoAction.AttackEntity a -> ActionExecutor.executeAttack(
-                        serverLevel, a, placement, ownerId, ownerName);
+                case ChronoAction.AttackEntity a -> throw new IllegalStateException("handled above");
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
                         serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
                         serverLevel, a, placement, ownerId, ownerName, inventory, slot);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, timed.settings());
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
                         serverLevel, a, placement, ownerId, ownerName, inventory);
             };

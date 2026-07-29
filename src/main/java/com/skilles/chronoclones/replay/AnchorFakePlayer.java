@@ -6,6 +6,8 @@ import com.mojang.authlib.GameProfile;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
@@ -45,13 +47,43 @@ public final class AnchorFakePlayer {
         player.setOnGround(true);
 
         // The recorded template is a copy; the fake player must never consume or damage it.
-        player.setItemInHand(InteractionHand.MAIN_HAND, held.copy());
+        hold(player, held.copy());
 
         return player;
     }
 
     /** Clears the held item so a stale tool cannot influence an unrelated later action. */
     public static void release(FakePlayer player) {
-        player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+        hold(player, ItemStack.EMPTY);
+    }
+
+    /**
+     * Equips a stack and moves its attribute modifiers with it.
+     *
+     * <p>Vanilla applies these while ticking equipment changes, which a fake player never does, so
+     * without this a clone swinging a netherite sword hits for a bare hand's damage.
+     */
+    private static void hold(FakePlayer player, ItemStack stack) {
+        ItemStack previous = player.getMainHandItem();
+        if (!previous.isEmpty()) {
+            previous.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+                AttributeInstance instance = player.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.id());
+                }
+            });
+        }
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, stack);
+
+        if (!stack.isEmpty()) {
+            stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+                AttributeInstance instance = player.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.id());
+                    instance.addTransientModifier(modifier);
+                }
+            });
+        }
     }
 }

@@ -3,6 +3,8 @@ package com.skilles.chronoclones.replay;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -91,6 +93,47 @@ public final class CloneRuntime {
     public void clearMining() {
         miningProgress = 0.0f;
         miningPos = null;
+    }
+
+    // ------------------------------------------------------------------ targets
+
+    /**
+     * The entity this clone is working on, which outlives the action so a sticky one can come back
+     * to the same mob on the next pass.
+     */
+    private int targetId = NO_TARGET;
+    private int targetTicks;
+
+    public static final int NO_TARGET = -1;
+
+    public @Nullable LivingEntity target(ServerLevel level) {
+        if (targetId == NO_TARGET) {
+            return null;
+        }
+        return level.getEntity(targetId) instanceof LivingEntity living && living.isAlive()
+                ? living
+                : null;
+    }
+
+    public void setTarget(int entityId) {
+        if (entityId != targetId) {
+            targetTicks = 0;
+        }
+        targetId = entityId;
+    }
+
+    /** How long the current action has been waiting on its target. */
+    public int targetTicks() {
+        return targetTicks;
+    }
+
+    public void awaitTarget() {
+        targetTicks++;
+    }
+
+    /** Called when an action finishes with its target, leaving the id for a later sticky action. */
+    public void releaseTarget() {
+        targetTicks = 0;
     }
 
     /** Wraps back to the start of the routine, resetting the action cursor with it. */

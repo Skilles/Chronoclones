@@ -40,6 +40,11 @@ public final class RecordingSessions {
         }
     }
 
+    /** For events that belong to no one player, such as something dying near two recorders. */
+    public static void forEach(java.util.function.Consumer<RecordingSession> action) {
+        ACTIVE.values().forEach(action);
+    }
+
     /**
      * Whether this player is the human the session belongs to, rather than something acting in their
      * name.

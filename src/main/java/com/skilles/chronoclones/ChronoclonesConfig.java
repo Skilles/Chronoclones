@@ -10,6 +10,7 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue MAX_RECORDING_TICKS;
     public static final ModConfigSpec.IntValue MAX_ACTIONS;
     public static final ModConfigSpec.IntValue MAX_ACTIONS_PER_TICK;
+    public static final ModConfigSpec.IntValue MAX_ACTION_TICKS;
     public static final ModConfigSpec.BooleanValue ALLOW_PVP;
     public static final ModConfigSpec.IntValue GOGGLE_RADIUS;
     /**
@@ -29,6 +30,11 @@ public final class ChronoclonesConfig {
                 .defineInRange("maxActions", 128, 1, 4096);
         MAX_ACTIONS_PER_TICK = b.comment("Global per-level budget of clone actions executed per tick.")
                 .defineInRange("maxActionsPerTick", 64, 1, 1024);
+        MAX_ACTION_TICKS = b.comment(
+                        "How long one action may hold a clone before it gives up, in ticks.",
+                        "An attack told to finish a kill waits here; a target that cannot die "
+                                + "would otherwise stall the routine forever.")
+                .defineInRange("maxActionTicks", 100, 20, 1200);
         b.pop();
 
         b.push("gameplay");

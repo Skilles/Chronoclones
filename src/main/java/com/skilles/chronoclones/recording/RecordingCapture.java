@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.List;
+import java.util.UUID;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
@@ -137,7 +138,19 @@ public final class RecordingCapture {
                         session.toLocal(target),
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
                         player.getMainHandItem().copy()),
-                target);
+                target, event.getTarget().getUUID());
+    }
+
+    /**
+     * A kill turns the run of swings that caused it into one action with a goal.
+     */
+    @SubscribeEvent
+    public static void onDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
+        if (event.getEntity().level().isClientSide()) {
+            return;
+        }
+        // Every session running anywhere: a second player may have been recording the same fight.
+        RecordingSessions.forEach(session -> session.noteDeath(event.getEntity().getUUID()));
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
@@ -298,9 +311,14 @@ public final class RecordingCapture {
 
     private static void capture(ServerPlayer player, RecordingSession session,
                                 ChronoAction action, Vec3 worldPos) {
+        capture(player, session, action, worldPos, null);
+    }
+
+    private static void capture(ServerPlayer player, RecordingSession session,
+                                ChronoAction action, Vec3 worldPos, @Nullable UUID target) {
         // The slot, not just the item: a clone reaches into the square the player reached into.
-        RecordingSession.StopReason stop =
-                session.record(action, worldPos, player.getInventory().getSelectedSlot());
+        RecordingSession.StopReason stop = session.record(
+                action, worldPos, player.getInventory().getSelectedSlot(), target);
         if (stop != null) {
             ItemStack recorder = findSessionRecorder(player, session);
             if (recorder != null) {

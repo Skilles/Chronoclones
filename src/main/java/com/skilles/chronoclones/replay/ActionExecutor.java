@@ -7,7 +7,9 @@ import com.skilles.chronoclones.ChronoclonesConfig;
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
+import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 import com.skilles.chronoclones.recording.LocalSpace;
 import com.skilles.chronoclones.registry.ModTags;
 
@@ -260,9 +262,33 @@ public final class ActionExecutor {
 
     // ------------------------------------------------------------------ attack
 
-    public static Result executeAttack(ServerLevel level, ChronoAction.AttackEntity action,
-                                       Placement placement,
-                                       java.util.UUID ownerId, String ownerName) {
+    /**
+     * One swing, and what it found.
+     *
+     * @param targetId    the entity swung at, so a sticky action can stay on it
+     * @param targetAlive whether it is still standing, which is what an until-dead action waits on
+     * @param hitLanded   false while a target is inside its invulnerability window, which is not a
+     *                    failure and must not be charged for
+     */
+    public record AttackResult(Result result, int targetId, boolean targetAlive, boolean hitLanded) {
+
+        public static final int NO_TARGET = -1;
+
+        static AttackResult missed(FailureReason reason, BlockPos localPos) {
+            return new AttackResult(Result.fail(reason, localPos), NO_TARGET, false, false);
+        }
+    }
+
+    /**
+     * Swings at whatever the rule admits nearest the recorded point.
+     *
+     * @param sticky the entity this clone was already working on, or null to pick afresh
+     */
+    public static AttackResult executeAttack(ServerLevel level, ChronoAction.AttackEntity action,
+                                             Placement placement,
+                                             java.util.UUID ownerId, String ownerName,
+                                             TargetRule rule,
+                                             @org.jspecify.annotations.Nullable LivingEntity sticky) {
 
         Vec3 worldPos = placement.toWorld(action.localPos());
         BlockPos blockPos = BlockPos.containing(worldPos);
@@ -270,35 +296,16 @@ public final class ActionExecutor {
         BlockPos localBlock = BlockPos.containing(action.localPos());
 
         if (!placement.withinRadius(blockPos)) {
-            return Result.fail(FailureReason.OUT_OF_RANGE, localBlock);
+            return AttackResult.missed(FailureReason.OUT_OF_RANGE, localBlock);
         }
         if (!level.isLoaded(blockPos)) {
-            return Result.fail(FailureReason.UNLOADED, localBlock);
+            return AttackResult.missed(FailureReason.UNLOADED, localBlock);
         }
 
-        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
-        AABB box = new AABB(worldPos, worldPos).inflate(ATTACK_RADIUS);
-
-        // ChronoCloneEntity is a bare Entity, not a LivingEntity, so it cannot appear here.
-        // Structural rather than a filter.
-        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box, entity ->
-                entity.isAlive()
-                        && !entity.getUUID().equals(ownerId)
-                        && (allowPvp || !(entity instanceof Player)));
-
-        if (candidates.isEmpty()) {
-            return Result.fail(FailureReason.NO_TARGET, localBlock);
+        LivingEntity target = chooseTarget(level, action, worldPos, ownerId, rule, sticky);
+        if (target == null) {
+            return AttackResult.missed(FailureReason.NO_TARGET, localBlock);
         }
-
-        // Prefer the recorded type, treating it as a hint, and fall back to the nearest
-        // living thing rather than refusing to act.
-        EntityType<?> expected = action.expectedType().value();
-        LivingEntity target = candidates.stream()
-                .filter(e -> e.getType() == expected)
-                .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
-                .orElseGet(() -> candidates.stream()
-                        .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
-                        .orElseThrow());
 
         FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
                 worldPos, 0.0f, 0.0f, action.weaponTemplate());
@@ -308,16 +315,53 @@ public final class ActionExecutor {
             float damage = (float) owner.getAttributeValue(Attributes.ATTACK_DAMAGE);
             boolean hurt = target.hurtServer(level, level.damageSources().playerAttack(owner), damage);
 
-            return hurt ? Result.OK : Result.fail(FailureReason.NO_TARGET, localBlock);
+            // A swing absorbed by invulnerability frames still found its target, so it is neither a
+            // failure nor worth charging for; the action simply waits and swings again.
+            return new AttackResult(Result.OK, target.getId(), target.isAlive(), hurt);
         } finally {
             AnchorFakePlayer.release(owner);
         }
     }
 
     /**
-     * How far from the recorded point an attack looks for something to hit.
+     * The entity already being worked on if it is still valid, else the recorded type nearest the
+     * point, else the nearest thing at all.
      */
-    public static final double ATTACK_RADIUS = 1.5;
+    private static @org.jspecify.annotations.Nullable LivingEntity chooseTarget(
+            ServerLevel level, ChronoAction.AttackEntity action, Vec3 worldPos,
+            java.util.UUID ownerId, TargetRule rule,
+            @org.jspecify.annotations.Nullable LivingEntity sticky) {
+
+        double radius = rule.radiusWithin(ChronoclonesConfig.MAX_RADIUS.getAsInt());
+        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        AABB box = new AABB(worldPos, worldPos).inflate(radius);
+
+        if (sticky != null && sticky.isAlive() && box.contains(sticky.position())) {
+            return sticky;
+        }
+
+        // ChronoCloneEntity is a bare Entity, not a LivingEntity, so it cannot appear here.
+        // Structural rather than a filter.
+        List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box, entity ->
+                entity.isAlive()
+                        && !entity.getUUID().equals(ownerId)
+                        && (allowPvp || !(entity instanceof Player))
+                        && rule.accepts(entity.getType()));
+
+        if (candidates.isEmpty()) {
+            return null;
+        }
+
+        // Prefer the recorded type, treating it as a hint, and fall back to the nearest
+        // living thing rather than refusing to act.
+        EntityType<?> expected = action.expectedType().value();
+        return candidates.stream()
+                .filter(e -> e.getType() == expected)
+                .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
+                .orElseGet(() -> candidates.stream()
+                        .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
+                        .orElseThrow());
+    }
 
     // ------------------------------------------------------------------ interaction
 
@@ -397,7 +441,8 @@ public final class ActionExecutor {
     public static Result executeInteractEntity(ServerLevel level, ChronoAction.InteractEntity action,
                                                Placement placement,
                                                java.util.UUID ownerId, String ownerName,
-                                               ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                               ResourceHandler<ItemResource> inventory,
+                                               ActionSettings settings) {
 
         Vec3 worldPos = placement.toWorld(action.localPos());
         BlockPos localBlock = BlockPos.containing(action.localPos());
@@ -410,12 +455,15 @@ public final class ActionExecutor {
         }
 
         boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
-        AABB box = new AABB(worldPos, worldPos).inflate(INTERACT_RADIUS);
+        TargetRule rule = settings.target();
+        AABB box = new AABB(worldPos, worldPos)
+                .inflate(rule.radiusWithin(ChronoclonesConfig.MAX_RADIUS.getAsInt()));
         List<Entity> candidates = level.getEntitiesOfClass(Entity.class, box, entity ->
                 entity.isAlive()
                         && !(entity instanceof ChronoCloneEntity)
                         && !entity.getUUID().equals(ownerId)
-                        && (allowPvp || !(entity instanceof Player)));
+                        && (allowPvp || !(entity instanceof Player))
+                        && rule.accepts(entity.getType()));
 
         if (candidates.isEmpty()) {
             return Result.fail(FailureReason.NO_TARGET, localBlock);
@@ -429,7 +477,7 @@ public final class ActionExecutor {
                         .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPos)))
                         .orElseThrow());
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), slot);
+        HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), settings.slot());
         if (loan == null) {
             return Result.fail(FailureReason.NO_ITEM, localBlock);
         }
@@ -459,8 +507,7 @@ public final class ActionExecutor {
         return result.consumesAction() ? Result.OK : Result.fail(FailureReason.NO_TARGET, localPos);
     }
 
-    /** Same story as {@link #ATTACK_RADIUS}, for right-clicking a mob. */
-    public static final double INTERACT_RADIUS = 2.0;
+
 
     // ------------------------------------------------------------------ transfer
 

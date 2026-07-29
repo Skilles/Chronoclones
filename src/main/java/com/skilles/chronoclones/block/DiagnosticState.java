@@ -48,6 +48,9 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         NO_CHARGE("no_charge", true),
         /** The recording placed something that is not a block. */
         NOT_PLACEABLE("not_placeable", false),
+
+        /** An action told to finish something ran out of patience for it. */
+        UNFINISHED("unfinished", false),
         /** No matching item in the anchor inventory to place. */
         NO_ITEM("no_item", false),
         /** Target position is occupied by something that cannot be replaced. */

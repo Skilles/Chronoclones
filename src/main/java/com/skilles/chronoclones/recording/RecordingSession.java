@@ -1,7 +1,9 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import com.skilles.chronoclones.ChronoclonesConfig;
@@ -10,6 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Server-side state of one in-progress recording.
@@ -34,7 +37,10 @@ public final class RecordingSession {
     private final boolean creative;
 
     private final List<MotionSample> motion = new ArrayList<>();
-    private final List<TimedAction> actions = new ArrayList<>();
+    private final List<AttackIntent.Swing> actions = new ArrayList<>();
+
+    /** Everything that died while this was recording, which is how a swing learns it was a kill. */
+    private final Set<UUID> killed = new HashSet<>();
 
     private int tick;
     private boolean outOfRangeWarning;
@@ -109,11 +115,18 @@ public final class RecordingSession {
      * @return the cap that was hit, or null
      */
     public StopReason record(ChronoAction action, Vec3 worldPos, int heldSlot) {
+        return record(action, worldPos, heldSlot, null);
+    }
+
+    /**
+     * The same, naming the entity a swing was aimed at so {@link AttackIntent} can read the run.
+     */
+    public StopReason record(ChronoAction action, Vec3 worldPos, int heldSlot, @Nullable UUID target) {
         if (!withinRadius(worldPos)) {
             outOfRangeWarning = true;
             return null;
         }
-        actions.add(new TimedAction(tick, action, heldSlot));
+        actions.add(new AttackIntent.Swing(new TimedAction(tick, action, heldSlot), target));
 
         if (actions.size() >= ChronoclonesConfig.MAX_ACTIONS.getAsInt()) {
             return StopReason.ACTION_CAP;
@@ -156,12 +169,17 @@ public final class RecordingSession {
         return LocalSpace.toLocal(worldFacing, originFacing);
     }
 
+    /** Something died while the player was recording; a swing at it was a kill. */
+    public void noteDeath(UUID entityId) {
+        killed.add(entityId);
+    }
+
     public boolean isEmpty() {
         return motion.isEmpty() && actions.isEmpty();
     }
 
     public Recording finish() {
-        return new Recording(List.copyOf(motion), List.copyOf(actions), Math.max(tick, 1),
-                authorName, authorId, creative);
+        return new Recording(List.copyOf(motion), AttackIntent.coalesce(actions, killed),
+                Math.max(tick, 1), authorName, authorId, creative);
     }
 }

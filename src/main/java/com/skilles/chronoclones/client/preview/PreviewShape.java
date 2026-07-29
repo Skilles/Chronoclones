@@ -98,7 +98,7 @@ public final class PreviewShape {
             if (reach != null) {
                 // No half-block offset: an entity action records a point, not a square.
                 volumes.add(new Volume(LocalSpace.toWorld(reach, anchorPos, anchorFacing),
-                        radiusOf(timed.action()), kind,
+                        radiusOf(timed), kind,
                         BlockPos.containing(reach).equals(failingLocal)));
                 continue;
             }
@@ -132,11 +132,9 @@ public final class PreviewShape {
         };
     }
 
-    /** The executor's own query radius, so the sphere is the region it will really search. */
-    private static double radiusOf(ChronoAction action) {
-        return action instanceof ChronoAction.AttackEntity
-                ? ActionExecutor.ATTACK_RADIUS
-                : ActionExecutor.INTERACT_RADIUS;
+    /** The action's own search radius, so the sphere is the region it will really search. */
+    private static double radiusOf(TimedAction timed) {
+        return timed.settings().target().radius();
     }
 
     private static @Nullable Kind kindOf(ChronoAction action) {
