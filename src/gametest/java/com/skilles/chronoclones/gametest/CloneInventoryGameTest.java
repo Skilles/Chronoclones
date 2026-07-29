@@ -43,6 +43,38 @@ final class CloneInventoryGameTest {
                 CloneInventoryGameTest::heldSlotIsDrawnFromFirst);
         ChronoclonesGameTests.add("held_slot_falls_back_to_a_search",
                 CloneInventoryGameTest::heldSlotFallsBackToASearch);
+        ChronoclonesGameTests.add("mined_loot_fills_the_hotbar_first",
+                CloneInventoryGameTest::minedLootFillsTheHotbarFirst);
+    }
+
+    /** A clone picks up the way a player does: the first free square, which is the hotbar. */
+    private static void minedLootFillsTheHotbarFirst(GameTestHelper helper) {
+        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    ItemStacksResourceHandler inventory = anchor.getCloneInventory(0);
+                    if (AnchorTestFixture.countIn(inventory, Items.COBBLESTONE) == 0) {
+                        helper.fail("the clone stored nothing it mined");
+                        return;
+                    }
+                    if (inventory.getResource(0).getItem() != Items.COBBLESTONE) {
+                        helper.fail("the cobblestone went past the first hotbar square into "
+                                + firstHolding(inventory, Items.COBBLESTONE));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static int firstHolding(ItemStacksResourceHandler inventory, net.minecraft.world.item.Item item) {
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            if (inventory.getResource(slot).getItem() == item) {
+                return slot;
+            }
+        }
+        return -1;
     }
 
     /** The recorded square is where the clone reaches, not merely somewhere the item is. */
