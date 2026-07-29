@@ -122,5 +122,7 @@
   "gui.chronoclones.editor.sticky.off": "Sticky: pick each time",
   "gui.chronoclones.editor.filter.any": "Target: anything",
   "gui.chronoclones.editor.filter.only": "Target: %s only",
-  "gui.chronoclones.editor.radius": "Search: %.1f blocks"
+  "gui.chronoclones.editor.radius": "Search: %.1f blocks",
+  "gui.chronoclones.editor.discard": "Discard routine",
+  "gui.chronoclones.editor.discard.confirm": "Discard? Click again"
 }

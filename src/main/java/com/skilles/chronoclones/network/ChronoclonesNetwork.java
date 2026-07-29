@@ -68,6 +68,10 @@ public final class ChronoclonesNetwork {
                 RoutinePayloads.EditAction.STREAM_CODEC,
                 RoutinePayloads::handleEdit);
 
+        registrar.playToServer(RoutinePayloads.Discard.TYPE,
+                RoutinePayloads.Discard.STREAM_CODEC,
+                RoutinePayloads::handleDiscard);
+
         registrar.playToClient(RoutinePayloads.Open.TYPE,
                 RoutinePayloads.Open.STREAM_CODEC,
                 (payload, context) -> clientRoutineHandler.accept(payload));

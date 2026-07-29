@@ -16,6 +16,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jspecify.annotations.NonNull;
@@ -55,6 +56,12 @@ public class RoutineEditorScreen extends Screen {
 
     private EditBox nameBox;
 
+    /**
+     * A discard is one click from losing a performance nobody can record again, so the button asks
+     * once. Cleared whenever the selection moves, so an armed button cannot be forgotten about.
+     */
+    private boolean discardArmed;
+
     public RoutineEditorScreen(RoutinePayloads.Source source, Recording routine) {
         super(Component.translatable("gui.chronoclones.editor.title"));
         this.source = source;
@@ -83,14 +90,16 @@ public class RoutineEditorScreen extends Screen {
      */
     private void rebuildControls() {
         clearWidgets();
+
+        int paneX = left + MARGIN + LIST_WIDTH + PANE_GAP;
+        int paneWidth = WIDTH - MARGIN * 2 - LIST_WIDTH - PANE_GAP;
+        addDiscardButton(paneX, paneWidth);
+
         if (actions().isEmpty()) {
             return;
         }
 
-        int paneX = left + MARGIN + LIST_WIDTH + PANE_GAP;
-        int paneWidth = WIDTH - MARGIN * 2 - LIST_WIDTH - PANE_GAP;
         int y = top + LIST_Y;
-
         ActionSettings settings = settings();
 
         nameBox = new EditBox(font, paneX, y, paneWidth, CONTROL_HEIGHT,
@@ -106,6 +115,19 @@ public class RoutineEditorScreen extends Screen {
         if (isTargeted()) {
             y = addTargetControls(paneX, paneWidth, y);
         }
+    }
+
+    /** Bottom of the pane, away from everything that only changes a reading. */
+    private void addDiscardButton(int x, int width) {
+        addRenderableWidget(Button.builder(discardLabel(), button -> {
+            if (!discardArmed) {
+                discardArmed = true;
+                button.setMessage(discardLabel());
+                return;
+            }
+            ClientPacketDistributor.sendToServer(new RoutinePayloads.Discard(source));
+            onClose();
+        }).bounds(x, top + HEIGHT - MARGIN - CONTROL_HEIGHT, width, CONTROL_HEIGHT).build());
     }
 
     private int addSlotControl(int x, int width, int y) {
@@ -272,6 +294,7 @@ public class RoutineEditorScreen extends Screen {
         int row = rowAt((int) event.x(), (int) event.y());
         if (row >= 0 && row != selected) {
             selected = row;
+            discardArmed = false;
             rebuildControls();
             return true;
         }
@@ -328,6 +351,13 @@ public class RoutineEditorScreen extends Screen {
         return Component.translatable(settings().target().sticky()
                 ? "gui.chronoclones.editor.sticky.on"
                 : "gui.chronoclones.editor.sticky.off");
+    }
+
+    private Component discardLabel() {
+        return Component.translatable(discardArmed
+                        ? "gui.chronoclones.editor.discard.confirm"
+                        : "gui.chronoclones.editor.discard")
+                .withStyle(discardArmed ? ChatFormatting.RED : ChatFormatting.GRAY);
     }
 
     private Component filterLabel() {

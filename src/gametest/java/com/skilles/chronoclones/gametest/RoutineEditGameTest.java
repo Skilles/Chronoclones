@@ -26,6 +26,24 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::reinterpretingDoesNotRestartClones);
         ChronoclonesGameTests.add("only_the_owner_may_reinterpret",
                 RoutineEditGameTest::onlyTheOwnerMayReinterpret);
+        ChronoclonesGameTests.add("discarding_leaves_the_anchor_blank",
+                RoutineEditGameTest::discardingLeavesTheAnchorBlank);
+    }
+
+    /** What the editor's discard button reaches, once the payload has checked who is asking. */
+    private static void discardingLeavesTheAnchorBlank(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        anchor.clearRecording();
+
+        if (anchor.getRecording() != null) {
+            helper.fail("the anchor kept its routine after being told to discard it");
+        }
+        if (helper.getBlockState(ANCHOR).getValue(
+                com.skilles.chronoclones.block.ChronoAnchorBlock.ACTIVE)) {
+            helper.fail("a blank anchor is still lit as though it were running");
+        }
+        helper.succeed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

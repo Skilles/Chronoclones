@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
@@ -104,6 +105,21 @@ public final class RoutinePayloads {
         }
     }
 
+    /** Client → server: throw this routine away. */
+    public record Discard(Source source) implements CustomPacketPayload {
+
+        public static final CustomPacketPayload.Type<Discard> TYPE =
+                new CustomPacketPayload.Type<>(Chronoclones.id("discard_routine"));
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, Discard> STREAM_CODEC =
+                StreamCodec.composite(Source.STREAM_CODEC, Discard::source, Discard::new);
+
+        @Override
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     // ------------------------------------------------------------------ handling
 
     public static void handleRequest(Request request, IPayloadContext context) {
@@ -128,6 +144,27 @@ public final class RoutinePayloads {
             return;
         }
         write(player, edit.source(), routine.withSettings(edit.index(), edit.settings()));
+    }
+
+    /**
+     * Throws a routine away, subject to the same checks as an edit.
+     */
+    public static void handleDiscard(Discard discard, IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (read(player, discard.source()) == null) {
+            return;
+        }
+
+        if (discard.source().anchor().isEmpty()) {
+            ChronoRecorderItem.clear(player.getItemInHand(discard.source().hand()));
+            return;
+        }
+        ChronoAnchorBlockEntity anchor = anchorFor(player, discard.source().anchor().get());
+        if (anchor != null) {
+            anchor.clearRecording();
+        }
     }
 
     /**
