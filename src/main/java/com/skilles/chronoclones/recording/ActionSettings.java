@@ -4,6 +4,7 @@ import java.util.List;
 
 import net.minecraft.core.Holder;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.Item;
 import net.minecraft.util.StringRepresentable;
 import org.jspecify.annotations.NonNull;
 
@@ -13,10 +14,11 @@ import org.jspecify.annotations.NonNull;
  * <p>Every field starts at what the player did, so a routine nobody has edited behaves exactly as
  * the recording behaved. The editor is where a player opts into anything narrower.
  */
-public record ActionSettings(String name, SlotRule slot, TargetRule target) {
+public record ActionSettings(String name, SlotRule slot, TargetRule target,
+                            TransferRule transfer) {
 
-    public static final ActionSettings DEFAULT =
-            new ActionSettings("", SlotRule.DEFAULT, TargetRule.DEFAULT);
+    public static final ActionSettings DEFAULT = new ActionSettings(
+            "", SlotRule.DEFAULT, TargetRule.DEFAULT, TransferRule.DEFAULT);
 
     /** Empty for "call it whatever the action is", which is what the tooltips already do. */
     public boolean hasName() {
@@ -24,15 +26,19 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target) {
     }
 
     public ActionSettings withName(String name) {
-        return new ActionSettings(name, slot, target);
+        return new ActionSettings(name, slot, target, transfer);
     }
 
     public ActionSettings withSlot(SlotRule slot) {
-        return new ActionSettings(name, slot, target);
+        return new ActionSettings(name, slot, target, transfer);
     }
 
     public ActionSettings withTarget(TargetRule target) {
-        return new ActionSettings(name, slot, target);
+        return new ActionSettings(name, slot, target, transfer);
+    }
+
+    public ActionSettings withTransfer(TransferRule transfer) {
+        return new ActionSettings(name, slot, target, transfer);
     }
 
     /**
@@ -146,6 +152,77 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target) {
 
         public TargetRule withFilter(List<Holder<EntityType<?>>> filter) {
             return new TargetRule(filter, radius, sticky, completion);
+        }
+    }
+
+    /**
+     * What a container session is allowed to carry in and out.
+     *
+     * <p>The squares it may lend from come from the slot rule: an exact rule confines the session to
+     * one square, and anything looser lends the whole inventory, which is what a player does.
+     */
+    public record TransferRule(List<Holder<Item>> items, QuantityRule quantity) {
+
+        public static final TransferRule DEFAULT = new TransferRule(List.of(), QuantityRule.DEFAULT);
+
+        public TransferRule {
+            items = List.copyOf(items);
+        }
+
+        /** An empty list is every item, which is what the clicks alone would have moved. */
+        public boolean allows(Item item) {
+            if (items.isEmpty()) {
+                return true;
+            }
+            for (Holder<Item> allowed : items) {
+                if (allowed.value() == item) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public TransferRule withItems(List<Holder<Item>> items) {
+            return new TransferRule(items, quantity);
+        }
+
+        public TransferRule withQuantity(QuantityRule quantity) {
+            return new TransferRule(items, quantity);
+        }
+    }
+
+    /**
+     * How much a session may carry in total, across every square it lends.
+     */
+    public record QuantityRule(Mode mode, int count) {
+
+        public static final QuantityRule DEFAULT = new QuantityRule(Mode.ANY, 0);
+
+        public enum Mode implements StringRepresentable {
+            /** Whatever the clone is holding, which is what a player would have had. */
+            ANY("any"),
+            /** A ceiling, for a routine that should feed a furnace rather than empty into it. */
+            AT_MOST("at_most");
+
+            private final String name;
+
+            Mode(String name) {
+                this.name = name;
+            }
+
+            @Override
+            public @NonNull String getSerializedName() {
+                return name;
+            }
+        }
+
+        public static QuantityRule atMost(int count) {
+            return count <= 0 ? DEFAULT : new QuantityRule(Mode.AT_MOST, count);
+        }
+
+        /** How many items may be lent before the session must make do. */
+        public int budget() {
+            return mode == Mode.ANY ? Integer.MAX_VALUE : Math.max(0, count);
         }
     }
 }

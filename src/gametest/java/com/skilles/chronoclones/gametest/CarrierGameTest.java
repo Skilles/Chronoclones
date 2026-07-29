@@ -3,6 +3,7 @@ package com.skilles.chronoclones.gametest;
 import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 
 import net.minecraft.core.BlockPos;
@@ -39,6 +40,84 @@ final class CarrierGameTest {
                 CarrierGameTest::clicksTheSquareItRecorded);
         ChronoclonesGameTests.add("carrier_stack_survives_an_imprint",
                 CarrierGameTest::stackSurvivesAnImprint);
+        ChronoclonesGameTests.add("carrier_quantity_rule_caps_what_it_lends",
+                CarrierGameTest::quantityRuleCapsWhatItLends);
+        ChronoclonesGameTests.add("carrier_item_rule_holds_back_what_it_names",
+                CarrierGameTest::itemRuleHoldsBackWhatItNames);
+        ChronoclonesGameTests.add("carrier_exact_slot_rule_lends_one_square",
+                CarrierGameTest::exactSlotRuleLendsOneSquare);
+    }
+
+    /** A ceiling on the amount, for a routine that should feed a furnace rather than fill it. */
+    private static void quantityRuleCapsWhatItLends(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int lent = 9;
+        ChronoAnchorBlockEntity anchor = deposit(helper,
+                List.of(click(menuSlotOf(lent), LEFT, ContainerInput.QUICK_MOVE)),
+                ActionSettings.DEFAULT.withTransfer(ActionSettings.TransferRule.DEFAULT
+                        .withQuantity(ActionSettings.QuantityRule.atMost(5))));
+        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    assertBarrelHolds(helper, target, Items.DIAMOND, 5);
+                    if (countIn(anchor.getCloneInventory(0), Items.DIAMOND) != 27) {
+                        helper.fail("the 27 it was not allowed to carry did not stay home: "
+                                + countIn(anchor.getCloneInventory(0), Items.DIAMOND));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** An item rule leaves everything it does not name behind, so the clicks find an empty square. */
+    private static void itemRuleHoldsBackWhatItNames(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int lent = 9;
+        ChronoAnchorBlockEntity anchor = deposit(helper,
+                List.of(click(menuSlotOf(lent), LEFT, ContainerInput.QUICK_MOVE)),
+                ActionSettings.DEFAULT.withTransfer(ActionSettings.TransferRule.DEFAULT
+                        .withItems(List.of(net.minecraft.core.registries.BuiltInRegistries.ITEM
+                                .wrapAsHolder(Items.OAK_LOG)))));
+        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    assertBarrelHolds(helper, target, Items.DIAMOND, 0);
+                    if (countIn(anchor.getCloneInventory(0), Items.DIAMOND) != 32) {
+                        helper.fail("diamonds moved despite a rule that names only logs");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** An exact slot rule confines a session to one square of the clone's inventory. */
+    private static void exactSlotRuleLendsOneSquare(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        int allowed = 9;
+        int withheld = 10;
+        ChronoAnchorBlockEntity anchor = deposit(helper,
+                List.of(click(menuSlotOf(allowed), LEFT, ContainerInput.QUICK_MOVE),
+                        click(menuSlotOf(withheld), LEFT, ContainerInput.QUICK_MOVE)),
+                ActionSettings.DEFAULT.withSlot(
+                        new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, allowed)));
+        anchor.getCloneInventory(0).set(allowed, ItemResource.of(Items.DIAMOND), 4);
+        anchor.getCloneInventory(0).set(withheld, ItemResource.of(Items.OAK_LOG), 4);
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    assertBarrelHolds(helper, target, Items.DIAMOND, 4);
+                    assertBarrelHolds(helper, target, Items.OAK_LOG, 0);
+                    if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 4) {
+                        helper.fail("a square the rule excludes was lent anyway");
+                    }
+                })
+                .thenSucceed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -199,10 +278,15 @@ final class CarrierGameTest {
 
     private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
                                                    List<ChronoAction.UseContainer.Click> clicks) {
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+        return deposit(helper, clicks, ActionSettings.DEFAULT);
+    }
+
+    private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
+                                                   List<ChronoAction.UseContainer.Click> clicks,
+                                                   ActionSettings settings) {
+        return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
-                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE, List.of(), clicks)));
-        return anchor;
+                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE, List.of(), clicks), settings));
     }
 
     private static void assertBarrelHolds(GameTestHelper helper, BlockPos target,

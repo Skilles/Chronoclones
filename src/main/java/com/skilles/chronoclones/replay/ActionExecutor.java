@@ -517,7 +517,8 @@ public final class ActionExecutor {
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
                                              Placement placement,
                                              java.util.UUID ownerId, String ownerName,
-                                             ItemStacksResourceHandler inventory) {
+                                             ItemStacksResourceHandler inventory,
+                                             ActionSettings settings) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -551,7 +552,7 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
             }
 
-            ContainerCarrier.load(inventory, owner, menu);
+            ContainerCarrier.load(inventory, owner, menu, settings);
             try {
                 for (ChronoAction.UseContainer.Click click : action.clicks()) {
                     if (click.slot() >= menu.slots.size()) {

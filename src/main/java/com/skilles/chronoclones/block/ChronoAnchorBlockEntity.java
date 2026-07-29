@@ -530,7 +530,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
                         serverLevel, a, placement, ownerId, ownerName, inventory, timed.settings());
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
-                        serverLevel, a, placement, ownerId, ownerName, inventory);
+                        serverLevel, a, placement, ownerId, ownerName, inventory, timed.settings());
             };
 
             if (result.succeeded()) {

@@ -269,12 +269,29 @@ public final class RecordingCodecs {
                     .forGetter(ActionSettings.TargetRule::completion)
     ).apply(i, ActionSettings.TargetRule::new));
 
+    static final Codec<ActionSettings.QuantityRule> QUANTITY_RULE = RecordCodecBuilder.create(i -> i.group(
+            StringRepresentable.fromEnum(ActionSettings.QuantityRule.Mode::values)
+                    .optionalFieldOf("mode", ActionSettings.QuantityRule.Mode.ANY)
+                    .forGetter(ActionSettings.QuantityRule::mode),
+            Codec.INT.optionalFieldOf("count", 0).forGetter(ActionSettings.QuantityRule::count)
+    ).apply(i, ActionSettings.QuantityRule::new));
+
+    static final Codec<ActionSettings.TransferRule> TRANSFER_RULE = RecordCodecBuilder.create(i -> i.group(
+            BuiltInRegistries.ITEM.holderByNameCodec().listOf()
+                    .optionalFieldOf("items", List.of())
+                    .forGetter(ActionSettings.TransferRule::items),
+            QUANTITY_RULE.optionalFieldOf("quantity", ActionSettings.QuantityRule.DEFAULT)
+                    .forGetter(ActionSettings.TransferRule::quantity)
+    ).apply(i, ActionSettings.TransferRule::new));
+
     public static final Codec<ActionSettings> ACTION_SETTINGS = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings::name),
             SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
                     .forGetter(ActionSettings::slot),
             TARGET_RULE.optionalFieldOf("target", ActionSettings.TargetRule.DEFAULT)
-                    .forGetter(ActionSettings::target)
+                    .forGetter(ActionSettings::target),
+            TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
+                    .forGetter(ActionSettings::transfer)
     ).apply(i, ActionSettings::new));
 
     static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.SlotRule> SLOT_RULE_STREAM =
@@ -297,11 +314,26 @@ public final class RecordingCodecs {
                     ActionSettings.TargetRule::completion,
                     ActionSettings.TargetRule::new);
 
+    static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.TransferRule> TRANSFER_RULE_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.holderRegistry(Registries.ITEM)
+                            .apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ActionSettings.TransferRule::items,
+                    StreamCodec.composite(
+                            ByteBufCodecs.idMapper(
+                                    id -> ActionSettings.QuantityRule.Mode.values()[id], Enum::ordinal),
+                            ActionSettings.QuantityRule::mode,
+                            ByteBufCodecs.VAR_INT, ActionSettings.QuantityRule::count,
+                            ActionSettings.QuantityRule::new),
+                    ActionSettings.TransferRule::quantity,
+                    ActionSettings.TransferRule::new);
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings> ACTION_SETTINGS_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, ActionSettings::name,
                     SLOT_RULE_STREAM, ActionSettings::slot,
                     TARGET_RULE_STREAM, ActionSettings::target,
+                    TRANSFER_RULE_STREAM, ActionSettings::transfer,
                     ActionSettings::new);
 
     // ------------------------------------------------------------------ timed action

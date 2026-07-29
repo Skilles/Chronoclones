@@ -124,5 +124,9 @@
   "gui.chronoclones.editor.filter.only": "Target: %s only",
   "gui.chronoclones.editor.radius": "Search: %.1f blocks",
   "gui.chronoclones.editor.discard": "Discard routine",
-  "gui.chronoclones.editor.discard.confirm": "Discard? Click again"
+  "gui.chronoclones.editor.discard.confirm": "Discard? Click again",
+  "gui.chronoclones.editor.items.any": "Carry: anything",
+  "gui.chronoclones.editor.items.only": "Carry: %s recorded items only",
+  "gui.chronoclones.editor.quantity.any": "Amount: as much as it has",
+  "gui.chronoclones.editor.quantity": "Amount: at most %s"
 }

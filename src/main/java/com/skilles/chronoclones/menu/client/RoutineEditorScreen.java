@@ -6,12 +6,17 @@ import com.skilles.chronoclones.item.RecordingDetail;
 import com.skilles.chronoclones.network.RoutinePayloads;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
+import com.skilles.chronoclones.recording.ActionSettings.QuantityRule;
 import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
+import com.skilles.chronoclones.recording.ActionSettings.TransferRule;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.Item;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
@@ -113,8 +118,35 @@ public class RoutineEditorScreen extends Screen {
 
         y = addSlotControl(paneX, paneWidth, y);
         if (isTargeted()) {
-            y = addTargetControls(paneX, paneWidth, y);
+            addTargetControls(paneX, paneWidth, y);
+        } else if (action() instanceof ChronoAction.UseContainer session) {
+            addTransferControls(paneX, paneWidth, y, session);
         }
+    }
+
+    private void addTransferControls(int x, int width, int y, ChronoAction.UseContainer session) {
+        addRenderableWidget(Button.builder(itemsLabel(), button -> {
+            TransferRule rule = settings().transfer();
+            apply(settings().withTransfer(rule.withItems(rule.items().isEmpty()
+                    ? carriedItems(session)
+                    : List.of())));
+            button.setMessage(itemsLabel());
+        }).bounds(x, y, width, CONTROL_HEIGHT).build());
+        y += CONTROL_HEIGHT + CONTROL_GAP;
+
+        addRenderableWidget(new QuantitySlider(x, y, width, CONTROL_HEIGHT,
+                settings().transfer().quantity(),
+                cap -> apply(settings().withTransfer(
+                        settings().transfer().withQuantity(QuantityRule.atMost(cap))))));
+    }
+
+    /** The items the session was recorded carrying, which is what "only these" means. */
+    private static List<Holder<Item>> carriedItems(ChronoAction.UseContainer session) {
+        return session.carrier().stream()
+                .map(carried -> carried.stack().getItem())
+                .distinct()
+                .map(BuiltInRegistries.ITEM::wrapAsHolder)
+                .toList();
     }
 
     /** Bottom of the pane, away from everything that only changes a reading. */
@@ -142,7 +174,7 @@ public class RoutineEditorScreen extends Screen {
         return y + CONTROL_HEIGHT + CONTROL_GAP;
     }
 
-    private int addTargetControls(int x, int width, int y) {
+    private void addTargetControls(int x, int width, int y) {
         addRenderableWidget(Button.builder(completionLabel(), button -> {
             TargetRule rule = settings().target();
             apply(settings().withTarget(rule.withCompletion(
@@ -171,8 +203,6 @@ public class RoutineEditorScreen extends Screen {
 
         addRenderableWidget(new RadiusSlider(x, y, width, CONTROL_HEIGHT, settings().target(),
                 radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
-
-        return y + CONTROL_HEIGHT + CONTROL_GAP;
     }
 
     // ------------------------------------------------------------------ the selected action
@@ -358,6 +388,13 @@ public class RoutineEditorScreen extends Screen {
                         ? "gui.chronoclones.editor.discard.confirm"
                         : "gui.chronoclones.editor.discard")
                 .withStyle(discardArmed ? ChatFormatting.RED : ChatFormatting.GRAY);
+    }
+
+    private Component itemsLabel() {
+        List<Holder<Item>> items = settings().transfer().items();
+        return items.isEmpty()
+                ? Component.translatable("gui.chronoclones.editor.items.any")
+                : Component.translatable("gui.chronoclones.editor.items.only", items.size());
     }
 
     private Component filterLabel() {

@@ -1,5 +1,8 @@
 package com.skilles.chronoclones.replay;
 
+import com.skilles.chronoclones.recording.ActionSettings;
+import com.skilles.chronoclones.recording.ActionSettings.TransferRule;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
@@ -22,22 +25,51 @@ public final class ContainerCarrier {
 
     private ContainerCarrier() {}
 
-    /** Moves the clone's inventory into the fake player, square for square. */
+    /**
+     * Moves the clone's inventory into the fake player, square for square, as far as the rules
+     * allow.
+     *
+     * <p>Anything held back simply stays home, so the session finds an empty square and its clicks
+     * move nothing. That is the same shape as a player who walked up with less than last time.
+     */
     public static void load(ItemStacksResourceHandler inventory, FakePlayer player,
-                            AbstractContainerMenu menu) {
+                            AbstractContainerMenu menu, ActionSettings settings) {
         Inventory target = player.getInventory();
         target.clearContent();
         menu.setCarried(ItemStack.EMPTY);
 
+        TransferRule rule = settings.transfer();
+        int budget = rule.quantity().budget();
+
         for (int slot = 0; slot < Math.min(inventory.size(), Inventory.INVENTORY_SIZE); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            int amount = inventory.getAmountAsInt(slot);
-            if (resource.isEmpty() || amount <= 0) {
+            if (budget <= 0) {
+                return;
+            }
+            if (!lendable(settings, slot)) {
                 continue;
             }
-            target.setItem(slot, resource.toStack(amount));
-            inventory.set(slot, ItemResource.EMPTY, 0);
+
+            ItemResource resource = inventory.getResource(slot);
+            int amount = inventory.getAmountAsInt(slot);
+            if (resource.isEmpty() || amount <= 0 || !rule.allows(resource.getItem())) {
+                continue;
+            }
+
+            int lent = Math.min(amount, budget);
+            budget -= lent;
+
+            target.setItem(slot, resource.toStack(lent));
+            if (lent == amount) {
+                inventory.set(slot, ItemResource.EMPTY, 0);
+            } else {
+                inventory.set(slot, resource, amount - lent);
+            }
         }
+    }
+
+    /** An exact slot rule confines a session to one square; anything looser lends them all. */
+    private static boolean lendable(ActionSettings settings, int slot) {
+        return !settings.slot().strict() || slot == settings.slot().slot();
     }
 
     /**

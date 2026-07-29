@@ -87,7 +87,10 @@ class ActionSettingsTest {
                 .withTarget(TargetRule.DEFAULT
                         .withRadius(6.5)
                         .withSticky(true)
-                        .withCompletion(TargetRule.Completion.UNTIL_DEAD));
+                        .withCompletion(TargetRule.Completion.UNTIL_DEAD))
+                .withTransfer(ActionSettings.TransferRule.DEFAULT
+                        .withItems(List.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.BREAD)))
+                        .withQuantity(ActionSettings.QuantityRule.atMost(16)));
 
         var encoded = RecordingCodecs.ACTION_SETTINGS.encodeStart(JsonOps.INSTANCE, original)
                 .getOrThrow();
@@ -95,6 +98,32 @@ class ActionSettingsTest {
                 .parse(JsonOps.INSTANCE, encoded).getOrThrow();
 
         assertEquals(original, decoded);
+    }
+
+    @Test
+    @DisplayName("an empty item list carries anything, so an unedited session behaves as before")
+    void emptyItemListCarriesAnything() {
+        assertTrue(ActionSettings.TransferRule.DEFAULT.allows(Items.BREAD));
+        assertTrue(ActionSettings.TransferRule.DEFAULT.allows(Items.DIAMOND));
+        assertEquals(Integer.MAX_VALUE, ActionSettings.QuantityRule.DEFAULT.budget(),
+                "no ceiling means no ceiling, not a ceiling of zero");
+    }
+
+    @Test
+    @DisplayName("an item list carries only what it names")
+    void itemListCarriesOnlyWhatItNames() {
+        ActionSettings.TransferRule rule = ActionSettings.TransferRule.DEFAULT
+                .withItems(List.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.BREAD)));
+
+        assertTrue(rule.allows(Items.BREAD));
+        assertFalse(rule.allows(Items.DIAMOND));
+    }
+
+    @Test
+    @DisplayName("a ceiling of nothing at all is no ceiling, not a refusal to carry")
+    void zeroCapIsNoCap() {
+        assertEquals(ActionSettings.QuantityRule.DEFAULT, ActionSettings.QuantityRule.atMost(0));
+        assertEquals(16, ActionSettings.QuantityRule.atMost(16).budget());
     }
 
     @Test
