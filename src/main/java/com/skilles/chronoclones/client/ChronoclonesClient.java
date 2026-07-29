@@ -13,6 +13,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 
 import net.minecraft.client.Minecraft;
 import net.neoforged.api.distmarker.Dist;
+import com.skilles.chronoclones.menu.client.RoutineEditorScreen;
+
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -33,12 +35,19 @@ public class ChronoclonesClient {
         ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
         ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
         ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
+        ChronoclonesNetwork.clientRoutineHandler = ChronoclonesClient::openRoutineEditor;
         // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask.
         RecordingTooltips.detailRequested = () -> {
             var window = Minecraft.getInstance().getWindow();
             return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
                     || InputConstants.isKeyDown(window, InputConstants.KEY_RSHIFT);
         };
+    }
+
+    /** The server sends a routine when the player asks to edit one; opening it is all that is left. */
+    private static void openRoutineEditor(com.skilles.chronoclones.network.RoutinePayloads.Open open) {
+        Minecraft.getInstance().setScreenAndShow(
+                new RoutineEditorScreen(open.source(), open.recording()));
     }
 
     @SubscribeEvent

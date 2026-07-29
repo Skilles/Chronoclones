@@ -53,6 +53,7 @@ public final class ChronoclonesGameTests {
         CloneInventoryGameTest.register();
         MenuPagingGameTest.register();
         AttackIntentGameTest.register();
+        RoutineEditGameTest.register();
     }
 
     /** Declares a test. The name becomes both the function id and the instance id. */

@@ -248,6 +248,17 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         setChanged();
     }
 
+    /**
+     * Swaps in the same performance read differently, leaving the clones mid-stride.
+     *
+     * <p>Only the settings may change this way, so the motion track and the playheads still mean
+     * what they meant; rebuilding the runtimes would restart every clone on an edit.
+     */
+    public void reinterpret(Recording routine) {
+        this.recording = routine;
+        setChanged();
+    }
+
     public void clearRecording() {
         discardClones();
         runtimes.clear();

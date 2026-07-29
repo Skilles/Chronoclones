@@ -130,6 +130,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
     }
 
+    /** Where this menu's anchor stands, for anything that has to name it over the network. */
+    public BlockPos getAnchorPos() {
+        return anchor.getBlockPos();
+    }
+
     /** Clamped on read, so a clone going away takes its page with it. */
     public int getSelectedClone() {
         return Math.min(selectedClone, Math.max(0, getActiveClones() - 1));

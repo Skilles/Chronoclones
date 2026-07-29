@@ -4,7 +4,11 @@ import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
+import com.skilles.chronoclones.network.RoutinePayloads;
+
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -33,6 +37,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private boolean drawerOpen;
     private boolean drawerOnLeft;
 
+    private Button editButton;
+
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x and must go through the 5-arg constructor.
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
@@ -44,12 +50,19 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         drawerOnLeft = DrawerLayout.opensLeft(width, leftPos, imageWidth);
 
-        // TODO - make a better tab for settings once we have some
-        /*addRenderableWidget(new DrawerTab(font,
+        addRenderableWidget(new DrawerTab(font,
                 Component.translatable("gui.chronoclones.anchor.settings"),
                 drawerOnLeft, () -> drawerOpen, () -> drawerOpen = !drawerOpen))
                 .setPosition(DrawerLayout.tabX(drawerOnLeft, leftPos, imageWidth),
-                        topPos + DRAWER_TAB_Y);*/
+                        topPos + DRAWER_TAB_Y);
+
+        // Repositioned by the drawer as it slides, and only shown once it has finished arriving.
+        editButton = addRenderableWidget(Button.builder(
+                        Component.translatable("gui.chronoclones.anchor.settings.edit"),
+                        button -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
+                                RoutinePayloads.Source.ofAnchor(menu.getAnchorPos()))))
+                .bounds(0, 0, DrawerLayout.WIDTH - DRAWER_PADDING * 2, 16).build());
+        editButton.visible = false;
     }
 
     @Override
@@ -227,6 +240,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private void drawer(GuiGraphicsExtractor extractor, int xo, int yo, float partialTick) {
         float eased = previousOpenness + (openness - previousOpenness) * partialTick;
         int open = Math.round(DrawerLayout.WIDTH * eased);
+        editButton.visible = open >= DrawerLayout.WIDTH && menu.getLengthTicks() > 0;
         if (open <= 0) {
             return;
         }
@@ -239,8 +253,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         if (open >= DrawerLayout.WIDTH) {
             extractor.text(font, Component.translatable("gui.chronoclones.anchor.settings"),
                     x + DRAWER_PADDING, top + DRAWER_TITLE_Y, AnchorPanels.ACCENT);
-            extractor.text(font, Component.translatable("gui.chronoclones.anchor.settings.empty"),
-                    x + DRAWER_PADDING, top + DRAWER_TITLE_Y + 14, AnchorPanels.MUTED);
+            editButton.setPosition(x + DRAWER_PADDING, top + DRAWER_TITLE_Y + 14);
         }
     }
 

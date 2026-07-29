@@ -7,6 +7,7 @@ import com.skilles.chronoclones.recording.ContainerWatch;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
+import com.skilles.chronoclones.network.RoutinePayloads;
 import com.skilles.chronoclones.registry.ModDataComponents;
 import com.skilles.chronoclones.registry.RecordingProgress;
 
@@ -23,6 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.Level;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -74,6 +76,13 @@ public class ChronoRecorderItem extends Item {
         if (discarding) {
             if (state == State.IDLE) {
                 return InteractionResult.PASS;
+            }
+            // A finished routine is the one thing worth opening rather than throwing away.
+            if (state == State.HOLDING) {
+                PacketDistributor.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
+                        RoutinePayloads.Source.ofHand(hand),
+                        stack.get(ModDataComponents.RECORDING.get())));
+                return InteractionResult.SUCCESS;
             }
             // Only if THIS recorder owns the session; another may be capturing in the same
             // inventory.

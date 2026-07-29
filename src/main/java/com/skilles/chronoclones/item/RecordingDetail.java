@@ -53,6 +53,11 @@ public final class RecordingDetail {
                 .append(describe(timed.action()));
     }
 
+    /** What one action does, for a row that has not been given a name of its own. */
+    public static Component summary(ChronoAction action) {
+        return describe(action);
+    }
+
     private static Component describe(ChronoAction action) {
         return switch (action) {
             case ChronoAction.BreakBlock a -> Component.translatable("tooltip.chronoclones.detail.break",

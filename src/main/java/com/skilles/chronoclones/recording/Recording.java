@@ -35,6 +35,15 @@ public record Recording(
         return motion.isEmpty() && actions.isEmpty();
     }
 
+    /**
+     * The same performance, read differently at one action.
+     */
+    public Recording withSettings(int index, ActionSettings settings) {
+        List<TimedAction> edited = new java.util.ArrayList<>(actions);
+        edited.set(index, edited.get(index).withSettings(settings));
+        return new Recording(motion, edited, lengthTicks, authorName, authorId, creative);
+    }
+
     public int lengthSeconds() {
         return lengthTicks / 20;
     }

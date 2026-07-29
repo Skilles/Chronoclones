@@ -29,6 +29,9 @@ public final class ChronoclonesNetwork {
     /** And for the anchors the goggles reveal. */
     public static volatile Consumer<GogglePayloads.Reply> clientGoggleHandler = reply -> { };
 
+    /** And for a routine arriving to be edited. */
+    public static volatile Consumer<RoutinePayloads.Open> clientRoutineHandler = open -> { };
+
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
@@ -56,5 +59,17 @@ public final class ChronoclonesNetwork {
         registrar.playToClient(GogglePayloads.Reply.TYPE,
                 GogglePayloads.Reply.STREAM_CODEC,
                 (payload, context) -> clientGoggleHandler.accept(payload));
+
+        registrar.playToServer(RoutinePayloads.Request.TYPE,
+                RoutinePayloads.Request.STREAM_CODEC,
+                RoutinePayloads::handleRequest);
+
+        registrar.playToServer(RoutinePayloads.EditAction.TYPE,
+                RoutinePayloads.EditAction.STREAM_CODEC,
+                RoutinePayloads::handleEdit);
+
+        registrar.playToClient(RoutinePayloads.Open.TYPE,
+                RoutinePayloads.Open.STREAM_CODEC,
+                (payload, context) -> clientRoutineHandler.accept(payload));
     }
 }
