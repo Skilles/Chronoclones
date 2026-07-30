@@ -822,6 +822,9 @@ public class RoutineEditorScreen extends Screen {
     }
 
     private static String typeKey(ChronoAction action) {
+        if (action instanceof ChronoAction.UseContainer useContainer && useContainer.target() instanceof MenuTarget.Entity) {
+            return "gui.chronoclones.editor.type." + action.type().getSerializedName() + ".entity";
+        }
         return "gui.chronoclones.editor.type." + action.type().getSerializedName();
     }
 

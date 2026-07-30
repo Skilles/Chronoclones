@@ -142,6 +142,7 @@
   "gui.chronoclones.editor.type.break_block": "Break block",
   "gui.chronoclones.editor.type.place_block": "Place block",
   "gui.chronoclones.editor.type.use_container": "Container",
+  "gui.chronoclones.editor.type.use_container.entity": "Mob Container",
   "gui.chronoclones.editor.type.attack_entity": "Attack",
   "gui.chronoclones.editor.type.use_on_block": "Use on block",
   "gui.chronoclones.editor.type.use_item": "Use item",
@@ -169,6 +170,6 @@
   "gui.chronoclones.editor.quantity.any": "All held",
   "gui.chronoclones.editor.quantity": "At most %s",
   "gui.chronoclones.editor.radius": "%.1f blocks",
-  "gui.chronoclones.editor.discard": "Discard recording",
-  "gui.chronoclones.editor.discard.confirm": "Really discard?"
+  "gui.chronoclones.editor.discard": "Discard",
+  "gui.chronoclones.editor.discard.confirm": "Are you sure?"
 }
