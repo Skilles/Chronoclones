@@ -162,6 +162,31 @@ public class RoutineEditorScreen extends Screen {
         return new Row(Math.clamp(selected, 0, Math.max(0, actions().size() - 1)), selectedStep);
     }
 
+    /**
+     * Brings the selection into view and keeps the scroll inside the list it is scrolling.
+     *
+     * <p>Selecting a session opens its steps and selecting another closes them again, so the number
+     * of rows changes under the scroll. Left alone, a scroll that made sense for the longer list
+     * strands the shorter one below its own end, which reads as scrolling having stopped working.
+     */
+    private void revealSelection() {
+        List<Row> rows = rows();
+        int index = rows.indexOf(selectedRow());
+
+        if (index >= 0) {
+            if (index < scroll) {
+                scroll = index;
+            }
+            // Show as much of an opened session as fits, without pushing its own row off the top.
+            List<SessionStep> steps = selectedRow().isStep() ? null : steps(selectedRow().action());
+            int last = index + (steps == null ? 0 : steps.size());
+            if (last >= scroll + rowsVisible()) {
+                scroll = Math.min(last - rowsVisible() + 1, index);
+            }
+        }
+        scroll = Math.clamp(scroll, 0, Math.max(0, rows.size() - rowsVisible()));
+    }
+
     // ------------------------------------------------------------------ controls
 
     /**
@@ -169,6 +194,7 @@ public class RoutineEditorScreen extends Screen {
      * question about the selected row rather than about the screen.
      */
     private void rebuildControls() {
+        revealSelection();
         clearWidgets();
         addTitleBar();
         addBottomBar();

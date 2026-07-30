@@ -67,10 +67,7 @@ public final class SessionSteps {
                     steps.add(pickup.raw());
                     pickup = null;
                 }
-                // An anvil's name field sends a packet per keystroke, and only the name the player
-                // stopped typing is the name they meant.
-                if (done.step() instanceof SessionStep.Rename
-                        && !steps.isEmpty() && steps.getLast() instanceof SessionStep.Rename) {
+                if (supersedes(done.step(), steps.isEmpty() ? null : steps.getLast())) {
                     steps.set(steps.size() - 1, done.step());
                     continue;
                 }
@@ -117,6 +114,25 @@ public final class SessionSteps {
             steps.add(pickup.raw());
         }
         return steps;
+    }
+
+    /**
+     * Whether a step simply replaces the one before it rather than following it.
+     *
+     * <p>An anvil's name field sends a packet per keystroke, and only the name the player stopped
+     * typing is the name they meant. Choosing a merchant's offer is the same shape: selecting it
+     * again refills the payment squares and buys nothing, so two in a row are one choice, where two
+     * separated by taking the result are two purchases.
+     */
+    private static boolean supersedes(SessionStep step, @Nullable SessionStep previous) {
+        if (previous == null) {
+            return false;
+        }
+        return switch (step) {
+            case SessionStep.Rename ignored -> previous instanceof SessionStep.Rename;
+            case SessionStep.Trade trade -> previous.equals(trade);
+            default -> false;
+        };
     }
 
     /**

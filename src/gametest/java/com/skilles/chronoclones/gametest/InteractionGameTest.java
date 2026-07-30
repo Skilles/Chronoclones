@@ -61,6 +61,32 @@ final class InteractionGameTest {
                 InteractionGameTest::moveStepOverNothing);
         ChronoclonesGameTests.add("a_right_drag_takes_one_item_out_of_a_stack",
                 InteractionGameTest::rightDragTakesOneItem);
+        ChronoclonesGameTests.add("a_session_on_a_plain_block_says_there_is_nothing_to_open",
+                InteractionGameTest::sessionWithoutAMenuSaysSo);
+    }
+
+    /**
+     * A session whose container has been replaced by something with no menu.
+     *
+     * <p>Reported as its own thing rather than as the failure an attack gives when it swings at
+     * empty air: they read very differently to somebody trying to work out what their farm is doing.
+     */
+    private static void sessionWithoutAMenuSaysSo(GameTestHelper helper) {
+        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        click(0, LEFT, ContainerInput.QUICK_MOVE))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (anchor.getLastFailure().reason()
+                            != DiagnosticState.FailureReason.NO_MENU) {
+                        helper.fail("expected a block with no menu to say so, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
     }
 
     /**

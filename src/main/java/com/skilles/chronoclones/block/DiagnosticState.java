@@ -57,6 +57,18 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
          */
         NO_EXPERIENCE("no_experience", false),
 
+        /** There is something there, but it has no menu a clone can open. */
+        NO_MENU("no_menu", false),
+
+        /** The merchant is still there and still trading, but not this. */
+        NO_OFFER("no_offer", false),
+
+        /**
+         * The offer exists and is sold out. Transient by nature: a merchant restocks, so this says
+         * so rather than reporting the trade as missing.
+         */
+        OUT_OF_STOCK("out_of_stock", false),
+
         /** An action told to finish something ran out of patience for it. */
         UNFINISHED("unfinished", false),
         /** No matching item in the anchor inventory to place. */

@@ -7,6 +7,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -228,6 +229,31 @@ class SessionStepsTest {
                 did(new SessionStep.Rename("Tunneler"))));
 
         assertEquals(List.of(new SessionStep.Rename("Tunneler")), steps);
+    }
+
+    @Test
+    @DisplayName("choosing the same offer twice running is one choice")
+    void repeatedTradesCollapse() {
+        // Clicking an offer refills the payment squares and buys nothing, so the second click of a
+        // pair is the same choice made again, not a second purchase.
+        SessionStep.Trade bread = new SessionStep.Trade(ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY);
+
+        assertEquals(List.of(bread),
+                SessionSteps.interpret(List.of(did(bread), did(bread), did(bread))));
+    }
+
+    @Test
+    @DisplayName("two of the same trade with the result taken between them are two purchases")
+    void tradesSeparatedByTakingTheResultBothSurvive() {
+        SessionStep.Trade bread = new SessionStep.Trade(ItemStack.EMPTY, ItemStack.EMPTY,
+                ItemStack.EMPTY);
+
+        List<SessionStep> steps = SessionSteps.interpret(
+                List.of(did(bread), take(2, 0), put(54, 0), did(bread)));
+
+        assertEquals(List.of(SessionStep.Kind.TRADE, SessionStep.Kind.MOVE, SessionStep.Kind.TRADE),
+                steps.stream().map(SessionStep::kind).toList());
     }
 
     @Test

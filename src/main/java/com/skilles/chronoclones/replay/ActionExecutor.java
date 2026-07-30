@@ -557,7 +557,7 @@ public final class ActionExecutor {
         try {
             Session session = openMenu(level, action, worldPoint, operator, settings, owner);
             if (session == null) {
-                return Result.fail(FailureReason.NO_TARGET, localBlock);
+                return Result.fail(FailureReason.NO_MENU, localBlock);
             }
             AbstractContainerMenu menu = session.menu();
             // Slot indices mean nothing outside the menu that produced them, so a differently
@@ -699,32 +699,34 @@ public final class ActionExecutor {
             return FailureReason.NO_EXPERIENCE;
         }
 
-        boolean ran = switch (step) {
-            case SessionStep.Move move -> runMove(menu, owner, move, rule);
+        return switch (step) {
+            case SessionStep.Move move -> runMove(menu, owner, move, rule)
+                    ? FailureReason.NONE
+                    // A square this menu does not have means it is not the menu that was recorded.
+                    : FailureReason.WRONG_BLOCK;
             case SessionStep.RawClick raw -> {
                 if (raw.slot() >= menu.slots.size()) {
-                    yield false;
+                    yield FailureReason.WRONG_BLOCK;
                 }
                 // The square the player clicked, whatever is in it now.
                 menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
-                yield true;
+                yield FailureReason.NONE;
             }
             // A refused button is not a broken session: a menu that declines one simply does not
             // do that thing, and the steps after it may still have work to do.
             case SessionStep.Button button -> {
                 menu.clickMenuButton(owner, button.id());
-                yield true;
+                yield FailureReason.NONE;
             }
             case SessionStep.Trade trade -> runTrade(menu, trade);
             case SessionStep.Rename rename -> {
                 if (menu instanceof AnvilMenu anvil) {
                     anvil.setItemName(rename.text());
-                    yield true;
+                    yield FailureReason.NONE;
                 }
-                yield false;
+                yield FailureReason.WRONG_BLOCK;
             }
         };
-        return ran ? FailureReason.NONE : FailureReason.NO_TARGET;
     }
 
     /**
@@ -783,20 +785,27 @@ public final class ActionExecutor {
      * not the same promise as the fifth trade today. Counts are not matched either, because a price
      * moves with demand and reputation and the player wanted the trade, not the price.
      */
-    private static boolean runTrade(AbstractContainerMenu menu, SessionStep.Trade trade) {
+    private static FailureReason runTrade(AbstractContainerMenu menu, SessionStep.Trade trade) {
         if (!(menu instanceof MerchantMenu merchant)) {
-            return false;
+            return FailureReason.WRONG_BLOCK;
         }
         MerchantOffers offers = merchant.getOffers();
         for (int index = 0; index < offers.size(); index++) {
-            if (matches(offers.get(index), trade)) {
-                merchant.setSelectionHint(index);
-                merchant.tryMoveItems(index);
-                return true;
+            MerchantOffer offer = offers.get(index);
+            if (!matches(offer, trade)) {
+                continue;
             }
+            // Sold out is worth saying: the payment would go in, no result would come out, and the
+            // session would look like it had simply decided not to work today.
+            if (offer.isOutOfStock()) {
+                return FailureReason.OUT_OF_STOCK;
+            }
+            merchant.setSelectionHint(index);
+            merchant.tryMoveItems(index);
+            return FailureReason.NONE;
         }
         // The merchant no longer offers it, so there is nothing to buy and nothing to guess at.
-        return false;
+        return FailureReason.NO_OFFER;
     }
 
     private static boolean matches(MerchantOffer offer, SessionStep.Trade trade) {

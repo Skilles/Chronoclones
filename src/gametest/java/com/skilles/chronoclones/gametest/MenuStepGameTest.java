@@ -38,6 +38,8 @@ final class MenuStepGameTest {
                 MenuStepGameTest::tradeSurvivesReordering);
         ChronoclonesGameTests.add("trade_refuses_an_offer_that_is_gone",
                 MenuStepGameTest::tradeRefusesAMissingOffer);
+        ChronoclonesGameTests.add("trade_says_so_when_the_merchant_is_sold_out",
+                MenuStepGameTest::tradeReportsBeingSoldOut);
         ChronoclonesGameTests.add("session_finds_a_villager_that_wandered",
                 MenuStepGameTest::sessionFindsAVillagerThatMoved);
         ChronoclonesGameTests.add("anvil_names_what_it_is_given",
@@ -102,13 +104,41 @@ final class MenuStepGameTest {
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.BREAD) != 0) {
                         helper.fail("the clone bought bread it was never told to buy");
                     }
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_TARGET) {
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_OFFER) {
                         helper.fail("expected the missing offer to be reported, got "
                                 + anchor.getLastFailure().reason());
                     }
                     // And the payment is still in the anchor rather than in a villager's pocket.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.EMERALD) != 1) {
                         helper.fail("the emerald was spent on a trade that never happened");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * Sold out looks exactly like working normally unless somebody says otherwise: the payment goes
+     * in, no result comes out, and the session appears to have decided not to bother today.
+     */
+    private static void tradeReportsBeingSoldOut(GameTestHelper helper) {
+        Villager villager = merchant(helper, ANCHOR.north(),
+                offer(Items.EMERALD, 1, Items.APPLE, 4));
+        ChronoAnchorBlockEntity anchor = tradingAnchor(helper, villager, Items.APPLE, 4);
+
+        villager.getOffers().getFirst().setToOutOfStock();
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (anchor.getLastFailure().reason()
+                            != DiagnosticState.FailureReason.OUT_OF_STOCK) {
+                        helper.fail("expected being sold out to be reported, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.APPLE) != 0) {
+                        helper.fail("a sold-out offer was traded anyway");
+                    }
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.EMERALD) != 1) {
+                        helper.fail("the payment was left in a sold-out merchant's slots");
                     }
                 })
                 .thenSucceed();
