@@ -18,12 +18,14 @@ import com.skilles.chronoclones.registry.ModTags;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
@@ -32,12 +34,14 @@ import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.EnchantmentMenu;
 import net.minecraft.world.inventory.HorseInventoryMenu;
 import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.item.trading.Merchant;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
@@ -564,8 +568,9 @@ public final class ActionExecutor {
             ContainerCarrier.load(inventory, owner, menu, settings);
             try {
                 for (SessionStep step : action.steps()) {
-                    if (!runStep(menu, owner, step)) {
-                        return Result.fail(FailureReason.NO_TARGET, localBlock);
+                    FailureReason refusal = runStep(menu, owner, step);
+                    if (refusal != FailureReason.NONE) {
+                        return Result.fail(refusal, localBlock);
                     }
                 }
             } finally {
@@ -678,11 +683,17 @@ public final class ActionExecutor {
     /**
      * One step of a session.
      *
-     * @return false when the step names a square this menu does not have, which means the menu is
-     *         not the one that was recorded and nothing further should be clicked in it
+     * @return {@link FailureReason#NONE} if it ran, and otherwise why the session stops here. A step
+     *         that names a square this menu does not have means the menu is not the one recorded, so
+     *         nothing further should be clicked in it.
      */
-    private static boolean runStep(AbstractContainerMenu menu, FakePlayer owner, SessionStep step) {
-        return switch (step) {
+    private static FailureReason runStep(AbstractContainerMenu menu, FakePlayer owner, SessionStep step) {
+        int levels = experienceCost(menu, step);
+        if (levels > 0 && owner.experienceLevel < levels && !drinkUpTo(owner, levels)) {
+            return FailureReason.NO_EXPERIENCE;
+        }
+
+        boolean ran = switch (step) {
             case SessionStep.Move move -> runMove(menu, owner, move);
             case SessionStep.RawClick raw -> {
                 if (raw.slot() >= menu.slots.size()) {
@@ -692,8 +703,8 @@ public final class ActionExecutor {
                 menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
                 yield true;
             }
-            // A refused button is not a broken session: an enchantment the clone cannot afford
-            // simply does not happen, and the steps after it may still have work to do.
+            // A refused button is not a broken session: a menu that declines one simply does not
+            // do that thing, and the steps after it may still have work to do.
             case SessionStep.Button button -> {
                 menu.clickMenuButton(owner, button.id());
                 yield true;
@@ -707,6 +718,56 @@ public final class ActionExecutor {
                 yield false;
             }
         };
+        return ran ? FailureReason.NONE : FailureReason.NO_TARGET;
+    }
+
+    /**
+     * What this step will charge in levels, before it is attempted.
+     *
+     * <p>Asked in advance because the menus that charge simply decline when they cannot: an
+     * enchantment the clone cannot afford does nothing at all, and nothing says why.
+     */
+    private static int experienceCost(AbstractContainerMenu menu, SessionStep step) {
+        if (menu instanceof EnchantmentMenu table && step instanceof SessionStep.Button button) {
+            int id = button.id();
+            return id >= 0 && id < table.costs.length ? table.costs[id] : 0;
+        }
+        // The anvil charges when the work is taken out, not when it is set up.
+        if (menu instanceof AnvilMenu anvil && step instanceof SessionStep.Move move
+                && move.from() == AnvilMenu.RESULT_SLOT) {
+            return anvil.getCost();
+        }
+        return 0;
+    }
+
+    /**
+     * Drinks bottles o' enchanting out of the clone's own stock until it can afford the work.
+     *
+     * <p>Consumed rather than thrown: a bottle that has to land somewhere would make this a thing
+     * that happens over several ticks, in the middle of an open menu.
+     */
+    private static boolean drinkUpTo(FakePlayer owner, int levels) {
+        while (owner.experienceLevel < levels) {
+            int slot = findInInventory(owner, Items.EXPERIENCE_BOTTLE);
+            if (slot < 0) {
+                return false;
+            }
+            owner.getInventory().removeItem(slot, 1);
+            // Vanilla's own spread for a thrown bottle: 3 to 11.
+            RandomSource random = owner.level().getRandom();
+            owner.giveExperiencePoints(3 + random.nextInt(5) + random.nextInt(5));
+        }
+        return true;
+    }
+
+    private static int findInInventory(FakePlayer owner, Item item) {
+        Inventory inventory = owner.getInventory();
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            if (inventory.getItem(slot).is(item)) {
+                return slot;
+            }
+        }
+        return -1;
     }
 
     /**

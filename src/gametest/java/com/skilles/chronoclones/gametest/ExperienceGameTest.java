@@ -92,7 +92,10 @@ final class ExperienceGameTest {
                     List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class,
                             new AABB(absolute).inflate(5.0));
                     int total = orbs.stream().mapToInt(ExperienceOrb::getValue).sum();
-                    if (total != 40) {
+                    // At least, not exactly: the box has to be wide enough for a spilled orb's random
+                    // motion, and every test shares one world, so a villager trading in the next test
+                    // along drops orbs of its own within reach of it.
+                    if (total < 40) {
                         helper.fail("expected 40 points back on the ground, found " + total);
                     }
                 })

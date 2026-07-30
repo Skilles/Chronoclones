@@ -42,6 +42,10 @@ final class MenuStepGameTest {
                 MenuStepGameTest::sessionFindsAVillagerThatMoved);
         ChronoclonesGameTests.add("anvil_names_what_it_is_given",
                 MenuStepGameTest::anvilNamesWhatItIsGiven);
+        ChronoclonesGameTests.add("anvil_without_banked_experience_says_so",
+                MenuStepGameTest::anvilWithoutExperienceSaysSo);
+        ChronoclonesGameTests.add("anvil_drinks_a_bottle_to_afford_the_work",
+                MenuStepGameTest::anvilDrinksABottle);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -133,22 +137,11 @@ final class MenuStepGameTest {
      * A rename travels by its own packet, so it is a step of its own rather than a click.
      */
     private static void anvilNamesWhatItIsGiven(GameTestHelper helper) {
-        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        helper.setBlock(target, Blocks.ANVIL);
-
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(new ChronoAction.UseContainer(
-                        new MenuTarget.Block(new BlockPos(0, 0, -1)), ANVIL_MENU_SIZE, List.of(),
-                        List.of(
-                                move(ANVIL_HOTBAR_0, ANVIL_INPUT, Items.IRON_SWORD),
-                                new SessionStep.Rename("Tunneler"),
-                                new SessionStep.Move(ANVIL_RESULT, SessionStep.Move.ELSEWHERE,
-                                        BuiltInRegistries.ITEM.wrapAsHolder(Items.IRON_SWORD),
-                                        SessionStep.Amount.ALL)))));
-
+        ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
-        // An anvil charges a level for the work; commit by commit, the clone banks its own.
-        anchor.setCloneExperience(0, new ExperienceStore(ExperienceStore.pointsForLevels(5)));
+        // An anvil charges a level for the work, out of what the clone has banked.
+        int banked = ExperienceStore.pointsForLevels(5);
+        anchor.setCloneExperience(0, new ExperienceStore(banked));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -162,11 +155,78 @@ final class MenuStepGameTest {
                         helper.fail("the anvil returned a sword called "
                                 + sword.getHoverName().getString());
                     }
+                    if (anchor.getCloneExperience(0).points() >= banked) {
+                        helper.fail("the anvil did its work for free: the clone still holds "
+                                + anchor.getCloneExperience(0).points() + " of " + banked);
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * The work costs levels the clone has not got, which the menu would otherwise decline in silence.
+     */
+    private static void anvilWithoutExperienceSaysSo(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (anchor.getLastFailure().reason()
+                            != DiagnosticState.FailureReason.NO_EXPERIENCE) {
+                        helper.fail("expected the shortfall to be reported, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                    // The sword is not eaten by the attempt: it comes home unnamed.
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.IRON_SWORD) != 1) {
+                        helper.fail("the sword did not come back from the anvil it could not pay for");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** A bottle in the clone's own stock is the way a player tops itself up. */
+    private static void anvilDrinksABottle(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.EXPERIENCE_BOTTLE), 4);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    ItemStack sword = AnchorTestFixture.findStack(anchor.getInventory(),
+                            Items.IRON_SWORD);
+                    if (sword == null || !sword.getHoverName().getString().equals("Tunneler")) {
+                        helper.fail("the anvil returned "
+                                + (sword == null ? "nothing" : sword.getHoverName().getString())
+                                + ", reporting " + anchor.getLastFailure().reason());
+                        return;
+                    }
+                    int bottles = AnchorTestFixture.countIn(anchor.getInventory(),
+                            Items.EXPERIENCE_BOTTLE);
+                    if (bottles != 3) {
+                        helper.fail("expected one bottle drunk of four, " + bottles + " left");
+                    }
                 })
                 .thenSucceed();
     }
 
     // ---------------------------------------------------------------------- helpers
+
+    /** An anchor whose routine puts a sword in an anvil, names it, and takes it out. */
+    private static ChronoAnchorBlockEntity renamingAnchor(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.ANVIL);
+
+        return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                        new MenuTarget.Block(new BlockPos(0, 0, -1)), ANVIL_MENU_SIZE, List.of(),
+                        List.of(
+                                move(ANVIL_HOTBAR_0, ANVIL_INPUT, Items.IRON_SWORD),
+                                new SessionStep.Rename("Tunneler"),
+                                new SessionStep.Move(ANVIL_RESULT, SessionStep.Move.ELSEWHERE,
+                                        BuiltInRegistries.ITEM.wrapAsHolder(Items.IRON_SWORD),
+                                        SessionStep.Amount.ALL)))));
+    }
 
     /**
      * An anchor whose routine buys one thing from {@code villager}, by what it offers.

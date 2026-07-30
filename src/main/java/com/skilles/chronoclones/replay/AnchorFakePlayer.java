@@ -2,6 +2,8 @@ package com.skilles.chronoclones.replay;
 
 import com.mojang.authlib.GameProfile;
 
+import com.skilles.chronoclones.block.ExperienceStore;
+
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -53,9 +55,14 @@ public final class AnchorFakePlayer {
 
     /**
      * Takes back the held item and whatever experience the action left the player holding.
+     *
+     * <p>Read as a level and a fraction rather than from {@code totalExperience}, which vanilla only
+     * ever adds to: {@code giveExperienceLevels(-1)} lowers the bar without lowering the total, so an
+     * anvil charging a level for its work was charging it to nobody.
      */
     public static void release(Operator operator, FakePlayer player) {
-        operator.setExperience(player.totalExperience);
+        operator.setExperience(
+                ExperienceStore.pointsFor(player.experienceLevel, player.experienceProgress));
         setExperience(player, 0);
         hold(player, ItemStack.EMPTY);
     }

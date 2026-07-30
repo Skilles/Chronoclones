@@ -71,6 +71,18 @@ class ExperienceStoreTest {
     }
 
     @Test
+    @DisplayName("a bar reading converts back to the points behind it")
+    void pointsSurviveABarReading() {
+        // The fake player only exposes a level and a fraction, so this is how a clone's bank is read
+        // back after an anvil or a table has charged it.
+        for (int points = 0; points < 400; points++) {
+            int level = ExperienceStore.levelOf(points);
+            assertEquals(points, ExperienceStore.pointsFor(level, ExperienceStore.progressOf(points)),
+                    "reading back " + points + " points at level " + level);
+        }
+    }
+
+    @Test
     @DisplayName("affording is asked in levels, because that is what enchanting costs")
     void affordingIsInLevels() {
         ExperienceStore store = new ExperienceStore(ExperienceStore.pointsForLevels(3));

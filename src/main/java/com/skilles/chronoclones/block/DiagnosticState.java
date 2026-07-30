@@ -49,6 +49,14 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         /** The recording placed something that is not a block. */
         NOT_PLACEABLE("not_placeable", false),
 
+        /**
+         * Not enough banked experience for what the step costs, and no bottle to make it up.
+         *
+         * <p>Does not halt, unlike the other resources: a routine that mines ore earns its own
+         * experience, and halting would stop it doing the very thing that would fix this.
+         */
+        NO_EXPERIENCE("no_experience", false),
+
         /** An action told to finish something ran out of patience for it. */
         UNFINISHED("unfinished", false),
         /** No matching item in the anchor inventory to place. */

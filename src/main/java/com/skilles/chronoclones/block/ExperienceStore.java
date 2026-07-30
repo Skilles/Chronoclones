@@ -51,6 +51,16 @@ public record ExperienceStore(int points) {
     }
 
     /**
+     * The points behind a level and a fraction, which is how a player carries theirs.
+     *
+     * <p>The inverse of {@link #levelOf} and {@link #progressOf} together, for reading experience back
+     * off something that only exposes the bar.
+     */
+    public static int pointsFor(int level, float progress) {
+        return pointsForLevels(level) + Math.round(progress * neededForNextLevel(level));
+    }
+
+    /**
      * The whole level this many points reaches, by walking vanilla's widening bands.
      */
     public static int levelOf(int points) {
