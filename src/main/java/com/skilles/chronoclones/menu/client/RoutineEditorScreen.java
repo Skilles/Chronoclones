@@ -2,6 +2,7 @@ package com.skilles.chronoclones.menu.client;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.skilles.chronoclones.item.RecordingDetail;
 import com.skilles.chronoclones.network.RoutinePayloads;
@@ -19,6 +20,7 @@ import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.Holder;
@@ -196,6 +198,8 @@ public class RoutineEditorScreen extends Screen {
     private void rebuildControls() {
         revealSelection();
         clearWidgets();
+        rows.clear();
+        hasNameBox = false;
         addTitleBar();
         addBottomBar();
 
@@ -215,66 +219,83 @@ public class RoutineEditorScreen extends Screen {
 
     private void addActionControls() {
         addName(settings().name(), this::renameAction);
-        addControl(1, slotLabel(settings().slot()), () -> apply(settings().withSlot(
-                cycled(settings().slot()))));
 
-        if (isTargeted()) {
-            addCompletionControls(2);
-            addSearchControls(4);
-            return;
+        int row = 1;
+        if (takesAnItem()) {
+            addControl(row++, "slot", slotLabel(settings().slot()),
+                    () -> apply(settings().withSlot(cycled(settings().slot()))));
+        }
+        if (action() instanceof ChronoAction.AttackEntity) {
+            // Only a swing can be told to finish something off. Nothing else has a "dead" to reach.
+            addControl(row++, "finish", completionLabel(), () -> {
+                TargetRule rule = settings().target();
+                apply(settings().withTarget(rule.withCompletion(
+                        rule.completion() == TargetRule.Completion.ONCE
+                                ? TargetRule.Completion.UNTIL_DEAD
+                                : TargetRule.Completion.ONCE)));
+            });
         }
         if (action() instanceof ChronoAction.UseContainer session) {
-            // What the session carries in and out. What it does with it once inside is the steps,
-            // each with settings of their own.
-            addCarrierControls(session, 2);
-            if (session.target() instanceof MenuTarget.Entity) {
-                addSearchControls(4);
-            }
+            row = addCarrierControls(session, row);
+        }
+        if (looksForATarget()) {
+            addCheckbox(row++, "gui.chronoclones.editor.label.sticky", settings().target().sticky(),
+                    on -> apply(settings().withTarget(settings().target().withSticky(on))));
+            addControl(row++, "target", targetLabel(), () -> {
+                TargetRule rule = settings().target();
+                apply(settings().withTarget(rule.withFilter(
+                        rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
+            });
+            addSlider(row++, "radius", new RadiusSlider(font, controlX(), controlRowY(row - 1),
+                    CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
+                    radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
         }
     }
 
     /**
-     * Finish and sticky, which only mean anything to an action that swings at something.
+     * What a session may bring in with it, and how much of it.
      *
-     * <p>A session has neither: there is nothing to finish, and a menu is worked once.
+     * <p>Only when it brings anything: a session that empties a chest into the anchor lends nothing,
+     * so telling it what it may lend is a control with nothing behind it.
      */
-    private void addCompletionControls(int firstRow) {
-        addControl(firstRow, completionLabel(), () -> {
-            TargetRule rule = settings().target();
-            apply(settings().withTarget(rule.withCompletion(
-                    rule.completion() == TargetRule.Completion.ONCE
-                            ? TargetRule.Completion.UNTIL_DEAD
-                            : TargetRule.Completion.ONCE)));
-        });
-        addControl(firstRow + 1, stickyLabel(), () -> {
-            TargetRule rule = settings().target();
-            apply(settings().withTarget(rule.withSticky(!rule.sticky())));
-        });
-    }
-
-    /** What to look for and how far, for anything that has to find its target again. */
-    private void addSearchControls(int firstRow) {
-        addControl(firstRow, targetLabel(), () -> {
-            TargetRule rule = settings().target();
-            apply(settings().withTarget(rule.withFilter(
-                    rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
-        });
-        addRenderableWidget(new RadiusSlider(font, controlX(), controlRowY(firstRow + 1),
-                CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
-                radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
-    }
-
-    /** What a session is allowed to bring with it, across every square it lends. */
-    private void addCarrierControls(ChronoAction.UseContainer session, int firstRow) {
-        addControl(firstRow, itemsLabel(), () -> {
+    private int addCarrierControls(ChronoAction.UseContainer session, int firstRow) {
+        if (session.carrier().isEmpty()) {
+            return firstRow;
+        }
+        addControl(firstRow, "items", itemsLabel(), () -> {
             TransferRule rule = settings().transfer();
             apply(settings().withTransfer(rule.withItems(
                     rule.items().isEmpty() ? carriedItems(session) : List.of())));
         });
-        addRenderableWidget(new QuantitySlider(font, controlX(), controlRowY(firstRow + 1),
-                CONTROL_WIDTH, CONTROL_HEIGHT, settings().transfer().quantity(),
+        addSlider(firstRow + 1, "amount", new QuantitySlider(font, controlX(),
+                controlRowY(firstRow + 1), CONTROL_WIDTH, CONTROL_HEIGHT,
+                settings().transfer().quantity(),
                 cap -> apply(settings().withTransfer(
                         settings().transfer().withQuantity(QuantityRule.atMost(cap))))));
+        return firstRow + 2;
+    }
+
+    /** True for the actions that reach into the clone's inventory for something to hold. */
+    private boolean takesAnItem() {
+        return switch (action()) {
+            case ChronoAction.BreakBlock ignored -> true;
+            case ChronoAction.PlaceBlock ignored -> true;
+            case ChronoAction.UseOnBlock ignored -> true;
+            case ChronoAction.UseItem ignored -> true;
+            case ChronoAction.InteractEntity ignored -> true;
+            case ChronoAction.AttackEntity ignored -> true;
+            // A session lends whole squares rather than holding one item, which the carrier
+            // controls describe and a held-item square does not.
+            case ChronoAction.UseContainer ignored -> false;
+        };
+    }
+
+    /** True for the actions that have to find something again rather than reach a square. */
+    private boolean looksForATarget() {
+        return action() instanceof ChronoAction.AttackEntity
+                || action() instanceof ChronoAction.InteractEntity
+                || action() instanceof ChronoAction.UseContainer session
+                        && session.target() instanceof MenuTarget.Entity;
     }
 
     /** The items the session was recorded carrying, which is what "only these" means. */
@@ -292,7 +313,8 @@ public class RoutineEditorScreen extends Screen {
      */
     private void addStepControls() {
         StepSettings step = stepSettings();
-        addControl(0, enabledLabel(step), () -> applyStep(step.withEnabled(!step.enabled())));
+        addCheckbox(0, "gui.chronoclones.editor.label.enabled", step.enabled(),
+                on -> applyStep(stepSettings().withEnabled(on)));
 
         if (!(selectedStep() instanceof SessionStep.Move move)) {
             if (selectedStep() instanceof SessionStep.RawClick) {
@@ -302,19 +324,31 @@ public class RoutineEditorScreen extends Screen {
             return;
         }
 
-        addControl(1, slotLabel(step.slot()), () -> applyStep(step.withSlot(cycled(step.slot()))));
-        addControl(2, stepItemsLabel(step), () -> {
-            TransferRule rule = step.transfer();
-            applyStep(step.withTransfer(rule.withItems(
-                    rule.items().isEmpty() ? List.of(move.item()) : List.of())));
-        });
-        addRenderableWidget(new QuantitySlider(font, controlX(), controlRowY(3),
-                CONTROL_WIDTH, CONTROL_HEIGHT, step.transfer().quantity(),
-                cap -> applyStep(stepSettings().withTransfer(
-                        stepSettings().transfer().withQuantity(QuantityRule.atMost(cap))))));
+        addControl(1, "slot", slotLabel(step.slot()),
+                () -> applyStep(stepSettings().withSlot(cycled(stepSettings().slot()))));
+        addControl(2, "items", stepItemsLabel(step), () -> applyStep(stepSettings().withItems(
+                stepSettings().items().isEmpty() ? List.of(move.item()) : List.of())));
+        // How much, not how many: a move takes all of a square, half of it, or one off the top,
+        // and it starts at whichever of those the player did.
+        addControl(3, "amount", amountLabel(step, move), () -> applyStep(
+                stepSettings().withAmount(Optional.of(
+                        nextAmount(stepSettings().amountOr(move.observed()))))));
+    }
+
+    private static SessionStep.Amount nextAmount(SessionStep.Amount amount) {
+        SessionStep.Amount[] amounts = SessionStep.Amount.values();
+        return amounts[(amount.ordinal() + 1) % amounts.length];
+    }
+
+    private boolean hasNameBox;
+
+    private boolean hasName() {
+        return hasNameBox;
     }
 
     private void addName(String value, java.util.function.Consumer<String> onType) {
+        hasNameBox = true;
+        rows.add(new Labelled(nameRow(), "gui.chronoclones.editor.label.name", "name"));
         int y = controlRowY(nameRow());
         EditBox nameBox = new EditBox(font, controlX() + 4, y + 4, CONTROL_WIDTH - 8,
                 CONTROL_HEIGHT - 6, Component.translatable("gui.chronoclones.editor.label.name"));
@@ -332,13 +366,55 @@ public class RoutineEditorScreen extends Screen {
     }
 
     /** Cycling buttons rebuild the whole pane, so every label rereads the settings it shows. */
-    private void addControl(int row, Component label, Runnable onPress) {
-        addRenderableWidget(new FlatButton(font, controlX(), controlRowY(row), CONTROL_WIDTH,
+    private void addControl(int row, String option, Component label, Runnable onPress) {
+        FlatButton button = new FlatButton(font, controlX(), controlRowY(row), CONTROL_WIDTH,
                 CONTROL_HEIGHT, label, () -> {
                     onPress.run();
                     rebuildControls();
-                }));
+                });
+        button.setTooltip(explain(option));
+        addRenderableWidget(button);
+        rows.add(new Labelled(row, "gui.chronoclones.editor.label." + option, option));
     }
+
+    private void addCheckbox(int row, String labelKey, boolean value, java.util.function.Consumer<Boolean> onToggle) {
+        String option = labelKey.substring(labelKey.lastIndexOf('.') + 1);
+        FlatCheckbox box = new FlatCheckbox(font, controlX(), controlRowY(row), CONTROL_WIDTH,
+                CONTROL_HEIGHT, Component.translatable(checkboxKey(option, value)),
+                () -> value, on -> {
+                    onToggle.accept(on);
+                    rebuildControls();
+                });
+        box.setTooltip(explain(option));
+        addRenderableWidget(box);
+        rows.add(new Labelled(row, labelKey, option));
+    }
+
+    private void addSlider(int row, String option, FlatSlider slider) {
+        slider.setTooltip(explain(option));
+        addRenderableWidget(slider);
+        rows.add(new Labelled(row, "gui.chronoclones.editor.label." + option, option));
+    }
+
+    /**
+     * What one option does, in words, on hover.
+     *
+     * <p>Every control gets one: a routine is a machine somebody has to reason about, and "Prefer 3"
+     * is not a sentence anybody can act on without being told what preferring a square means.
+     */
+    private static Tooltip explain(String option) {
+        return Tooltip.create(Component.translatable("gui.chronoclones.editor.help." + option));
+    }
+
+    /**
+     * A control's row and the name beside it, collected as the pane is built.
+     *
+     * <p>The labels used to be listed a second time in the drawing code, which is how a control and
+     * its name came to disagree about which row they were on.
+     */
+    private record Labelled(int row, String labelKey, String option) {}
+
+    private final List<Labelled> rows = new ArrayList<>();
 
     private int controlRowY(int row) {
         return top + PANEL_Y + 5 + HEADER_HEIGHT + row * CONTROL_ROW;
@@ -673,48 +749,12 @@ public class RoutineEditorScreen extends Screen {
         g.text(font, font.plainSubstrByWidth(detail, inner), x, y + 10, AnchorPanels.MUTED);
         g.fill(x, y + 21, x + inner, y + 22, AnchorPanels.SLOT_EDGE);
 
-        if (isStep) {
-            drawStepLabels(g);
-            return;
+        for (Labelled labelled : rows) {
+            label(g, labelled.row(), labelled.labelKey());
         }
-
-        label(g, 0, "gui.chronoclones.editor.label.name");
-        nameTrack(g, 0);
-        label(g, 1, action() instanceof ChronoAction.UseContainer
-                ? "gui.chronoclones.editor.label.carry_from"
-                : "gui.chronoclones.editor.label.slot");
-
-        if (isTargeted()) {
-            label(g, 2, "gui.chronoclones.editor.label.finish");
-            label(g, 3, "gui.chronoclones.editor.label.sticky");
-            label(g, 4, "gui.chronoclones.editor.label.target");
-            label(g, 5, "gui.chronoclones.editor.label.radius");
-            return;
+        if (hasName()) {
+            nameTrack(g, nameRow());
         }
-        if (action() instanceof ChronoAction.UseContainer session) {
-            label(g, 2, "gui.chronoclones.editor.label.items");
-            label(g, 3, "gui.chronoclones.editor.label.amount");
-            if (session.target() instanceof MenuTarget.Entity) {
-                label(g, 4, "gui.chronoclones.editor.label.target");
-                label(g, 5, "gui.chronoclones.editor.label.radius");
-            }
-        }
-    }
-
-    private void drawStepLabels(GuiGraphicsExtractor g) {
-        label(g, 0, "gui.chronoclones.editor.label.enabled");
-
-        if (selectedStep() instanceof SessionStep.Move) {
-            label(g, 1, "gui.chronoclones.editor.label.slot");
-            label(g, 2, "gui.chronoclones.editor.label.items");
-            label(g, 3, "gui.chronoclones.editor.label.amount");
-            return;
-        }
-        if (selectedStep() instanceof SessionStep.RawClick) {
-            return;
-        }
-        label(g, 1, "gui.chronoclones.editor.label.name");
-        nameTrack(g, 1);
     }
 
     /** The recess a name is typed into, which an EditBox does not draw for itself. */
@@ -869,16 +909,27 @@ public class RoutineEditorScreen extends Screen {
     }
 
     private Component stepItemsLabel(StepSettings step) {
-        List<Holder<Item>> items = step.transfer().items();
+        List<Holder<Item>> items = step.items();
         return items.isEmpty()
                 ? Component.translatable("gui.chronoclones.editor.items.any")
                 : Component.translatable(items.getFirst().value().getDescriptionId());
     }
 
-    private Component enabledLabel(StepSettings step) {
-        return Component.translatable(step.enabled()
-                ? "gui.chronoclones.editor.enabled.on"
-                : "gui.chronoclones.editor.enabled.off");
+    /**
+     * How much this move takes, which starts at how much the player took.
+     */
+    private Component amountLabel(StepSettings step, SessionStep.Move move) {
+        SessionStep.Amount amount = step.amountOr(move.observed());
+        Component name = Component.translatable(
+                "gui.chronoclones.editor.amount." + amount.getSerializedName());
+        return step.amount().isPresent()
+                ? name
+                : Component.translatable("gui.chronoclones.editor.amount.recorded", name);
+    }
+
+    /** A ticked box reads as the thing being on, so the label says what being on means. */
+    private static String checkboxKey(String option, boolean value) {
+        return "gui.chronoclones.editor." + option + (value ? ".on" : ".off");
     }
 
     private Component discardLabel() {

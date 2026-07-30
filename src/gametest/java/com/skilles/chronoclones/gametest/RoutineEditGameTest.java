@@ -52,16 +52,15 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::stepFindsItsItemElsewhere);
         ChronoclonesGameTests.add("a_step_told_exactly_where_looks_nowhere_else",
                 RoutineEditGameTest::exactStepLooksNowhereElse);
-        ChronoclonesGameTests.add("a_step_capped_moves_only_what_it_is_allowed",
+        ChronoclonesGameTests.add("a_step_told_to_move_one_moves_one",
                 RoutineEditGameTest::cappedStepMovesPartOfIt);
     }
 
     /** An item filter is how a routine stops hauling whatever happens to be in the square. */
     private static void stepCarriesOnlyItsItem(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 0, Items.DIAMOND,
-                ActionSettings.StepSettings.DEFAULT.withTransfer(
-                        ActionSettings.TransferRule.DEFAULT.withItems(
-                                List.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.EMERALD)))));
+                ActionSettings.StepSettings.DEFAULT.withItems(
+                        List.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.EMERALD))));
         stock(helper.getLevel(), helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
                 0, Items.DIAMOND, 5);
 
@@ -99,7 +98,7 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** A cap is how a routine feeds a furnace rather than emptying into it. */
+    /** Told to move one, it moves one, whatever the recording happened to move. */
     private static void cappedStepMovesPartOfIt(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -115,9 +114,8 @@ final class RoutineEditGameTest {
                                         BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND),
                                         SessionStep.Amount.ALL))),
                         ActionSettings.DEFAULT.withStep(0,
-                                ActionSettings.StepSettings.DEFAULT.withTransfer(
-                                        ActionSettings.TransferRule.DEFAULT.withQuantity(
-                                                ActionSettings.QuantityRule.atMost(3))))));
+                                ActionSettings.StepSettings.DEFAULT.withAmount(
+                                        java.util.Optional.of(SessionStep.Amount.ONE)))));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -127,16 +125,16 @@ final class RoutineEditGameTest {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getAmountAsInt(9) != 3) {
-                        helper.fail("expected three moved under a cap of three, slot 9 holds "
+                    if (barrel.getAmountAsInt(9) != 1) {
+                        helper.fail("expected one moved of a stack of twelve, slot 9 holds "
                                 + barrel.getAmountAsInt(9));
                     }
-                    if (barrel.getAmountAsInt(0) != 9) {
+                    if (barrel.getAmountAsInt(0) != 11) {
                         helper.fail("the rest was not put back, slot 0 holds "
                                 + barrel.getAmountAsInt(0));
                     }
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
-                        helper.fail("the capped remainder came home with the clone");
+                        helper.fail("the remainder came home with the clone");
                     }
                 })
                 .thenSucceed();

@@ -46,7 +46,7 @@ final class CarrierGameTest {
                 CarrierGameTest::quantityRuleCapsWhatItLends);
         ChronoclonesGameTests.add("carrier_item_rule_holds_back_what_it_names",
                 CarrierGameTest::itemRuleHoldsBackWhatItNames);
-        ChronoclonesGameTests.add("carrier_exact_slot_rule_lends_one_square",
+        ChronoclonesGameTests.add("carrier_lends_every_square_it_has",
                 CarrierGameTest::exactSlotRuleLendsOneSquare);
     }
 
@@ -96,7 +96,14 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /** An exact slot rule confines a session to one square of the clone's inventory. */
+    /**
+     * Every square goes with the clone, whatever square the recording happened to be holding.
+     *
+     * <p>A session used to be confined to one square of the clone's inventory by the slot rule,
+     * which for a session was seeded from whichever hotbar slot was selected while recording -- so
+     * it confined sessions to a square nobody had chosen. What a session may take from is a question
+     * its steps answer now, each about its own move.
+     */
     private static void exactSlotRuleLendsOneSquare(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -108,15 +115,16 @@ final class CarrierGameTest {
                         click(menuSlotOf(withheld), LEFT, ContainerInput.QUICK_MOVE)),
                 ActionSettings.DEFAULT.withSlot(
                         new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, allowed)));
+        // Both squares reach the barrel: the rule above no longer decides what may be lent.
         anchor.getCloneInventory(0).set(allowed, ItemResource.of(Items.DIAMOND), 4);
         anchor.getCloneInventory(0).set(withheld, ItemResource.of(Items.OAK_LOG), 4);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
                     assertBarrelHolds(helper, target, Items.DIAMOND, 4);
-                    assertBarrelHolds(helper, target, Items.OAK_LOG, 0);
-                    if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 4) {
-                        helper.fail("a square the rule excludes was lent anyway");
+                    assertBarrelHolds(helper, target, Items.OAK_LOG, 4);
+                    if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 0) {
+                        helper.fail("a square the session never named was held back from it");
                     }
                 })
                 .thenSucceed();

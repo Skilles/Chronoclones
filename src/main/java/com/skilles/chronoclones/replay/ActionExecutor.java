@@ -837,34 +837,22 @@ public final class ActionExecutor {
         if (from < 0) {
             return true;
         }
-        if (!rule.transfer().allows(menu.getSlot(from).getItem().getItem())) {
+        if (!rule.allows(menu.getSlot(from).getItem().getItem())) {
             return true;
         }
 
         if (move.quick()) {
-            // A shift-click's amount was always the menu's business, so a cap cannot apply to one.
+            // A shift-click's destination and amount were always the menu's business.
             menu.clicked(from, 0, ContainerInput.QUICK_MOVE, owner);
             return true;
         }
 
-        menu.clicked(from, move.observed() == SessionStep.Amount.HALF ? 1 : 0,
+        SessionStep.Amount amount = rule.amountOr(move.observed());
+        menu.clicked(from, amount == SessionStep.Amount.HALF ? 1 : 0, ContainerInput.PICKUP, owner);
+        menu.clicked(move.to(), amount == SessionStep.Amount.ONE ? 1 : 0,
                 ContainerInput.PICKUP, owner);
 
-        int carried = menu.getCarried().getCount();
-        int wanted = move.observed() == SessionStep.Amount.ONE
-                ? 1
-                : Math.min(carried, rule.transfer().quantity().budget());
-
-        if (wanted >= carried) {
-            menu.clicked(move.to(), 0, ContainerInput.PICKUP, owner);
-        } else {
-            // One at a time, which is the only way a menu will take part of what is held.
-            for (int placed = 0; placed < wanted; placed++) {
-                menu.clicked(move.to(), 1, ContainerInput.PICKUP, owner);
-            }
-        }
-
-        // What the destination would not take, or what a cap held back.
+        // What the destination would not take, or the rest of a stack the move only wanted one of.
         if (!menu.getCarried().isEmpty()) {
             menu.clicked(from, 0, ContainerInput.PICKUP, owner);
         }

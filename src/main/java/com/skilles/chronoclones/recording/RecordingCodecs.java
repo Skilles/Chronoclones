@@ -426,9 +426,11 @@ public final class RecordingCodecs {
             Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings.StepSettings::name),
             SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
                     .forGetter(ActionSettings.StepSettings::slot),
-            TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
-                    .forGetter(ActionSettings.StepSettings::transfer),
-            Codec.BOOL.optionalFieldOf("enabled", true).forGetter(ActionSettings.StepSettings::enabled)
+            BuiltInRegistries.ITEM.holderByNameCodec().listOf().optionalFieldOf("items", List.of())
+                    .forGetter(ActionSettings.StepSettings::items),
+            Codec.BOOL.optionalFieldOf("enabled", true).forGetter(ActionSettings.StepSettings::enabled),
+            SessionStep.Amount.CODEC.optionalFieldOf("amount")
+                    .forGetter(ActionSettings.StepSettings::amount)
     ).apply(i, ActionSettings.StepSettings::new));
 
     public static final Codec<ActionSettings> ACTION_SETTINGS = RecordCodecBuilder.create(i -> i.group(
@@ -481,8 +483,13 @@ public final class RecordingCodecs {
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, ActionSettings.StepSettings::name,
                     SLOT_RULE_STREAM, ActionSettings.StepSettings::slot,
-                    TRANSFER_RULE_STREAM, ActionSettings.StepSettings::transfer,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM)
+                            .apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ActionSettings.StepSettings::items,
                     ByteBufCodecs.BOOL, ActionSettings.StepSettings::enabled,
+                    ByteBufCodecs.optional(ByteBufCodecs.idMapper(
+                            id -> SessionStep.Amount.values()[id], Enum::ordinal)),
+                    ActionSettings.StepSettings::amount,
                     ActionSettings.StepSettings::new);
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings> ACTION_SETTINGS_STREAM =

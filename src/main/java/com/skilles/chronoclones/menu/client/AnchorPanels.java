@@ -156,6 +156,18 @@ final class AnchorPanels {
         STOP
     }
 
+    /** A tick mark, drawn inside a box of {@code size}: down to the left, then up to the right. */
+    static void tick(GuiGraphicsExtractor g, int x, int y, int size, int colour) {
+        int foot = size / 2;
+        for (int step = 0; step < foot - 1; step++) {
+            g.fill(x + 2 + step, y + foot - 1 + step, x + 3 + step, y + foot + 1 + step, colour);
+        }
+        for (int step = 0; step < size - foot - 1; step++) {
+            g.fill(x + foot + step, y + size - 3 - step, x + foot + 1 + step, y + size - 1 - step,
+                    colour);
+        }
+    }
+
     /** The playhead: a small diamond sitting astride the timeline. */
     static void playhead(GuiGraphicsExtractor g, int x, int y, int colour) {
         for (int row = 0; row < 4; row++) {

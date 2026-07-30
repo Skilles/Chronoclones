@@ -43,6 +43,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                 () -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
                         RoutinePayloads.Source.ofAnchor(menu.getAnchorPos())))));
         editorTab.setPosition(DrawerTab.tabX(leftPos, imageWidth), topPos + EDITOR_TAB_Y);
+        editorTab.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
+                Component.translatable("gui.chronoclones.anchor.settings.tip")));
     }
 
     @Override

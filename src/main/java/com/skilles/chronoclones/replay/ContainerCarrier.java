@@ -29,8 +29,12 @@ public final class ContainerCarrier {
      * Moves the clone's inventory into the fake player, square for square, as far as the rules
      * allow.
      *
-     * <p>Anything held back simply stays home, so the session finds an empty square and its clicks
+     * <p>Anything held back simply stays home, so the session finds an empty square and its steps
      * move nothing. That is the same shape as a player who walked up with less than last time.
+     *
+     * <p>Every square is lent. Which of them a session may take from is a question its steps answer,
+     * each about its own move; asking it again out here only ever meant "the hotbar square that
+     * happened to be selected while recording", which is nothing anybody chose.
      */
     public static void load(ItemStacksResourceHandler inventory, FakePlayer player,
                             AbstractContainerMenu menu, ActionSettings settings) {
@@ -45,10 +49,6 @@ public final class ContainerCarrier {
             if (budget <= 0) {
                 return;
             }
-            if (!lendable(settings, slot)) {
-                continue;
-            }
-
             ItemResource resource = inventory.getResource(slot);
             int amount = inventory.getAmountAsInt(slot);
             if (resource.isEmpty() || amount <= 0 || !rule.allows(resource.getItem())) {
@@ -65,11 +65,6 @@ public final class ContainerCarrier {
                 inventory.set(slot, resource, amount - lent);
             }
         }
-    }
-
-    /** An exact slot rule confines a session to one square; anything looser lends them all. */
-    private static boolean lendable(ActionSettings settings, int slot) {
-        return !settings.slot().strict() || slot == settings.slot().slot();
     }
 
     /**

@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.List;
+import java.util.Optional;
 
 import net.minecraft.core.Holder;
 import net.minecraft.world.entity.EntityType;
@@ -74,29 +75,66 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target,
      * @param enabled false to skip the step entirely, which is how one is dropped without touching
      *                the recording that would have to be performed again to get it back
      */
-    public record StepSettings(String name, SlotRule slot, TransferRule transfer, boolean enabled) {
+    public record StepSettings(String name, SlotRule slot, List<Holder<Item>> items, boolean enabled,
+                               Optional<SessionStep.Amount> amount) {
 
         public static final StepSettings DEFAULT =
-                new StepSettings("", SlotRule.DEFAULT, TransferRule.DEFAULT, true);
+                new StepSettings("", SlotRule.DEFAULT, List.of(), true, Optional.empty());
+
+        public StepSettings {
+            items = List.copyOf(items);
+        }
 
         public boolean hasName() {
             return !name.isBlank();
         }
 
+        /**
+         * An empty list is anything, which is what the step alone would have moved.
+         *
+         * <p>An item list rather than a whole {@link TransferRule}: how much a move takes is its
+         * {@link #amount}, and offering a count as well would be two controls for one question.
+         */
+        public boolean allows(Item item) {
+            if (items.isEmpty()) {
+                return true;
+            }
+            for (Holder<Item> allowed : items) {
+                if (allowed.value() == item) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * How much to move, which unless somebody has said otherwise is how much was moved.
+         *
+         * <p>Empty rather than a copy of the recorded amount: a step nobody has edited should read
+         * as the recording, including after the recording is re-taken.
+         */
+        public SessionStep.Amount amountOr(SessionStep.Amount observed) {
+            return amount.orElse(observed);
+        }
+
         public StepSettings withName(String name) {
-            return new StepSettings(name, slot, transfer, enabled);
+            return new StepSettings(name, slot, items, enabled, amount);
         }
 
         public StepSettings withSlot(SlotRule slot) {
-            return new StepSettings(name, slot, transfer, enabled);
+            return new StepSettings(name, slot, items, enabled, amount);
         }
 
-        public StepSettings withTransfer(TransferRule transfer) {
-            return new StepSettings(name, slot, transfer, enabled);
+        public StepSettings withItems(List<Holder<Item>> items) {
+            return new StepSettings(name, slot, items, enabled, amount);
         }
 
         public StepSettings withEnabled(boolean enabled) {
-            return new StepSettings(name, slot, transfer, enabled);
+            return new StepSettings(name, slot, items, enabled, amount);
+        }
+
+        public StepSettings withAmount(Optional<SessionStep.Amount> amount) {
+            return new StepSettings(name, slot, items, enabled, amount);
         }
     }
 

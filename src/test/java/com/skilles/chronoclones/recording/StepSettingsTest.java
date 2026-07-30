@@ -25,8 +25,10 @@ class StepSettingsTest {
         assertTrue(step.enabled());
         assertTrue(!step.hasName());
         assertEquals(SlotRule.Mode.PREFER, step.slot().mode());
-        assertTrue(step.transfer().items().isEmpty(), "an unedited step carries anything");
-        assertEquals(Integer.MAX_VALUE, step.transfer().quantity().budget());
+        assertTrue(step.items().isEmpty(), "an unedited step carries anything");
+        assertTrue(step.amount().isEmpty(), "an unedited step has an amount of its own");
+        assertEquals(SessionStep.Amount.HALF, step.amountOr(SessionStep.Amount.HALF),
+                "an unedited step should move whatever the recording moved");
     }
 
     @Test
