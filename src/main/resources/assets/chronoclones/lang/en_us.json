@@ -25,7 +25,7 @@
   "diagnostic.chronoclones.no_charge": "Out of charge",
   "diagnostic.chronoclones.not_placeable": "Cannot place that at %s",
   "diagnostic.chronoclones.no_experience": "Not enough experience banked",
-"Gave up waiting at %s",
+  "diagnostic.chronoclones.unfinished": "Gave up waiting at %s",
   "diagnostic.chronoclones.no_item": "No matching item to place at %s",
   "diagnostic.chronoclones.obstructed": "Blocked at %s",
   "diagnostic.chronoclones.no_target": "Nothing to attack at %s",
