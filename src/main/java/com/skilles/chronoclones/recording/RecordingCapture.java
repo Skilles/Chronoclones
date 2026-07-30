@@ -187,7 +187,7 @@ public final class RecordingCapture {
         }
 
         // Always armed. -1, or an index past the end, retracts nothing.
-        ContainerWatch.noteInteraction(player, pos, recordedIndex);
+        ContainerWatch.noteInteraction(player, pos, recordedIndex, session);
     }
 
     /**
@@ -234,12 +234,17 @@ public final class RecordingCapture {
         }
 
         Vec3 target = event.getTarget().position();
+        int recordedIndex = session.nextActionIndex();
         capture(player, session, new ChronoAction.InteractEntity(
                         session.toLocal(target),
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
                         event.getHand(),
                         BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
                 target);
+
+        // A villager's trades, a horse's saddlebags, a chest boat: if this opened a menu, the
+        // session replaces the interaction that opened it.
+        ContainerWatch.noteInteraction(player, event.getTarget(), recordedIndex, session);
     }
 
     // ------------------------------------------------------------------ containers

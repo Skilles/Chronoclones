@@ -152,6 +152,20 @@ final class AnchorTestFixture {
         }
     }
 
+    /** The first stack of one item, components and all, or null. */
+    static net.minecraft.world.item.ItemStack findStack(
+            net.neoforged.neoforge.transfer.ResourceHandler<
+                    net.neoforged.neoforge.transfer.item.ItemResource> handler,
+            net.minecraft.world.item.Item item) {
+        for (int slot = 0; slot < handler.size(); slot++) {
+            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
+            if (!resource.isEmpty() && resource.getItem() == item) {
+                return resource.toStack(Math.max(1, handler.getAmountAsInt(slot)));
+            }
+        }
+        return null;
+    }
+
     /** Total of one item across a handler, for asserting what ended up where. */
     static int countIn(net.neoforged.neoforge.transfer.ResourceHandler<
             net.neoforged.neoforge.transfer.item.ItemResource> handler, net.minecraft.world.item.Item item) {

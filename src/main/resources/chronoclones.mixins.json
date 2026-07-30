@@ -4,7 +4,9 @@
   "package": "com.skilles.chronoclones.mixin",
   "compatibilityLevel": "JAVA_25",
   "mixins": [
-    "AbstractContainerMenuMixin"
+    "AbstractContainerMenuMixin",
+    "ContainerButtonMixin",
+    "ServerMenuPacketMixin"
   ],
   "injectors": {
     "defaultRequire": 1

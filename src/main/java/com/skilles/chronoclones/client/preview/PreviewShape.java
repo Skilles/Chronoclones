@@ -154,7 +154,7 @@ public final class PreviewShape {
             case ChronoAction.BreakBlock a -> a.localPos();
             case ChronoAction.PlaceBlock a -> a.localPos();
             case ChronoAction.UseOnBlock a -> a.localPos();
-            case ChronoAction.UseContainer a -> a.localPos();
+            case ChronoAction.UseContainer a -> a.target().localBlock();
             default -> null;
         };
     }

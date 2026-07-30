@@ -3,6 +3,7 @@ package com.skilles.chronoclones.item;
 import java.util.List;
 
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
@@ -62,7 +63,7 @@ class RecordingDetailTest {
         // components, unbound without a loaded datapack.
         List<Component> lines = RecordingDetail.describe(List.of(
                 new TimedAction(20, new ChronoAction.UseContainer(
-                        new BlockPos(0, 0, -1), 63,
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), 63,
                         List.of(),
                         List.of(
                                 new SessionStep.RawClick(0, 1, ContainerInput.PICKUP),
@@ -88,7 +89,7 @@ class RecordingDetailTest {
 
     private static TimedAction session(int button) {
         return new TimedAction(20, new ChronoAction.UseContainer(
-                BlockPos.ZERO, 63, List.of(),
+                new MenuTarget.Block(BlockPos.ZERO), 63, List.of(),
                 List.of(new SessionStep.RawClick(0, button, ContainerInput.PICKUP))));
     }
 

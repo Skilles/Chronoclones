@@ -73,7 +73,7 @@ public record Recording(
                 case ChronoAction.UseOnBlock a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
                 case ChronoAction.UseContainer a ->
-                        maxSqr = Math.max(maxSqr, horizontalSqr(Vec3.atCenterOf(a.localPos())));
+                        maxSqr = Math.max(maxSqr, horizontalSqr(a.target().localPoint()));
                 case ChronoAction.InteractEntity a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));
                 // Using an item in mid-air happens wherever the clone is standing, which the motion

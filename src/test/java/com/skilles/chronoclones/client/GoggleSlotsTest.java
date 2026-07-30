@@ -6,6 +6,7 @@ import java.util.UUID;
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
@@ -43,7 +44,7 @@ class GoggleSlotsTest {
                         .toList();
 
         ChronoAction session = new ChronoAction.UseContainer(
-                new BlockPos(0, 0, -1), MENU_SIZE, carrier,
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), MENU_SIZE, carrier,
                 List.of(new SessionStep.RawClick(3, 0, ContainerInput.PICKUP)));
 
         Recording recording = new Recording(

@@ -42,13 +42,43 @@ public final class SessionSteps {
         }
     }
 
-    public static List<SessionStep> interpret(List<Observation> observations) {
+    /**
+     * Something that happened in the menu, in the order it happened.
+     */
+    public sealed interface Event {
+
+        /** A click, which only its neighbours can explain. */
+        record Clicked(Observation observation) implements Event {}
+
+        /** A trade, a button, a rename: these arrive already named, each by its own packet. */
+        record Did(SessionStep step) implements Event {}
+    }
+
+    public static List<SessionStep> interpret(List<Event> events) {
         List<SessionStep> steps = new ArrayList<>();
 
         // The click that filled the cursor, still waiting to learn where its item went.
         Observation pickup = null;
 
-        for (Observation click : observations) {
+        for (Event event : events) {
+            if (event instanceof Event.Did done) {
+                // Something the clicks around it cannot be part of, so the cursor's business ends.
+                if (pickup != null) {
+                    steps.add(pickup.raw());
+                    pickup = null;
+                }
+                // An anvil's name field sends a packet per keystroke, and only the name the player
+                // stopped typing is the name they meant.
+                if (done.step() instanceof SessionStep.Rename
+                        && !steps.isEmpty() && steps.getLast() instanceof SessionStep.Rename) {
+                    steps.set(steps.size() - 1, done.step());
+                    continue;
+                }
+                steps.add(done.step());
+                continue;
+            }
+
+            Observation click = ((Event.Clicked) event).observation();
             if (pickup == null) {
                 if (isQuickMove(click)) {
                     steps.add(new SessionStep.Move(click.slot(), SessionStep.Move.ELSEWHERE,

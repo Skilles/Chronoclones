@@ -11,6 +11,7 @@ import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 import com.skilles.chronoclones.recording.LocalSpace;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.registry.ModTags;
 
@@ -27,8 +28,15 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.HorseInventoryMenu;
+import net.minecraft.world.inventory.MerchantMenu;
+import net.minecraft.world.item.trading.Merchant;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -522,42 +530,42 @@ public final class ActionExecutor {
                                      ItemStacksResourceHandler inventory,
                                              ActionSettings settings) {
 
-        BlockPos worldPos = placement.toWorld(action.localPos());
+        BlockPos localBlock = action.target().localBlock();
+        Vec3 worldPoint = placement.toWorld(action.target().localPoint());
+        BlockPos worldPos = BlockPos.containing(worldPoint);
 
         if (!placement.withinRadius(worldPos)) {
-            return Result.fail(FailureReason.OUT_OF_RANGE, action.localPos());
+            return Result.fail(FailureReason.OUT_OF_RANGE, localBlock);
         }
         if (!level.isLoaded(worldPos)) {
-            return Result.fail(FailureReason.UNLOADED, action.localPos());
+            return Result.fail(FailureReason.UNLOADED, localBlock);
         }
         // Anchors may not reach into other anchors, for the same reason they may not right-click
         // them: a routine that loots its neighbours is a routine that loots its owner's other farms.
-        if (level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
-            return Result.fail(FailureReason.BLACKLISTED, action.localPos());
+        if (action.target() instanceof MenuTarget.Block
+                && level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
+            return Result.fail(FailureReason.BLACKLISTED, localBlock);
         }
 
-        MenuProvider provider = level.getBlockState(worldPos).getMenuProvider(level, worldPos);
-        if (provider == null) {
-            return Result.fail(FailureReason.NO_TARGET, action.localPos());
-        }
-
-        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), placement.facing().toYRot(), 0.0f, ItemStack.EMPTY);
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, worldPoint,
+                placement.facing().toYRot(), 0.0f, ItemStack.EMPTY);
         try {
-            AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
-            if (menu == null) {
-                return Result.fail(FailureReason.NO_TARGET, action.localPos());
+            Session session = openMenu(level, action, worldPoint, operator, settings, owner);
+            if (session == null) {
+                return Result.fail(FailureReason.NO_TARGET, localBlock);
             }
+            AbstractContainerMenu menu = session.menu();
             // Slot indices mean nothing outside the menu that produced them, so a differently
             // shaped menu would be clicked at random.
             if (menu.slots.size() != action.menuSize()) {
-                return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
+                return Result.fail(FailureReason.WRONG_BLOCK, localBlock);
             }
 
             ContainerCarrier.load(inventory, owner, menu, settings);
             try {
                 for (SessionStep step : action.steps()) {
                     if (!runStep(menu, owner, step)) {
-                        return Result.fail(FailureReason.NO_TARGET, action.localPos());
+                        return Result.fail(FailureReason.NO_TARGET, localBlock);
                     }
                 }
             } finally {
@@ -566,11 +574,105 @@ public final class ActionExecutor {
                 // must not leave a routine's items inside a fake player nobody can open.
                 menu.removed(owner);
                 ContainerCarrier.drain(level, placement.anchorPos(), inventory, owner, menu);
+                session.close();
             }
             return Result.OK;
         } finally {
             AnchorFakePlayer.release(operator, owner);
         }
+    }
+
+    /**
+     * An open menu, and whatever has to be let go of once it closes.
+     */
+    private record Session(AbstractContainerMenu menu, Runnable release) {
+
+        static Session of(AbstractContainerMenu menu) {
+            return new Session(menu, () -> { });
+        }
+
+        void close() {
+            release.run();
+        }
+    }
+
+    /**
+     * Opens the menu the session was recorded against.
+     *
+     * <p>The menu is built directly rather than through the interaction that opened it, because a
+     * fake player's {@code openMenu} is a no-op: nothing would ever be open to click.
+     */
+    private static @org.jspecify.annotations.Nullable Session openMenu(
+            ServerLevel level, ChronoAction.UseContainer action, Vec3 worldPoint,
+            Operator operator, ActionSettings settings, FakePlayer owner) {
+
+        if (action.target() instanceof MenuTarget.Entity target) {
+            Entity entity = findEntity(level, target, worldPoint, operator, settings.target());
+            return entity == null ? null : openEntityMenu(entity, owner);
+        }
+
+        BlockPos worldPos = BlockPos.containing(worldPoint);
+        MenuProvider provider = level.getBlockState(worldPos).getMenuProvider(level, worldPos);
+        if (provider == null) {
+            return null;
+        }
+        AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
+        return menu == null ? null : Session.of(menu);
+    }
+
+    /**
+     * The recorded kind of entity nearest the recorded point, else the nearest thing the rule admits.
+     */
+    private static @org.jspecify.annotations.Nullable Entity findEntity(
+            ServerLevel level, MenuTarget.Entity target, Vec3 worldPoint, Operator operator,
+            TargetRule rule) {
+
+        AABB box = new AABB(worldPoint, worldPoint)
+                .inflate(rule.radiusWithin(ChronoclonesConfig.MAX_RADIUS.getAsInt()));
+        List<Entity> candidates = level.getEntitiesOfClass(Entity.class, box, entity ->
+                entity.isAlive()
+                        && !(entity instanceof ChronoCloneEntity)
+                        && !(entity instanceof Player)
+                        && !entity.getUUID().equals(operator.id())
+                        && rule.accepts(entity.getType()));
+
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        EntityType<?> expected = target.expectedType().value();
+        return candidates.stream()
+                .filter(e -> e.getType() == expected)
+                .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPoint)))
+                .orElseGet(() -> candidates.stream()
+                        .min(Comparator.comparingDouble(e -> e.position().distanceToSqr(worldPoint)))
+                        .orElseThrow());
+    }
+
+    /**
+     * The menus an entity can carry: a merchant's offers, a mount's saddlebags, or anything that is
+     * its own {@link MenuProvider}, which covers chest vehicles and a mod's own entities.
+     */
+    private static @org.jspecify.annotations.Nullable Session openEntityMenu(Entity entity, FakePlayer owner) {
+        if (entity instanceof Merchant merchant) {
+            // A merchant will not trade with two customers at once, and it awards its experience to
+            // whoever it thinks it is trading with.
+            if (merchant.getTradingPlayer() != null) {
+                return null;
+            }
+            merchant.setTradingPlayer(owner);
+            MerchantMenu menu = new MerchantMenu(1, owner.getInventory(), merchant);
+            menu.setOffers(merchant.getOffers());
+            return new Session(menu, () -> merchant.setTradingPlayer(null));
+        }
+        if (entity instanceof AbstractHorse horse) {
+            return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.getInventory(),
+                    horse, horse.getInventoryColumns()));
+        }
+        if (entity instanceof MenuProvider provider) {
+            AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
+            return menu == null ? null : Session.of(menu);
+        }
+        return null;
     }
 
     /**
@@ -590,7 +692,52 @@ public final class ActionExecutor {
                 menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
                 yield true;
             }
+            // A refused button is not a broken session: an enchantment the clone cannot afford
+            // simply does not happen, and the steps after it may still have work to do.
+            case SessionStep.Button button -> {
+                menu.clickMenuButton(owner, button.id());
+                yield true;
+            }
+            case SessionStep.Trade trade -> runTrade(menu, trade);
+            case SessionStep.Rename rename -> {
+                if (menu instanceof AnvilMenu anvil) {
+                    anvil.setItemName(rename.text());
+                    yield true;
+                }
+                yield false;
+            }
         };
+    }
+
+    /**
+     * Selects the offer the recording named, by what it offers.
+     *
+     * <p>Never by index: a villager's trades reorder as it levels, so the fifth trade of that day is
+     * not the same promise as the fifth trade today. Counts are not matched either, because a price
+     * moves with demand and reputation and the player wanted the trade, not the price.
+     */
+    private static boolean runTrade(AbstractContainerMenu menu, SessionStep.Trade trade) {
+        if (!(menu instanceof MerchantMenu merchant)) {
+            return false;
+        }
+        MerchantOffers offers = merchant.getOffers();
+        for (int index = 0; index < offers.size(); index++) {
+            if (matches(offers.get(index), trade)) {
+                merchant.setSelectionHint(index);
+                merchant.tryMoveItems(index);
+                return true;
+            }
+        }
+        // The merchant no longer offers it, so there is nothing to buy and nothing to guess at.
+        return false;
+    }
+
+    private static boolean matches(MerchantOffer offer, SessionStep.Trade trade) {
+        return offer.getCostA().getItem() == trade.costA().getItem()
+                && offer.getCostB().getItem() == trade.costB().getItem()
+                // Components on the result, so Mending is not bought as Unbreaking.
+                && ItemStack.isSameItemSameComponents(offer.getResult(), trade.result())
+                && offer.getResult().getCount() == trade.result().getCount();
     }
 
     /**

@@ -5,6 +5,7 @@ import java.util.List;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
@@ -253,7 +254,7 @@ final class CarrierGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
-                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE,
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), CHEST_MENU_SIZE,
                         List.of(new ChronoAction.UseContainer.CarrierSlot(menuSlotOf(9), recorded)),
                         List.of(click(menuSlotOf(9), LEFT, ContainerInput.QUICK_MOVE)))));
 
@@ -287,7 +288,7 @@ final class CarrierGameTest {
                                                    ActionSettings settings) {
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
-                        new BlockPos(0, 0, -1), CHEST_MENU_SIZE, List.of(), clicks), settings));
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), CHEST_MENU_SIZE, List.of(), clicks), settings));
     }
 
     private static void assertBarrelHolds(GameTestHelper helper, BlockPos target,

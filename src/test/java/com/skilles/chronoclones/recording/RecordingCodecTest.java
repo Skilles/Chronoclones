@@ -82,7 +82,7 @@ class RecordingCodecTest {
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
                         new TimedAction(13, new ChronoAction.UseContainer(
-                                new BlockPos(2, 0, -3), 63,
+                                new MenuTarget.Block(new BlockPos(2, 0, -3)), 63,
                                 // No carrier entries, for the same reason the templates above are
                                 // empty: one holds a whole ItemStack, and a carrier slot may not be
                                 // empty. Its codec is the strict ItemStack.CODEC so that
@@ -98,7 +98,19 @@ class RecordingCodecTest {
                                                 SessionStep.Amount.ALL),
                                         new SessionStep.RawClick(4, 1, ContainerInput.PICKUP),
                                         new SessionStep.RawClick(54, 0, ContainerInput.PICKUP),
-                                        new SessionStep.RawClick(-999, 0, ContainerInput.THROW))))),
+                                        new SessionStep.RawClick(-999, 0, ContainerInput.THROW)))),
+                        // A session on an entity, with the three steps that arrive as packets. The
+                        // trade's stacks are empty for the same reason the carrier is.
+                        new TimedAction(15, new ChronoAction.UseContainer(
+                                new MenuTarget.Entity(new Vec3(-1.5, 0.0, 2.5),
+                                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                39,
+                                List.of(),
+                                List.of(
+                                        new SessionStep.Button(2),
+                                        new SessionStep.Trade(ItemStack.EMPTY, ItemStack.EMPTY,
+                                                ItemStack.EMPTY),
+                                        new SessionStep.Rename("Tunneler"))))),
                 200,
                 "Skilles",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
@@ -194,7 +206,28 @@ class RecordingCodecTest {
 
         ChronoAction.UseContainer use = (ChronoAction.UseContainer) decoded;
         assertEquals(List.of(new SessionStep.RawClick(30, 1, ContainerInput.PICKUP)), use.steps());
-        assertEquals(new BlockPos(1, 2, 3), use.localPos());
+        assertEquals(new MenuTarget.Block(new BlockPos(1, 2, 3)), use.target());
+    }
+
+    @Test
+    @DisplayName("an entity target and a block target both round trip, and neither writes the other")
+    void bothTargetKindsRoundTrip() {
+        List<MenuTarget> targets = sample().actions().stream()
+                .map(TimedAction::action)
+                .filter(a -> a instanceof ChronoAction.UseContainer)
+                .map(a -> ((ChronoAction.UseContainer) a).target())
+                .toList();
+
+        assertEquals(List.of(MenuTarget.Kind.BLOCK, MenuTarget.Kind.ENTITY),
+                targets.stream().map(MenuTarget::kind).toList(),
+                "the sample no longer covers both kinds of target");
+
+        for (MenuTarget target : targets) {
+            var encoded = unwrap(RecordingCodecs.MENU_TARGET.encodeStart(
+                    registries.createSerializationContext(JsonOps.INSTANCE), target));
+            assertEquals(target, unwrap(RecordingCodecs.MENU_TARGET.parse(
+                    registries.createSerializationContext(JsonOps.INSTANCE), encoded)));
+        }
     }
 
     @Test
@@ -238,7 +271,7 @@ class RecordingCodecTest {
         assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ON_BLOCK));
         assertEquals(1, r.actionCounts().get(ChronoActionType.USE_ITEM));
         assertEquals(1, r.actionCounts().get(ChronoActionType.INTERACT_ENTITY));
-        assertEquals(1, r.actionCounts().get(ChronoActionType.USE_CONTAINER));
+        assertEquals(2, r.actionCounts().get(ChronoActionType.USE_CONTAINER));
 
         // Furthest horizontal point is the motion sample at (-7, _, 4) -> sqrt(49+16) ~= 8.06
         assertEquals(Math.sqrt(65.0), r.reach(), 1.0e-9);
@@ -326,7 +359,7 @@ class RecordingCodecTest {
             }
             case ChronoAction.UseContainer e -> {
                 ChronoAction.UseContainer a = (ChronoAction.UseContainer) actual;
-                assertEquals(e.localPos(), a.localPos());
+                assertEquals(e.target(), a.target());
                 assertEquals(e.menuSize(), a.menuSize());
                 assertEquals(e.steps(), a.steps());
                 assertEquals(e.carrier().size(), a.carrier().size());

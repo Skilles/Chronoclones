@@ -8,6 +8,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -23,7 +24,10 @@ public sealed interface SessionStep {
     /** The step kinds, for dispatch. */
     enum Kind implements StringRepresentable {
         MOVE("move"),
-        RAW_CLICK("raw_click");
+        RAW_CLICK("raw_click"),
+        BUTTON("button"),
+        TRADE("trade"),
+        RENAME("rename");
 
         public static final Codec<Kind> CODEC = StringRepresentable.fromEnum(Kind::values);
 
@@ -46,6 +50,10 @@ public sealed interface SessionStep {
         return switch (this) {
             case Move m -> m.quick() ? IntStream.of(m.from()) : IntStream.of(m.from(), m.to());
             case RawClick c -> IntStream.of(c.slot());
+            // These name no square: they are the menu's own controls, not its slots.
+            case Button ignored -> IntStream.empty();
+            case Trade ignored -> IntStream.empty();
+            case Rename ignored -> IntStream.empty();
         };
     }
 
@@ -100,6 +108,45 @@ public sealed interface SessionStep {
         @Override
         public Kind kind() {
             return Kind.RAW_CLICK;
+        }
+    }
+
+    /**
+     * A control in the menu rather than a slot: an enchantment tier, a loom pattern, a beacon's
+     * confirmation. It travels by its own packet, so there is no click to read it from.
+     */
+    record Button(int id) implements SessionStep {
+        @Override
+        public Kind kind() {
+            return Kind.BUTTON;
+        }
+    }
+
+    /**
+     * Choosing one of a merchant's offers, by what it offers rather than where it sat in the list.
+     *
+     * <p>A villager's trades reorder as it levels up, and the fifth trade of that day is not the same
+     * promise as the fifth trade today.
+     */
+    record Trade(ItemStack costA, ItemStack costB, ItemStack result) implements SessionStep {
+
+        public Trade {
+            costA = costA.copy();
+            costB = costB.copy();
+            result = result.copy();
+        }
+
+        @Override
+        public Kind kind() {
+            return Kind.TRADE;
+        }
+    }
+
+    /** Typing a name into an anvil, which is not a click either. */
+    record Rename(String text) implements SessionStep {
+        @Override
+        public Kind kind() {
+            return Kind.RENAME;
         }
     }
 }

@@ -661,7 +661,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             case ChronoAction.UseOnBlock a -> a.localPos();
             case ChronoAction.UseItem ignored -> BlockPos.ZERO;
             case ChronoAction.InteractEntity a -> BlockPos.containing(a.localPos());
-            case ChronoAction.UseContainer a -> a.localPos();
+            case ChronoAction.UseContainer a -> a.target().localBlock();
         };
     }
 

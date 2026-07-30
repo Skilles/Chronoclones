@@ -81,7 +81,7 @@ public final class RecordingDetail {
                     name(a.expectedType().value().getDescription()), at(a.localPos()))
                     .withStyle(ChatFormatting.AQUA);
             case ChronoAction.UseContainer a -> Component.translatable("tooltip.chronoclones.detail.container",
-                    at(a.localPos()), a.steps().size())
+                    at(a.target().localBlock()), a.steps().size())
                     .withStyle(ChatFormatting.YELLOW);
         };
     }
@@ -119,6 +119,13 @@ public final class RecordingDetail {
         return switch (step) {
             case SessionStep.Move move -> moveLine(move);
             case SessionStep.RawClick click -> clickLine(click);
+            case SessionStep.Button button -> Component.translatable(
+                    "tooltip.chronoclones.detail.step.button", button.id());
+            case SessionStep.Trade trade -> Component.translatable(
+                    "tooltip.chronoclones.detail.step.trade",
+                    name(trade.result().getHoverName()), name(trade.costA().getHoverName()));
+            case SessionStep.Rename rename -> Component.translatable(
+                    "tooltip.chronoclones.detail.step.rename", rename.text());
         };
     }
 

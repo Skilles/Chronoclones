@@ -101,7 +101,7 @@ public sealed interface ChronoAction {
      * A container session, as the steps the player worked through rather than net movement: "take
      * 32" would bake in what the chest held that day, where "take half" is a thing to do to a chest.
      */
-    record UseContainer(BlockPos localPos, int menuSize, List<CarrierSlot> carrier,
+    record UseContainer(MenuTarget target, int menuSize, List<CarrierSlot> carrier,
                         List<SessionStep> steps) implements ChronoAction {
 
         /** The count is a target for staging; the steps operate on whatever is there. */

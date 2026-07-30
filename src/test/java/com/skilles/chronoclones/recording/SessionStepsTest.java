@@ -23,22 +23,26 @@ class SessionStepsTest {
     /** A holder, not a stack: an item's default components are not bound in the JUnit bootstrap. */
     private static final Holder<Item> STONE = BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE);
 
+    private static SessionSteps.Event clicked(int slot, int button, ContainerInput input,
+                                              Optional<Holder<Item>> slotItem,
+                                              boolean heldBefore, boolean heldAfter) {
+        return new SessionSteps.Event.Clicked(new SessionSteps.Observation(
+                slot, button, input, slotItem, heldBefore, heldAfter));
+    }
+
     /** A click that fills the cursor from a square holding stone. */
-    private static SessionSteps.Observation take(int slot, int button) {
-        return new SessionSteps.Observation(slot, button, ContainerInput.PICKUP,
-                Optional.of(STONE), false, true);
+    private static SessionSteps.Event take(int slot, int button) {
+        return clicked(slot, button, ContainerInput.PICKUP, Optional.of(STONE), false, true);
     }
 
     /** A click that empties the cursor into a square. */
-    private static SessionSteps.Observation put(int slot, int button) {
-        return new SessionSteps.Observation(slot, button, ContainerInput.PICKUP,
-                Optional.empty(), true, false);
+    private static SessionSteps.Event put(int slot, int button) {
+        return clicked(slot, button, ContainerInput.PICKUP, Optional.empty(), true, false);
     }
 
     /** A click that puts one down and keeps the rest. */
-    private static SessionSteps.Observation putOne(int slot) {
-        return new SessionSteps.Observation(slot, 1, ContainerInput.PICKUP,
-                Optional.empty(), true, true);
+    private static SessionSteps.Event putOne(int slot) {
+        return clicked(slot, 1, ContainerInput.PICKUP, Optional.empty(), true, true);
     }
 
     @Test
@@ -82,7 +86,7 @@ class SessionStepsTest {
     @DisplayName("a shift-click is a move whose destination the menu chooses")
     void quickMoveKeepsItsDestinationOpen() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
-                new SessionSteps.Observation(4, 0, ContainerInput.QUICK_MOVE,
+                clicked(4, 0, ContainerInput.QUICK_MOVE,
                         Optional.of(STONE), false, false)));
 
         SessionStep.Move move = assertInstanceOf(SessionStep.Move.class, steps.getFirst());
@@ -95,9 +99,9 @@ class SessionStepsTest {
     @DisplayName("a drag stays a raw click, because nothing else describes it")
     void dragIsNotInterpreted() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
-                new SessionSteps.Observation(4, 0, ContainerInput.QUICK_CRAFT,
+                clicked(4, 0, ContainerInput.QUICK_CRAFT,
                         Optional.of(STONE), false, true),
-                new SessionSteps.Observation(5, 1, ContainerInput.QUICK_CRAFT,
+                clicked(5, 1, ContainerInput.QUICK_CRAFT,
                         Optional.empty(), true, true)));
 
         assertEquals(2, steps.size(), "steps: " + steps);
@@ -110,8 +114,8 @@ class SessionStepsTest {
     void swapFallsBackToBothClicks() {
         // Picking up stone and left-clicking a square holding something else swaps them: the cursor
         // comes away full, which is not a move, and the take is no longer half of anything.
-        List<SessionSteps.Observation> clicks = List.of(take(4, 0),
-                new SessionSteps.Observation(54, 0, ContainerInput.PICKUP,
+        List<SessionSteps.Event> clicks = List.of(take(4, 0),
+                clicked(54, 0, ContainerInput.PICKUP,
                         Optional.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.DIRT)), true, true));
 
         List<SessionStep> steps = SessionSteps.interpret(clicks);
@@ -138,7 +142,7 @@ class SessionStepsTest {
     @DisplayName("a throw outside the window is a raw click, not a move to nowhere")
     void throwOutsideIsRaw() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(take(4, 0),
-                new SessionSteps.Observation(-999, 0, ContainerInput.THROW,
+                clicked(-999, 0, ContainerInput.THROW,
                         Optional.empty(), true, false)));
 
         assertEquals(2, steps.size(), "steps: " + steps);
@@ -150,10 +154,50 @@ class SessionStepsTest {
     @DisplayName("clicking an empty square is not the start of a move")
     void clickOnNothingIsRaw() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
-                new SessionSteps.Observation(4, 0, ContainerInput.PICKUP,
+                clicked(4, 0, ContainerInput.PICKUP,
                         Optional.empty(), false, false)));
 
         assertEquals(List.of(new SessionStep.RawClick(4, 0, ContainerInput.PICKUP)), steps);
+    }
+
+    @Test
+    @DisplayName("a name typed letter by letter is one step, for the name that was settled on")
+    void renamesCollapse() {
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                did(new SessionStep.Rename("T")),
+                did(new SessionStep.Rename("Tu")),
+                did(new SessionStep.Rename("Tunneler"))));
+
+        assertEquals(List.of(new SessionStep.Rename("Tunneler")), steps);
+    }
+
+    @Test
+    @DisplayName("two names with work between them are two steps")
+    void separatedRenamesBothSurvive() {
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                did(new SessionStep.Rename("First")),
+                take(4, 0), put(0, 0),
+                did(new SessionStep.Rename("Second"))));
+
+        assertEquals(3, steps.size(), "steps: " + steps);
+        assertEquals(new SessionStep.Rename("First"), steps.get(0));
+        assertEquals(new SessionStep.Rename("Second"), steps.get(2));
+    }
+
+    @Test
+    @DisplayName("a step that is not a click gives up on a pickup left in the air")
+    void aKnownStepFlushesADanglingPickup() {
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                take(4, 0), did(new SessionStep.Button(1)), put(54, 0)));
+
+        // The take could not have been part of a move across the button, so all three stand alone.
+        assertEquals(List.of(new SessionStep.RawClick(4, 0, ContainerInput.PICKUP),
+                new SessionStep.Button(1),
+                new SessionStep.RawClick(54, 0, ContainerInput.PICKUP)), steps);
+    }
+
+    private static SessionSteps.Event did(SessionStep step) {
+        return new SessionSteps.Event.Did(step);
     }
 
     @Test
@@ -162,7 +206,7 @@ class SessionStepsTest {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
                 take(4, 0), put(54, 0),
                 // A swap leaves the cursor alone, so it interrupts nothing and names nothing.
-                new SessionSteps.Observation(9, 3, ContainerInput.SWAP,
+                clicked(9, 3, ContainerInput.SWAP,
                         Optional.of(STONE), false, false),
                 take(5, 0), put(55, 0)));
 

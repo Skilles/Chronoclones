@@ -114,6 +114,52 @@ public final class RecordingCodecs {
                     },
                     input -> DataResult.success(input.name().toLowerCase(java.util.Locale.ROOT)));
 
+    static final MapCodec<MenuTarget.Block> MENU_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
+            BlockPos.CODEC.fieldOf("pos").forGetter(MenuTarget.Block::localPos)
+    ).apply(i, MenuTarget.Block::new));
+
+    static final MapCodec<MenuTarget.Entity> MENU_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
+            Vec3.CODEC.fieldOf("pos").forGetter(MenuTarget.Entity::localPos),
+            BuiltInRegistries.ENTITY_TYPE.holderByNameCodec().fieldOf("expected")
+                    .forGetter(MenuTarget.Entity::expectedType)
+    ).apply(i, MenuTarget.Entity::new));
+
+    private static MapCodec<? extends MenuTarget> menuTargetCodecFor(MenuTarget.Kind kind) {
+        return switch (kind) {
+            case BLOCK -> MENU_BLOCK;
+            case ENTITY -> MENU_ENTITY;
+        };
+    }
+
+    public static final Codec<MenuTarget> MENU_TARGET =
+            MenuTarget.Kind.CODEC.dispatch("at", MenuTarget::kind, RecordingCodecs::menuTargetCodecFor);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Block> MENU_BLOCK_STREAM =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC.cast(), MenuTarget.Block::localPos,
+                    MenuTarget.Block::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Entity> MENU_ENTITY_STREAM =
+            StreamCodec.composite(
+                    Vec3.STREAM_CODEC.cast(), MenuTarget.Entity::localPos,
+                    ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), MenuTarget.Entity::expectedType,
+                    MenuTarget.Entity::new);
+
+    @SuppressWarnings("unchecked")
+    private static StreamCodec<RegistryFriendlyByteBuf, MenuTarget> menuTargetStreamFor(MenuTarget.Kind kind) {
+        StreamCodec<RegistryFriendlyByteBuf, ? extends MenuTarget> codec = switch (kind) {
+            case BLOCK -> MENU_BLOCK_STREAM;
+            case ENTITY -> MENU_ENTITY_STREAM;
+        };
+        // Safe: dispatch only ever hands us the codec matching the value's own kind().
+        return (StreamCodec<RegistryFriendlyByteBuf, MenuTarget>) codec;
+    }
+
+    static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget> MENU_TARGET_STREAM =
+            ByteBufCodecs.<MenuTarget.Kind>idMapper(
+                            id -> MenuTarget.Kind.values()[id], Enum::ordinal).<RegistryFriendlyByteBuf>cast()
+                    .dispatch(MenuTarget::kind, RecordingCodecs::menuTargetStreamFor);
+
     static final MapCodec<SessionStep.Move> MOVE = RecordCodecBuilder.mapCodec(i -> i.group(
             Codec.INT.fieldOf("from").forGetter(SessionStep.Move::from),
             Codec.INT.fieldOf("to").forGetter(SessionStep.Move::to),
@@ -128,10 +174,27 @@ public final class RecordingCodecs {
             CONTAINER_INPUT.fieldOf("input").forGetter(SessionStep.RawClick::input)
     ).apply(i, SessionStep.RawClick::new));
 
+    static final MapCodec<SessionStep.Button> BUTTON = RecordCodecBuilder.mapCodec(i -> i.group(
+            Codec.INT.fieldOf("id").forGetter(SessionStep.Button::id)
+    ).apply(i, SessionStep.Button::new));
+
+    static final MapCodec<SessionStep.Trade> TRADE = RecordCodecBuilder.mapCodec(i -> i.group(
+            ItemStack.OPTIONAL_CODEC.fieldOf("cost_a").forGetter(SessionStep.Trade::costA),
+            ItemStack.OPTIONAL_CODEC.fieldOf("cost_b").forGetter(SessionStep.Trade::costB),
+            ItemStack.OPTIONAL_CODEC.fieldOf("result").forGetter(SessionStep.Trade::result)
+    ).apply(i, SessionStep.Trade::new));
+
+    static final MapCodec<SessionStep.Rename> RENAME = RecordCodecBuilder.mapCodec(i -> i.group(
+            Codec.STRING.fieldOf("text").forGetter(SessionStep.Rename::text)
+    ).apply(i, SessionStep.Rename::new));
+
     private static MapCodec<? extends SessionStep> stepCodecFor(SessionStep.Kind kind) {
         return switch (kind) {
             case MOVE -> MOVE;
             case RAW_CLICK -> RAW_CLICK;
+            case BUTTON -> BUTTON;
+            case TRADE -> TRADE;
+            case RENAME -> RENAME;
         };
     }
 
@@ -145,19 +208,23 @@ public final class RecordingCodecs {
     ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
 
     /**
-     * The {@code clicks} field is only ever read: sessions saved before steps existed carry their
-     * clicks there, and each becomes a raw step, which is exactly how it already behaved.
+     * The {@code clicks} and {@code pos} fields are only ever read: sessions saved before steps and
+     * entity menus existed carry a block position and a list of clicks, which read as a block target
+     * and raw steps, exactly how they already behaved.
      */
     static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
-            BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.UseContainer::localPos),
+            MENU_TARGET.optionalFieldOf("target").forGetter(a -> Optional.of(a.target())),
+            BlockPos.CODEC.optionalFieldOf("pos").forGetter(a -> Optional.<BlockPos>empty()),
             Codec.INT.fieldOf("menu_size").forGetter(ChronoAction.UseContainer::menuSize),
             CARRIER_SLOT.listOf().fieldOf("carrier").forGetter(ChronoAction.UseContainer::carrier),
             SESSION_STEP.listOf().optionalFieldOf("steps", List.of())
                     .forGetter(ChronoAction.UseContainer::steps),
             RAW_CLICK.codec().listOf().optionalFieldOf("clicks")
                     .forGetter(a -> Optional.<List<SessionStep.RawClick>>empty())
-    ).apply(i, (pos, size, carrier, steps, legacy) -> new ChronoAction.UseContainer(pos, size, carrier,
-            steps.isEmpty() ? List.copyOf(legacy.orElse(List.of())) : steps)));
+    ).apply(i, (target, legacyPos, size, carrier, steps, legacySteps) -> new ChronoAction.UseContainer(
+            target.orElseGet(() -> new MenuTarget.Block(legacyPos.orElse(BlockPos.ZERO))),
+            size, carrier,
+            steps.isEmpty() ? List.copyOf(legacySteps.orElse(List.of())) : steps)));
 
     private static MapCodec<? extends ChronoAction> mapCodecFor(ChronoActionType type) {
         return switch (type) {
@@ -243,11 +310,31 @@ public final class RecordingCodecs {
                     ContainerInput.STREAM_CODEC.cast(), SessionStep.RawClick::input,
                     SessionStep.RawClick::new);
 
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Button> BUTTON_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.VAR_INT, SessionStep.Button::id,
+                    SessionStep.Button::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Trade> TRADE_STREAM =
+            StreamCodec.composite(
+                    ItemStack.OPTIONAL_STREAM_CODEC, SessionStep.Trade::costA,
+                    ItemStack.OPTIONAL_STREAM_CODEC, SessionStep.Trade::costB,
+                    ItemStack.OPTIONAL_STREAM_CODEC, SessionStep.Trade::result,
+                    SessionStep.Trade::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Rename> RENAME_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.STRING_UTF8, SessionStep.Rename::text,
+                    SessionStep.Rename::new);
+
     @SuppressWarnings("unchecked")
     private static StreamCodec<RegistryFriendlyByteBuf, SessionStep> stepStreamFor(SessionStep.Kind kind) {
         StreamCodec<RegistryFriendlyByteBuf, ? extends SessionStep> codec = switch (kind) {
             case MOVE -> MOVE_STREAM;
             case RAW_CLICK -> RAW_CLICK_STREAM;
+            case BUTTON -> BUTTON_STREAM;
+            case TRADE -> TRADE_STREAM;
+            case RENAME -> RENAME_STREAM;
         };
         // Safe: dispatch only ever hands us the codec matching the value's own kind().
         return (StreamCodec<RegistryFriendlyByteBuf, SessionStep>) codec;
@@ -266,7 +353,7 @@ public final class RecordingCodecs {
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer> USE_CONTAINER_STREAM =
             StreamCodec.composite(
-                    BlockPos.STREAM_CODEC.cast(), ChronoAction.UseContainer::localPos,
+                    MENU_TARGET_STREAM, ChronoAction.UseContainer::target,
                     ByteBufCodecs.VAR_INT, ChronoAction.UseContainer::menuSize,
                     CARRIER_SLOT_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
                     ChronoAction.UseContainer::carrier,

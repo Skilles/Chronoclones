@@ -5,6 +5,7 @@ import java.util.List;
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
@@ -119,7 +120,7 @@ final class InteractionGameTest {
                 .thenExecuteAfter(15, () -> {
                     helper.assertBlockPresent(Blocks.FIRE, target.above());
 
-                    ItemStack returned = findStack(anchor.getInventory(), Items.FLINT_AND_STEEL);
+                    ItemStack returned = AnchorTestFixture.findStack(anchor.getInventory(), Items.FLINT_AND_STEEL);
                     if (returned == null) {
                         helper.fail("the flint and steel lit a fire and never came back - the loan "
                                 + "did not return what the interaction left in hand");
@@ -567,7 +568,8 @@ final class InteractionGameTest {
 
     private static ChronoAction session(int menuSize, List<ChronoAction.UseContainer.CarrierSlot> carrier,
                                       SessionStep... steps) {
-        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, carrier, List.of(steps));
+        return new ChronoAction.UseContainer(
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), menuSize, carrier, List.of(steps));
     }
 
     private static SessionStep.Move move(int from, int to, Item item, SessionStep.Amount amount) {
@@ -603,17 +605,6 @@ final class InteractionGameTest {
             helper.fail("expected " + expected + " in the " + label + " slot (" + slot + "), found "
                     + (resource.isEmpty() ? "nothing" : resource.getItem()));
         }
-    }
-
-    /** The first stack of {@code item}, components and all, or null. */
-    private static ItemStack findStack(ResourceHandler<ItemResource> handler, Item item) {
-        for (int slot = 0; slot < handler.size(); slot++) {
-            ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                return resource.toStack(Math.max(1, handler.getAmountAsInt(slot)));
-            }
-        }
-        return null;
     }
 
     private static int countIn(ResourceHandler<ItemResource> handler, Item item) {

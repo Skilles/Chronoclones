@@ -9,6 +9,7 @@ import java.util.Set;
 import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
@@ -57,7 +58,9 @@ public final class GoggleSlots {
                 if (!(timed.action() instanceof ChronoAction.UseContainer session)) {
                     continue;
                 }
-                if (!target.placement().toWorld(session.localPos()).equals(open)) {
+                // Only a block session: an entity's menu is not the one the player has open here.
+                if (!(session.target() instanceof MenuTarget.Block block)
+                        || !target.placement().toWorld(block.localPos()).equals(open)) {
                     continue;
                 }
                 // Replay refuses a differently shaped menu; so should the highlight.

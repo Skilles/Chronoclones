@@ -16,11 +16,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.MerchantMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 
@@ -38,11 +42,15 @@ public final class ContainerWatch {
      * @param touched  the player slots the clicks name, collected live because a swap's
      *                 hotbar button needs the open menu to resolve
      */
-    private record Watch(BlockPos pos, List<SessionSteps.Observation> clicks, int menuSize,
+    private record Watch(MenuTarget target, BlockPos pos, List<SessionSteps.Event> clicks, int menuSize,
                          List<ChronoAction.UseContainer.CarrierSlot> snapshot, Set<Integer> touched) {}
 
-    /** A block right-clicked this tick, held only until we learn whether it opened a menu. */
-    private record Pending(BlockPos pos, int actionIndex) {}
+    /**
+     * Something right-clicked this tick, held only until we learn whether it opened a menu.
+     *
+     * @param pos where it is in the world, for the highlight and for the capture position
+     */
+    private record Pending(MenuTarget target, BlockPos pos, int actionIndex) {}
 
     /**
      * What the menu looked like as a click arrived, which is gone by the time it returns.
@@ -57,8 +65,23 @@ public final class ContainerWatch {
     private static final Map<UUID, Before> MID_CLICK = new ConcurrentHashMap<>();
 
     /** The action index lets {@link #onContainerOpened} retract the click if a menu opens. */
-    public static void noteInteraction(ServerPlayer player, BlockPos pos, int actionIndex) {
-        PENDING.put(player.getUUID(), new Pending(pos, actionIndex));
+    public static void noteInteraction(ServerPlayer player, BlockPos pos, int actionIndex,
+                                       RecordingSession session) {
+        // An anchor's own slots are machinery; replay refuses to reach into one anyway.
+        if (player.level().getBlockState(pos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
+            return;
+        }
+        PENDING.put(player.getUUID(),
+                new Pending(new MenuTarget.Block(session.toLocal(pos)), pos, actionIndex));
+    }
+
+    /** The same, for an entity: a villager's trades, a horse's saddlebags, a chest boat. */
+    public static void noteInteraction(ServerPlayer player, Entity target, int actionIndex,
+                                       RecordingSession session) {
+        PENDING.put(player.getUUID(), new Pending(
+                new MenuTarget.Entity(session.toLocal(target.position()),
+                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(target.getType())),
+                target.blockPosition(), actionIndex));
     }
 
     /**
@@ -69,18 +92,16 @@ public final class ContainerWatch {
         if (pending == null) {
             return;
         }
-
-        // An anchor's own slots are machinery; replay refuses to reach into one anyway.
-        if (player.level().getBlockState(pending.pos()).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
-            return;
-        }
-        // Only blocks whose menu can be reopened later; an inventory belongs to the player.
-        if (player.level().getBlockState(pending.pos()).getMenuProvider(player.level(), pending.pos()) == null) {
+        // A block menu has to be one replay can open again; an entity's is opened through the
+        // entity, which the target rule finds for itself.
+        if (pending.target() instanceof MenuTarget.Block
+                && player.level().getBlockState(pending.pos())
+                        .getMenuProvider(player.level(), pending.pos()) == null) {
             return;
         }
 
         session.dropActionAt(pending.actionIndex());
-        Watch watch = new Watch(pending.pos(), new ArrayList<>(),
+        Watch watch = new Watch(pending.target(), pending.pos(), new ArrayList<>(),
                 player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>());
         OPEN.put(player.getUUID(), watch);
         // Nothing to highlight yet, but this signals that the container is being watched.
@@ -157,8 +178,9 @@ public final class ContainerWatch {
             // The watch began between the two halves of one click, so this one is unnameable.
             before = Before.NOTHING;
         }
-        watch.clicks().add(new SessionSteps.Observation(slot, button, input, before.slotItem(),
-                before.held(), !player.containerMenu.getCarried().isEmpty()));
+        watch.clicks().add(new SessionSteps.Event.Clicked(
+                new SessionSteps.Observation(slot, button, input, before.slotItem(),
+                        before.held(), !player.containerMenu.getCarried().isEmpty())));
 
         // -1 is outside the window and container slots are not the carrier's business; the
         // snapshot filters both.
@@ -175,6 +197,44 @@ public final class ContainerWatch {
 
     private static boolean watching(ServerPlayer player) {
         return RecordingSessions.get(player) != null && OPEN.containsKey(player.getUUID());
+    }
+
+    /**
+     * A control in the menu: an enchantment tier, a loom pattern. From the mixin, since there is no
+     * event and no click to read it from.
+     */
+    public static void onButton(ServerPlayer player, int id) {
+        record(player, new SessionStep.Button(id));
+    }
+
+    /**
+     * A merchant's offer chosen, kept as what it offers rather than where it sat in the list.
+     */
+    public static void onTrade(ServerPlayer player, int index) {
+        if (!(player.containerMenu instanceof MerchantMenu merchant)) {
+            return;
+        }
+        MerchantOffers offers = merchant.getOffers();
+        if (index < 0 || index >= offers.size()) {
+            return;
+        }
+        MerchantOffer offer = offers.get(index);
+        record(player, new SessionStep.Trade(offer.getCostA(), offer.getCostB(), offer.getResult()));
+    }
+
+    /** A name typed into an anvil. */
+    public static void onRename(ServerPlayer player, String text) {
+        record(player, new SessionStep.Rename(text));
+    }
+
+    private static void record(ServerPlayer player, SessionStep step) {
+        if (!watching(player)) {
+            return;
+        }
+        Watch watch = OPEN.get(player.getUUID());
+        if (watch != null) {
+            watch.clicks().add(new SessionSteps.Event.Did(step));
+        }
     }
 
     /** Where a player-inventory index sits in the open menu, or -1 if this menu does not show it. */
@@ -211,7 +271,7 @@ public final class ContainerWatch {
         if (watch == null || watch.clicks().isEmpty()) {
             return null;
         }
-        return new ChronoAction.UseContainer(session.toLocal(watch.pos()), watch.menuSize(),
+        return new ChronoAction.UseContainer(watch.target(), watch.menuSize(),
                 carried(watch.snapshot(), watch.touched()),
                 SessionSteps.interpret(watch.clicks()));
     }
