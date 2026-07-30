@@ -86,7 +86,9 @@ final class AttackIntentGameTest {
         attackingAnchor(helper, TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD), 400);
 
         helper.startSequence()
-                .thenExecuteAfter(60, () -> {
+                // Wide margin: tests share one world, and a busy tick can slow the swing cadence.
+                // The 400-tick routine still cannot loop in here, so only holding lands a second hit.
+                .thenExecuteAfter(120, () -> {
                     if (cow.isAlive()) {
                         helper.fail("the cow survived an attack told to finish it, at "
                                 + cow.getHealth() + " health");
