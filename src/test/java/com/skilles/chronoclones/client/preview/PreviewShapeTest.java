@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
@@ -75,6 +76,37 @@ class PreviewShapeTest {
 
         assertEquals(1, shape.volumes().size());
         assertEquals(PreviewShape.Kind.INTERACT, shape.volumes().getFirst().kind());
+    }
+
+    @Test
+    @DisplayName("a session on a villager is drawn where it stands, not at the square it rounds to")
+    void entitySessionIsAVolume() {
+        // Half a block off a boundary: a cube would be drawn at the square the feet round into,
+        // which is not where the villager is and not where it will be by the time the clone runs.
+        Vec3 standing = new Vec3(0.5, 0.0, -2.5);
+        PreviewShape shape = PreviewShape.of(
+                of(new ChronoAction.UseContainer(
+                        new MenuTarget.Entity(standing,
+                                BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                        39, List.of(), List.of())),
+                ANCHOR, Direction.NORTH);
+
+        assertEquals(0, shape.marks().size(), "a villager was drawn as a block");
+        assertEquals(1, shape.volumes().size());
+        assertEquals(new Vec3(100.5, 64.0, 97.5), shape.volumes().getFirst().centre());
+    }
+
+    @Test
+    @DisplayName("a session on a block is still a block")
+    void blockSessionIsAMark() {
+        PreviewShape shape = PreviewShape.of(
+                of(new ChronoAction.UseContainer(
+                        new MenuTarget.Block(new BlockPos(0, 0, -2)), 63, List.of(), List.of())),
+                ANCHOR, Direction.NORTH);
+
+        assertEquals(1, shape.marks().size());
+        assertEquals(0, shape.volumes().size());
+        assertEquals(PreviewShape.Kind.TRANSFER, shape.marks().getFirst().kind());
     }
 
     @Test

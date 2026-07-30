@@ -85,6 +85,7 @@
   "tooltip.chronoclones.detail.use": "Use %s",
   "tooltip.chronoclones.detail.interact": "Interact with %s near %s",
   "tooltip.chronoclones.detail.container": "Container at %s · %s steps",
+  "tooltip.chronoclones.detail.container.entity": "Work a %s · %s steps",
   "tooltip.chronoclones.detail.container.needs": "brings %s× %s",
   "tooltip.chronoclones.detail.empty_hand": "an empty hand",
   "tooltip.chronoclones.detail.more": "…and %s more",

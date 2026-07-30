@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
@@ -80,10 +81,18 @@ public final class RecordingDetail {
             case ChronoAction.InteractEntity a -> Component.translatable("tooltip.chronoclones.detail.interact",
                     name(a.expectedType().value().getDescription()), at(a.localPos()))
                     .withStyle(ChatFormatting.AQUA);
-            case ChronoAction.UseContainer a -> Component.translatable("tooltip.chronoclones.detail.container",
-                    at(a.target().localBlock()), a.steps().size())
-                    .withStyle(ChatFormatting.YELLOW);
+            case ChronoAction.UseContainer a -> containerLine(a).withStyle(ChatFormatting.YELLOW);
         };
+    }
+
+    /** A session names what it worked: a square for a block, a creature for an entity. */
+    private static MutableComponent containerLine(ChronoAction.UseContainer session) {
+        if (session.target() instanceof MenuTarget.Entity entity) {
+            return Component.translatable("tooltip.chronoclones.detail.container.entity",
+                    name(entity.expectedType().value().getDescription()), session.steps().size());
+        }
+        return Component.translatable("tooltip.chronoclones.detail.container",
+                at(session.target().localBlock()), session.steps().size());
     }
 
     /** Nested lines for one container session: what it brings, then what it does. */

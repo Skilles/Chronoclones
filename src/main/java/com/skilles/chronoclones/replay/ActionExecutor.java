@@ -536,7 +536,7 @@ public final class ActionExecutor {
                                              ActionSettings settings) {
 
         BlockPos localBlock = action.target().localBlock();
-        Vec3 worldPoint = placement.toWorld(action.target().localPoint());
+        Vec3 worldPoint = action.target().toWorld(placement.origin(), placement.facing());
         BlockPos worldPos = BlockPos.containing(worldPoint);
 
         if (!placement.withinRadius(worldPos)) {

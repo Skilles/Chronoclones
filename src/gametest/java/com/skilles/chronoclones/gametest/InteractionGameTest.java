@@ -59,6 +59,48 @@ final class InteractionGameTest {
                 InteractionGameTest::moveStepSendsElsewhere);
         ChronoclonesGameTests.add("move_step_over_an_empty_square_does_nothing",
                 InteractionGameTest::moveStepOverNothing);
+        ChronoclonesGameTests.add("a_right_drag_takes_one_item_out_of_a_stack",
+                InteractionGameTest::rightDragTakesOneItem);
+    }
+
+    /**
+     * Taking a single item the way a player does it: right-click for half, right-drag one into a
+     * square, put the rest back. The middle of that arrives as a quick-craft drag rather than a
+     * click, which no amount of interpreting will turn into a move.
+     */
+    private static void rightDragTakesOneItem(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+        stock(level, absoluteTarget, 0, Items.DIAMOND, 8);
+
+        // Right-drag: type 1, so start/add/end are buttons 4, 5 and 6.
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        click(0, RIGHT, ContainerInput.PICKUP),
+                        click(-999, 4, ContainerInput.QUICK_CRAFT),
+                        click(CHEST_MAIN_INVENTORY_START + 2, 5, ContainerInput.QUICK_CRAFT),
+                        click(-999, 6, ContainerInput.QUICK_CRAFT),
+                        click(0, LEFT, ContainerInput.PICKUP))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    int taken = countIn(anchor.getInventory(), Items.DIAMOND);
+                    if (taken != 1) {
+                        helper.fail("expected one diamond dragged out, the anchor holds " + taken
+                                + ", reporting " + anchor.getLastFailure().reason());
+                        return;
+                    }
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (barrel != null && barrel.getAmountAsInt(0) != 7) {
+                        helper.fail("the rest of the stack was not put back, slot 0 holds "
+                                + barrel.getAmountAsInt(0));
+                    }
+                })
+                .thenSucceed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

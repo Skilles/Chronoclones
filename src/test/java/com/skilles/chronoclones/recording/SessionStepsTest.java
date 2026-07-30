@@ -95,18 +95,77 @@ class SessionStepsTest {
         assertEquals(4, move.from());
     }
 
+    /** Vanilla's encoding: the low two bits are the stage, the next two the kind of drag. */
+    private static SessionSteps.Event drag(int slot, int type, int stage, boolean heldAfter) {
+        return clicked(slot, stage | type << 2, ContainerInput.QUICK_CRAFT,
+                Optional.empty(), true, heldAfter);
+    }
+
     @Test
-    @DisplayName("a drag stays a raw click, because nothing else describes it")
-    void dragIsNotInterpreted() {
+    @DisplayName("a drag across several squares stays raw, because no one click distributes a stack")
+    void wideDragIsNotInterpreted() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
-                clicked(4, 0, ContainerInput.QUICK_CRAFT,
-                        Optional.of(STONE), false, true),
-                clicked(5, 1, ContainerInput.QUICK_CRAFT,
-                        Optional.empty(), true, true)));
+                drag(-999, 1, 0, true),
+                drag(5, 1, 1, true),
+                drag(6, 1, 1, true),
+                drag(-999, 1, 2, true)));
+
+        assertEquals(4, steps.size(), "steps: " + steps);
+        for (SessionStep step : steps) {
+            assertInstanceOf(SessionStep.RawClick.class, step);
+        }
+    }
+
+    @Test
+    @DisplayName("dropping one item into a square is a move, however the mouse got there")
+    void oneSquareDragIsTheClickItAmountsTo() {
+        // Holding right and letting go over one square arrives as a three-part drag rather than a
+        // click if the mouse twitched. Vanilla turns that back into one right-click, and so does
+        // this: otherwise "take half, drop one, put the rest back" is five rows nobody can edit.
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                take(4, 1),
+                drag(-999, 1, 0, true),
+                drag(54, 1, 1, true),
+                drag(-999, 1, 2, true),
+                put(4, 0)));
+
+        // One row, not five: the last click puts the rest back where it came from, which moves
+        // nothing that replaying the move does not already put back.
+        assertEquals(1, steps.size(), "steps: " + steps);
+        SessionStep.Move move = assertInstanceOf(SessionStep.Move.class, steps.getFirst());
+        assertEquals(4, move.from());
+        assertEquals(54, move.to());
+        assertEquals(SessionStep.Amount.ONE, move.observed());
+    }
+
+    @Test
+    @DisplayName("picking a stack up and putting it straight back is not a step at all")
+    void puttingItStraightBackIsNothing() {
+        assertEquals(List.of(), SessionSteps.interpret(List.of(take(4, 1), put(4, 0))));
+    }
+
+    @Test
+    @DisplayName("a left-drag onto one square puts down everything held, as its click would")
+    void oneSquareLeftDragPlacesAll() {
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                take(4, 0),
+                drag(-999, 0, 0, true),
+                drag(54, 0, 1, false),
+                drag(-999, 0, 2, false)));
+
+        SessionStep.Move move = assertInstanceOf(SessionStep.Move.class, steps.getFirst());
+        assertEquals(SessionStep.Amount.ALL, move.observed());
+    }
+
+    @Test
+    @DisplayName("a drag with no end is left exactly as it arrived")
+    void unfinishedDragIsNotCollapsed() {
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                drag(-999, 1, 0, true),
+                drag(54, 1, 1, true)));
 
         assertEquals(2, steps.size(), "steps: " + steps);
         assertInstanceOf(SessionStep.RawClick.class, steps.get(0));
-        assertInstanceOf(SessionStep.RawClick.class, steps.get(1));
     }
 
     @Test

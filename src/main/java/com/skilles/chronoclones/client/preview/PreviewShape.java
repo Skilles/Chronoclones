@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.LocalSpace;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
@@ -128,6 +129,10 @@ public final class PreviewShape {
         return switch (action) {
             case ChronoAction.AttackEntity a -> a.localPos();
             case ChronoAction.InteractEntity a -> a.localPos();
+            // A villager's menu is not at a square: drawing a cube would put it wherever the
+            // villager's feet happened to round to, which is not where it is nor where it will be.
+            case ChronoAction.UseContainer a when a.target() instanceof MenuTarget.Entity entity ->
+                    entity.localPos();
             default -> null;
         };
     }

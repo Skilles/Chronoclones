@@ -3,6 +3,7 @@ package com.skilles.chronoclones.recording;
 import com.mojang.serialization.Codec;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.entity.EntityType;
@@ -25,6 +26,15 @@ public sealed interface MenuTarget {
 
     /** Where it was, exactly, for measuring a routine's reach. */
     Vec3 localPoint();
+
+    /**
+     * Where it is in the world, for an anchor at {@code origin} facing {@code facing}.
+     *
+     * <p>Here rather than at the call site because the two kinds do not rotate alike: a square
+     * rotates as a square and is centred afterwards, where centring a square first and then rotating
+     * it lands a block away from where it belongs.
+     */
+    Vec3 toWorld(BlockPos origin, Direction facing);
 
     enum Kind implements StringRepresentable {
         BLOCK("block"),
@@ -60,6 +70,11 @@ public sealed interface MenuTarget {
         public Vec3 localPoint() {
             return Vec3.atCenterOf(localPos);
         }
+
+        @Override
+        public Vec3 toWorld(BlockPos origin, Direction facing) {
+            return Vec3.atCenterOf(LocalSpace.toWorld(localPos, origin, facing));
+        }
     }
 
     /** {@code expectedType} is a hint used to pick the best target, as an attack's is. */
@@ -78,6 +93,11 @@ public sealed interface MenuTarget {
         @Override
         public Vec3 localPoint() {
             return localPos;
+        }
+
+        @Override
+        public Vec3 toWorld(BlockPos origin, Direction facing) {
+            return LocalSpace.toWorld(localPos, origin, facing);
         }
     }
 }

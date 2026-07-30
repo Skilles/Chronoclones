@@ -60,7 +60,7 @@ public final class SessionSteps {
         // The click that filled the cursor, still waiting to learn where its item went.
         Observation pickup = null;
 
-        for (Event event : events) {
+        for (Event event : collapseDrags(events)) {
             if (event instanceof Event.Did done) {
                 // Something the clicks around it cannot be part of, so the cursor's business ends.
                 if (pickup != null) {
@@ -100,8 +100,12 @@ public final class SessionSteps {
                 continue;
             }
 
-            steps.add(new SessionStep.Move(pickup.slot(), click.slot(),
-                    pickup.slotItem().orElseThrow(), placed));
+            // Putting the rest of a stack back where it came from moves nothing, and replaying a
+            // move already returns what its destination would not take.
+            if (pickup.slot() != click.slot()) {
+                steps.add(new SessionStep.Move(pickup.slot(), click.slot(),
+                        pickup.slotItem().orElseThrow(), placed));
+            }
             // A right-click puts one item down and keeps the rest, so the pickup is still open.
             if (!click.heldAfter()) {
                 pickup = null;
@@ -113,6 +117,64 @@ public final class SessionSteps {
             steps.add(pickup.raw());
         }
         return steps;
+    }
+
+    /**
+     * Rewrites a drag across a single square as the click it amounts to.
+     *
+     * <p>Dropping one item into a square means holding right and letting go, and the mouse moving a
+     * pixel in between turns that into a three-part quick-craft drag rather than a click. Vanilla
+     * itself collapses a one-square drag back into {@code doClick(slot, type, PICKUP)}; doing the same
+     * here is what lets "take half, drop one, put the rest back" read as one move rather than five
+     * clicks nobody can configure.
+     *
+     * <p>A drag across several squares is left alone: it distributes a stack, and no single click
+     * does that.
+     */
+    private static List<Event> collapseDrags(List<Event> events) {
+        List<Event> collapsed = new ArrayList<>(events.size());
+
+        for (int index = 0; index < events.size(); index++) {
+            boolean oneSquare = isDragStage(events.get(index), DRAG_START)
+                    && index + 2 < events.size()
+                    && isDragStage(events.get(index + 1), DRAG_ADD)
+                    && isDragStage(events.get(index + 2), DRAG_END);
+            if (!oneSquare) {
+                collapsed.add(events.get(index));
+                continue;
+            }
+
+            Observation start = clickOf(events.get(index));
+            Observation onto = clickOf(events.get(index + 1));
+            Observation finish = clickOf(events.get(index + 2));
+            collapsed.add(new Event.Clicked(new Observation(onto.slot(), type(start.button()),
+                    ContainerInput.PICKUP, onto.slotItem(), start.heldBefore(), finish.heldAfter())));
+            index += 2;
+        }
+        return collapsed;
+    }
+
+    /** Vanilla's own encoding: the low two bits are the stage, the next two the kind of drag. */
+    private static final int DRAG_START = 0;
+    private static final int DRAG_ADD = 1;
+    private static final int DRAG_END = 2;
+
+    private static int header(int button) {
+        return button & 3;
+    }
+
+    private static int type(int button) {
+        return button >> 2 & 3;
+    }
+
+    private static boolean isDragStage(Event event, int stage) {
+        Observation click = clickOf(event);
+        return click != null && click.input() == ContainerInput.QUICK_CRAFT
+                && header(click.button()) == stage;
+    }
+
+    private static @Nullable Observation clickOf(Event event) {
+        return event instanceof Event.Clicked clicked ? clicked.observation() : null;
     }
 
     /** A shift-click is a move whose destination the menu picks, then and now. */
