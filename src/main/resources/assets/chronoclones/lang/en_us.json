@@ -144,6 +144,7 @@
   "gui.chronoclones.editor.label.sticky": "Sticky",
   "gui.chronoclones.editor.label.target": "Target",
   "gui.chronoclones.editor.label.radius": "Search",
+  "gui.chronoclones.editor.label.carry_from": "Carry from",
   "gui.chronoclones.editor.label.items": "Carry",
   "gui.chronoclones.editor.label.amount": "Amount",
   "gui.chronoclones.editor.name.hint": "Unnamed",

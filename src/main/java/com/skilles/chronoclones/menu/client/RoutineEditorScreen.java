@@ -193,20 +193,26 @@ public class RoutineEditorScreen extends Screen {
                 cycled(settings().slot()))));
 
         if (isTargeted()) {
-            addTargetControls(2);
+            addCompletionControls(2);
+            addSearchControls(4);
             return;
         }
         if (action() instanceof ChronoAction.UseContainer session) {
-            // A session's own settings are about reaching it, not about what it does inside: what it
-            // does inside is the steps, each with settings of its own.
+            // What the session carries in and out. What it does with it once inside is the steps,
+            // each with settings of their own.
+            addCarrierControls(session, 2);
             if (session.target() instanceof MenuTarget.Entity) {
-                addTargetControls(2);
+                addSearchControls(4);
             }
         }
     }
 
-    /** Finish, sticky, filter and radius: how an action chooses what to act on. */
-    private void addTargetControls(int firstRow) {
+    /**
+     * Finish and sticky, which only mean anything to an action that swings at something.
+     *
+     * <p>A session has neither: there is nothing to finish, and a menu is worked once.
+     */
+    private void addCompletionControls(int firstRow) {
         addControl(firstRow, completionLabel(), () -> {
             TargetRule rule = settings().target();
             apply(settings().withTarget(rule.withCompletion(
@@ -218,14 +224,40 @@ public class RoutineEditorScreen extends Screen {
             TargetRule rule = settings().target();
             apply(settings().withTarget(rule.withSticky(!rule.sticky())));
         });
-        addControl(firstRow + 2, targetLabel(), () -> {
+    }
+
+    /** What to look for and how far, for anything that has to find its target again. */
+    private void addSearchControls(int firstRow) {
+        addControl(firstRow, targetLabel(), () -> {
             TargetRule rule = settings().target();
             apply(settings().withTarget(rule.withFilter(
                     rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
         });
-        addRenderableWidget(new RadiusSlider(font, controlX(), controlRowY(firstRow + 3),
+        addRenderableWidget(new RadiusSlider(font, controlX(), controlRowY(firstRow + 1),
                 CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
                 radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
+    }
+
+    /** What a session is allowed to bring with it, across every square it lends. */
+    private void addCarrierControls(ChronoAction.UseContainer session, int firstRow) {
+        addControl(firstRow, itemsLabel(), () -> {
+            TransferRule rule = settings().transfer();
+            apply(settings().withTransfer(rule.withItems(
+                    rule.items().isEmpty() ? carriedItems(session) : List.of())));
+        });
+        addRenderableWidget(new QuantitySlider(font, controlX(), controlRowY(firstRow + 1),
+                CONTROL_WIDTH, CONTROL_HEIGHT, settings().transfer().quantity(),
+                cap -> apply(settings().withTransfer(
+                        settings().transfer().withQuantity(QuantityRule.atMost(cap))))));
+    }
+
+    /** The items the session was recorded carrying, which is what "only these" means. */
+    private static List<Holder<Item>> carriedItems(ChronoAction.UseContainer session) {
+        return session.carrier().stream()
+                .map(carried -> carried.stack().getItem())
+                .distinct()
+                .map(BuiltInRegistries.ITEM::wrapAsHolder)
+                .toList();
     }
 
     /**
@@ -569,14 +601,24 @@ public class RoutineEditorScreen extends Screen {
 
         label(g, 0, "gui.chronoclones.editor.label.name");
         nameTrack(g, 0);
-        label(g, 1, "gui.chronoclones.editor.label.slot");
+        label(g, 1, action() instanceof ChronoAction.UseContainer
+                ? "gui.chronoclones.editor.label.carry_from"
+                : "gui.chronoclones.editor.label.slot");
 
-        if (isTargeted() || action() instanceof ChronoAction.UseContainer session
-                && session.target() instanceof MenuTarget.Entity) {
+        if (isTargeted()) {
             label(g, 2, "gui.chronoclones.editor.label.finish");
             label(g, 3, "gui.chronoclones.editor.label.sticky");
             label(g, 4, "gui.chronoclones.editor.label.target");
             label(g, 5, "gui.chronoclones.editor.label.radius");
+            return;
+        }
+        if (action() instanceof ChronoAction.UseContainer session) {
+            label(g, 2, "gui.chronoclones.editor.label.items");
+            label(g, 3, "gui.chronoclones.editor.label.amount");
+            if (session.target() instanceof MenuTarget.Entity) {
+                label(g, 4, "gui.chronoclones.editor.label.target");
+                label(g, 5, "gui.chronoclones.editor.label.radius");
+            }
         }
     }
 
@@ -721,6 +763,13 @@ public class RoutineEditorScreen extends Screen {
         return settings().target().filter().isEmpty()
                 ? Component.translatable("gui.chronoclones.editor.filter.any")
                 : recordedType().value().getDescription();
+    }
+
+    private Component itemsLabel() {
+        List<Holder<Item>> items = settings().transfer().items();
+        return items.isEmpty()
+                ? Component.translatable("gui.chronoclones.editor.items.any")
+                : Component.translatable("gui.chronoclones.editor.items.only", items.size());
     }
 
     private Component stepItemsLabel(StepSettings step) {
