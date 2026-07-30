@@ -6,6 +6,7 @@ import com.skilles.chronoclones.block.ExperienceStore;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.item.ItemStack;
@@ -61,10 +62,32 @@ public final class AnchorFakePlayer {
      * anvil charging a level for its work was charging it to nobody.
      */
     public static void release(Operator operator, FakePlayer player) {
+        sweepOrbs(player);
         operator.setExperience(
                 ExperienceStore.pointsFor(player.experienceLevel, player.experienceProgress));
         setExperience(player, 0);
         hold(player, ItemStack.EMPTY);
+    }
+
+    /** About an arm's length: what the clone is standing in, not what is lying across the room. */
+    private static final double ORB_REACH = 1.0;
+
+    /**
+     * Picks up the experience orbs the clone is standing in, as a player walking through would.
+     *
+     * <p>Some sources hand experience over and some drop it at your feet: a furnace pops orbs rather
+     * than awarding them. A fake player never ticks, so without this nothing would ever collect them
+     * and a smelting routine would bury its own floor in orbs it earned.
+     */
+    private static void sweepOrbs(FakePlayer player) {
+        if (!(player.level() instanceof ServerLevel level)) {
+            return;
+        }
+        for (ExperienceOrb orb : level.getEntitiesOfClass(ExperienceOrb.class,
+                player.getBoundingBox().inflate(ORB_REACH))) {
+            player.giveExperiencePoints(orb.getValue());
+            orb.discard();
+        }
     }
 
     /**

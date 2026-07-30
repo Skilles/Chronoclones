@@ -4,13 +4,21 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.block.ExperienceStore;
+import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
+import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -27,7 +35,69 @@ final class ExperienceGameTest {
                 ExperienceGameTest::minedStoneBanksNothing);
         ChronoclonesGameTests.add("broken_anchor_gives_back_banked_experience",
                 ExperienceGameTest::brokenAnchorGivesBackExperience);
+        ChronoclonesGameTests.add("smelted_result_banks_the_furnace_experience",
+                ExperienceGameTest::smeltedResultBanksItsExperience);
     }
+
+    /**
+     * The other end of the lend-and-return seam: nothing here knows what a furnace is.
+     *
+     * <p>A furnace owes its experience to whoever takes the result out, through vanilla's own
+     * {@code awardUsedRecipes}. The clone is that player for the length of the session, so the
+     * experience lands in its bank without this mod naming the source.
+     */
+    private static void smeltedResultBanksItsExperience(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.FURNACE);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(target);
+        if (!(level.getBlockEntity(absolute) instanceof FurnaceBlockEntity furnace)) {
+            helper.fail("no furnace block entity to seed");
+            return;
+        }
+
+        // Seeded rather than smelted: one smelt takes two hundred ticks, which is a test's whole
+        // budget spent watching a progress bar.
+        RecipeHolder<?> smelting = level.recipeAccess().getRecipes().stream()
+                .filter(holder -> holder.value() instanceof SmeltingRecipe recipe
+                        && recipe.experience() > 0.0f)
+                .findFirst()
+                .orElse(null);
+        if (smelting == null) {
+            helper.fail("no smelting recipe worth any experience to seed the furnace with");
+            return;
+        }
+        // Twenty uses, not one: vanilla floors uses x experience and rolls a die for the fraction,
+        // so a single use of a recipe worth 0.7 pays nothing three times in ten.
+        for (int use = 0; use < 20; use++) {
+            furnace.setRecipeUsed(smelting);
+        }
+        furnace.setItem(FURNACE_RESULT, new ItemStack(Items.IRON_INGOT, 8));
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                        new MenuTarget.Block(new BlockPos(0, 0, -1)), FURNACE_MENU_SIZE, List.of(),
+                        List.of(new SessionStep.Move(FURNACE_RESULT, SessionStep.Move.ELSEWHERE,
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.IRON_INGOT),
+                                SessionStep.Amount.ALL)))));
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.IRON_INGOT) == 0) {
+                        helper.fail("the result was never taken, so this proves nothing about its XP");
+                        return;
+                    }
+                    if (anchor.getCloneExperience(0).isEmpty()) {
+                        helper.fail("a furnace result was taken and the clone banked no experience");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Vanilla furnace menu order: input, fuel, result, then the player's own. */
+    private static final int FURNACE_MENU_SIZE = 3 + 36;
+    private static final int FURNACE_RESULT = 2;
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
 
