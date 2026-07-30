@@ -30,6 +30,13 @@ public final class AnchorData {
         return PLAYHEAD + clone;
     }
 
+    /** And one experience total per clone, for the bar under its storage tab. */
+    public static final int EXPERIENCE = PLAYHEAD + ChronoAnchorBlockEntity.CLONE_INVENTORIES;
+
+    public static int experience(int clone) {
+        return EXPERIENCE + clone;
+    }
+
     /** How many ints the menu syncs. Derived, so it cannot disagree with the list above. */
-    public static final int COUNT = PLAYHEAD + ChronoAnchorBlockEntity.CLONE_INVENTORIES;
+    public static final int COUNT = EXPERIENCE + ChronoAnchorBlockEntity.CLONE_INVENTORIES;
 }

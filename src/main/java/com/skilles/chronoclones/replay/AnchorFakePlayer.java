@@ -1,7 +1,5 @@
 package com.skilles.chronoclones.replay;
 
-import java.util.UUID;
-
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.server.level.ServerLevel;
@@ -22,14 +20,12 @@ public final class AnchorFakePlayer {
     private AnchorFakePlayer() {}
 
     /**
-     * The fake player acting for {@code ownerId}, positioned and equipped for one action.
-     *
-     * @param ownerId   anchor owner: the identity every event and permission check will see
-     * @param ownerName anchor owner's name, for readable logs and protection-mod messages
+     * The fake player acting for {@code operator}, positioned, equipped and funded for one action.
      */
-    public static FakePlayer acquire(ServerLevel level, UUID ownerId, String ownerName,
+    public static FakePlayer acquire(ServerLevel level, Operator operator,
                                      Vec3 position, float yaw, float pitch, ItemStack held) {
-        FakePlayer player = FakePlayerFactory.get(level, new GameProfile(ownerId, ownerName));
+        FakePlayer player = FakePlayerFactory.get(level,
+                new GameProfile(operator.id(), operator.name()));
 
         // Pinned to survival: ServerPlayerGameMode.useItemOn branches on game mode, and a
         // spectator interacts with nothing while a creative player's items are never consumed.
@@ -49,12 +45,32 @@ public final class AnchorFakePlayer {
         // The recorded template is a copy; the fake player must never consume or damage it.
         hold(player, held.copy());
 
+        // Lent, not given: whatever it earns or spends comes back on release.
+        setExperience(player, operator.experience());
+
         return player;
     }
 
-    /** Clears the held item so a stale tool cannot influence an unrelated later action. */
-    public static void release(FakePlayer player) {
+    /**
+     * Takes back the held item and whatever experience the action left the player holding.
+     */
+    public static void release(Operator operator, FakePlayer player) {
+        operator.setExperience(player.totalExperience);
+        setExperience(player, 0);
         hold(player, ItemStack.EMPTY);
+    }
+
+    /**
+     * Sets a total directly, which vanilla has no method for: {@code giveExperiencePoints} adds, and
+     * the shared fake player must start each action with exactly what its clone banked.
+     */
+    private static void setExperience(FakePlayer player, int points) {
+        player.experienceLevel = 0;
+        player.experienceProgress = 0.0f;
+        player.totalExperience = 0;
+        if (points > 0) {
+            player.giveExperiencePoints(points);
+        }
     }
 
     /**

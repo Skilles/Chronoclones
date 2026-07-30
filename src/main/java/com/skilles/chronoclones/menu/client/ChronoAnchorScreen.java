@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.menu.client;
 
 import com.skilles.chronoclones.block.DiagnosticState;
+import com.skilles.chronoclones.block.ExperienceStore;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
@@ -166,6 +167,27 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                         yo + Layout.STORAGE_Y + row * 18);
             }
         }
+
+        experienceBar(extractor, xo, yo);
+    }
+
+    /**
+     * What the clone whose tab is showing has banked, under its last row of squares.
+     */
+    private void experienceBar(GuiGraphicsExtractor extractor, int xo, int yo) {
+        int points = menu.getCloneExperience(menu.getSelectedClone());
+        int level = ExperienceStore.levelOf(points);
+
+        String label = String.valueOf(level);
+        int labelWidth = Math.max(font.width(label), 8);
+
+        int x = xo + Layout.STORAGE_X;
+        int y = yo + Layout.CLONE_XP_Y;
+        int width = 9 * 18 - 2 - labelWidth - 4;
+
+        extractor.text(font, label, x, y - 1, AnchorPanels.LEVEL);
+        AnchorPanels.bar(extractor, x + labelWidth + 4, y, width, Layout.CLONE_XP_HEIGHT,
+                ExperienceStore.progressOf(points), AnchorPanels.LEVEL);
     }
 
     /**
@@ -309,6 +331,14 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             // The bar answers "roughly how full"; this answers "will it finish".
             tooltip(extractor, mouseX, mouseY, Component.translatable(
                     "gui.chronoclones.anchor.charge.detail", menu.getCharge(), menu.getChargeCapacity()));
+        } else if (within(mouseX, mouseY, Layout.STORAGE_X, Layout.CLONE_XP_Y,
+                9 * 18 - 2, Layout.CLONE_XP_HEIGHT)) {
+            int points = menu.getCloneExperience(menu.getSelectedClone());
+            tooltip(extractor, mouseX, mouseY, Component.translatable(
+                    "gui.chronoclones.anchor.experience.detail",
+                    ExperienceStore.levelOf(points),
+                    Math.round(ExperienceStore.progressOf(points) * 100),
+                    points));
         } else if (within(mouseX, mouseY, Layout.FUEL_X, Layout.MODULE_Y, 16, 16)) {
             tooltip(extractor, mouseX, mouseY,
                     Component.translatable("gui.chronoclones.anchor.section.fuel.tip"));

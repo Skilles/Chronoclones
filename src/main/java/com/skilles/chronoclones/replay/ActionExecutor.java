@@ -108,15 +108,13 @@ public final class ActionExecutor {
      * How much of a block one tick of mining removes, as a fraction of the whole.
      */
     public static float breakProgressPerTick(ServerLevel level, ChronoAction.BreakBlock action,
-                                             Placement placement, java.util.UUID ownerId,
-                                             String ownerName) {
+                                             Placement placement, Operator operator) {
         BlockPos worldPos = placement.toWorld(action.localPos());
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
         try {
             return level.getBlockState(worldPos).getDestroyProgress(owner, level, worldPos);
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
@@ -125,14 +123,13 @@ public final class ActionExecutor {
      */
     public static Result finishBreak(ServerLevel level, ChronoAction.BreakBlock action,
                                      Placement placement,
-                                     java.util.UUID ownerId, String ownerName,
+                                     Operator operator,
                                      ResourceHandler<ItemResource> inventory) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
         BlockState state = level.getBlockState(worldPos);
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
         try {
             // 6. Protection mods and land claims get their say, as the owner.
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);
@@ -158,11 +155,19 @@ public final class ActionExecutor {
                 tx.commit();
             }
 
-            // 9. Remove the block only once its drops are stored.
+            // 9. The experience the block owes, which destroyBlock will not pay: it never runs
+            //    playerDestroy, so an ore mined by a clone dropped none at all.
+            int experience = state.getExpDrop(level, worldPos, level.getBlockEntity(worldPos),
+                    owner, action.toolTemplate());
+            if (experience > 0) {
+                owner.giveExperiencePoints(experience);
+            }
+
+            // 10. Remove the block only once its drops are stored.
             level.destroyBlock(worldPos, false, owner);
             return Result.OK;
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
@@ -170,8 +175,8 @@ public final class ActionExecutor {
 
     public static Result executePlace(ServerLevel level, ChronoAction.PlaceBlock action,
                                       Placement placement,
-                                      java.util.UUID ownerId, String ownerName,
-                                      ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                      Operator operator,
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -201,8 +206,7 @@ public final class ActionExecutor {
         ItemStack toPlace = new ItemStack(item);
         Direction face = placement.toWorld(action.localFace());
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), 0.0f, 0.0f, toPlace);
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, toPlace);
         try {
             BlockHitResult hit = new BlockHitResult(
                     Vec3.atCenterOf(worldPos), face, worldPos, false);
@@ -232,7 +236,7 @@ public final class ActionExecutor {
 
             return Result.OK;
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
@@ -286,8 +290,8 @@ public final class ActionExecutor {
      */
     public static AttackResult executeAttack(ServerLevel level, ChronoAction.AttackEntity action,
                                              Placement placement,
-                                             java.util.UUID ownerId, String ownerName,
-                                             TargetRule rule,
+                                             Operator operator,
+                                     TargetRule rule,
                                              @org.jspecify.annotations.Nullable LivingEntity sticky) {
 
         Vec3 worldPos = placement.toWorld(action.localPos());
@@ -302,13 +306,12 @@ public final class ActionExecutor {
             return AttackResult.missed(FailureReason.UNLOADED, localBlock);
         }
 
-        LivingEntity target = chooseTarget(level, action, worldPos, ownerId, rule, sticky);
+        LivingEntity target = chooseTarget(level, action, worldPos, operator, rule, sticky);
         if (target == null) {
             return AttackResult.missed(FailureReason.NO_TARGET, localBlock);
         }
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                worldPos, 0.0f, 0.0f, action.weaponTemplate());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, worldPos, 0.0f, 0.0f, action.weaponTemplate());
         try {
             // Attributed to the owner so XP, loot tables and looting all resolve as if they had
             // swung the weapon themselves.
@@ -319,7 +322,7 @@ public final class ActionExecutor {
             // failure nor worth charging for; the action simply waits and swings again.
             return new AttackResult(Result.OK, target.getId(), target.isAlive(), hurt);
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
@@ -329,7 +332,7 @@ public final class ActionExecutor {
      */
     private static @org.jspecify.annotations.Nullable LivingEntity chooseTarget(
             ServerLevel level, ChronoAction.AttackEntity action, Vec3 worldPos,
-            java.util.UUID ownerId, TargetRule rule,
+            Operator operator, TargetRule rule,
             @org.jspecify.annotations.Nullable LivingEntity sticky) {
 
         double radius = rule.radiusWithin(ChronoclonesConfig.MAX_RADIUS.getAsInt());
@@ -344,7 +347,7 @@ public final class ActionExecutor {
         // Structural rather than a filter.
         List<LivingEntity> candidates = level.getEntitiesOfClass(LivingEntity.class, box, entity ->
                 entity.isAlive()
-                        && !entity.getUUID().equals(ownerId)
+                        && !entity.getUUID().equals(operator.id())
                         && (allowPvp || !(entity instanceof Player))
                         && rule.accepts(entity.getType()));
 
@@ -370,8 +373,8 @@ public final class ActionExecutor {
      */
     public static Result executeUseOnBlock(ServerLevel level, ChronoAction.UseOnBlock action,
                                            Placement placement,
-                                           java.util.UUID ownerId, String ownerName,
-                                           ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                           Operator operator,
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -398,8 +401,7 @@ public final class ActionExecutor {
         Vec3 hit = Vec3.atCenterOf(worldPos)
                 .add(LocalSpace.rotateY(action.localHitOffset(), LocalSpace.stepsFromNorth(placement.facing())));
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), face.getOpposite().toYRot(), 0.0f, loan.stack());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), face.getOpposite().toYRot(), 0.0f, loan.stack());
         try {
             InteractionResult result = owner.gameMode.useItemOn(owner, level,
                     owner.getMainHandItem(), action.hand(),
@@ -407,15 +409,15 @@ public final class ActionExecutor {
 
             return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, action.localPos());
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
     /** Right-clicking with nothing targeted. Same pipeline, no hit result. */
     public static Result executeUseItem(ServerLevel level, ChronoAction.UseItem action,
                                         Placement placement,
-                                        java.util.UUID ownerId, String ownerName,
-                                        ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                        Operator operator,
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
 
         HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), slot);
         if (loan == null) {
@@ -426,22 +428,21 @@ public final class ActionExecutor {
             return Result.OK;
         }
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(placement.anchorPos()).add(0.0, 1.0, 0.0), placement.facing().toYRot(), 0.0f, loan.stack());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(placement.anchorPos()).add(0.0, 1.0, 0.0), placement.facing().toYRot(), 0.0f, loan.stack());
         try {
             InteractionResult result = owner.gameMode.useItem(owner, level,
                     owner.getMainHandItem(), action.hand());
             return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, BlockPos.ZERO);
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
     /** Right-clicking an entity: shearing, milking, feeding, or a mod's own interaction. */
     public static Result executeInteractEntity(ServerLevel level, ChronoAction.InteractEntity action,
                                                Placement placement,
-                                               java.util.UUID ownerId, String ownerName,
-                                               ResourceHandler<ItemResource> inventory,
+                                               Operator operator,
+                                     ResourceHandler<ItemResource> inventory,
                                                ActionSettings settings) {
 
         Vec3 worldPos = placement.toWorld(action.localPos());
@@ -461,7 +462,7 @@ public final class ActionExecutor {
         List<Entity> candidates = level.getEntitiesOfClass(Entity.class, box, entity ->
                 entity.isAlive()
                         && !(entity instanceof ChronoCloneEntity)
-                        && !entity.getUUID().equals(ownerId)
+                        && !entity.getUUID().equals(operator.id())
                         && (allowPvp || !(entity instanceof Player))
                         && rule.accepts(entity.getType()));
 
@@ -482,14 +483,13 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_ITEM, localBlock);
         }
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                worldPos, placement.facing().toYRot(), 0.0f, loan.stack());
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, worldPos, placement.facing().toYRot(), 0.0f, loan.stack());
         try {
             InteractionResult result = owner.interactOn(target, action.hand(),
                     worldPos.subtract(target.position()));
             return finishInteraction(level, placement.anchorPos(), inventory, owner, loan, result, localBlock);
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 
@@ -516,8 +516,8 @@ public final class ActionExecutor {
      */
     public static Result executeUseContainer(ServerLevel level, ChronoAction.UseContainer action,
                                              Placement placement,
-                                             java.util.UUID ownerId, String ownerName,
-                                             ItemStacksResourceHandler inventory,
+                                             Operator operator,
+                                     ItemStacksResourceHandler inventory,
                                              ActionSettings settings) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
@@ -539,8 +539,7 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_TARGET, action.localPos());
         }
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, ownerId, ownerName,
-                Vec3.atCenterOf(worldPos), placement.facing().toYRot(), 0.0f, ItemStack.EMPTY);
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), placement.facing().toYRot(), 0.0f, ItemStack.EMPTY);
         try {
             AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
             if (menu == null) {
@@ -570,7 +569,7 @@ public final class ActionExecutor {
             }
             return Result.OK;
         } finally {
-            AnchorFakePlayer.release(owner);
+            AnchorFakePlayer.release(operator, owner);
         }
     }
 }

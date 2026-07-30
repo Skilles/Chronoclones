@@ -83,8 +83,10 @@ class AnchorLayoutTest {
         assertEquals(grid, 4 * 18, "the rail no longer matches the grid it stands beside");
         assertTrue(Layout.STORAGE_Y >= top + Layout.PANEL_INSET,
                 "the grid is under the panel's own border");
-        assertTrue(Layout.STORAGE_Y + grid <= bottom - Layout.PANEL_INSET + 1,
-                "the grid runs out of the bottom of its panel");
+        assertTrue(Layout.STORAGE_Y + grid <= Layout.CLONE_XP_Y,
+                "the grid runs into the experience bar beneath it");
+        assertTrue(Layout.CLONE_XP_Y + Layout.CLONE_XP_HEIGHT <= bottom - Layout.PANEL_INSET + 1,
+                "the experience bar runs out of the bottom of its panel");
         assertTrue(Layout.MODULE_Y + 4 * 18 <= bottom - Layout.PANEL_INSET + 1,
                 "the rail's squares run out of the bottom of their panel");
         assertTrue(Layout.CHARGE_Y + Layout.CHARGE_HEIGHT <= bottom - Layout.PANEL_INSET + 1,

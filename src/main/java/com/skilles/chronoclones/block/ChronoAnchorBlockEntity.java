@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.block;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ import com.skilles.chronoclones.registry.ModDataComponents;
 import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.replay.ActionExecutor;
 import com.skilles.chronoclones.replay.CloneRuntime;
+import com.skilles.chronoclones.replay.Operator;
 import com.skilles.chronoclones.replay.LevelActionBudget;
 import com.skilles.chronoclones.replay.MotionTrack;
 import com.skilles.chronoclones.replay.Placement;
@@ -28,6 +30,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -79,6 +82,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return handlers;
     }
 
+    /** What each clone has banked: what it mines and smelts, spent on what it enchants. */
+    private final List<ExperienceStore> cloneExperience =
+            new ArrayList<>(Collections.nCopies(CLONE_INVENTORIES, ExperienceStore.EMPTY));
+
     /** Every clone's inventory as one handler, for hoppers and pipes. */
     private final ResourceHandler<ItemResource> combinedInventory =
             new CombinedResourceHandler<>(cloneInventories);
@@ -114,6 +121,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
+            if (index >= AnchorData.EXPERIENCE) {
+                return cloneExperience.get(index - AnchorData.EXPERIENCE).points();
+            }
             if (index >= AnchorData.PLAYHEAD) {
                 int clone = index - AnchorData.PLAYHEAD;
                 return clone < runtimes.size() ? runtimes.get(clone).playhead() : 0;
@@ -152,6 +162,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     public ItemStacksResourceHandler getCloneInventory(int clone) {
         return cloneInventories.get(clone);
+    }
+
+    public ExperienceStore getCloneExperience(int clone) {
+        return cloneExperience.get(clone);
+    }
+
+    public void setCloneExperience(int clone, ExperienceStore store) {
+        cloneExperience.set(clone, store);
+        setChanged();
     }
 
     public ContainerData getContainerData() {
@@ -381,7 +400,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (!instant) {
             // Rate upgrades speed mining too: swinging is part of the routine.
             float perTick = ActionExecutor.breakProgressPerTick(serverLevel, action, placement,
-                    ownerId, ownerName) * upgrades.ticksPerStep();
+                    operatorFor(runtime)) * upgrades.ticksPerStep();
             float progress = runtime.mine(worldPos, perTick);
 
             if (progress < 1.0f) {
@@ -393,8 +412,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         stopMining(serverLevel, runtime);
         runtime.consumeAction();
 
+        Operator breaker = operatorFor(runtime);
         ActionExecutor.Result result = ActionExecutor.finishBreak(serverLevel, action, placement,
-                ownerId, ownerName, inventoryOf(runtime));
+                breaker, inventoryOf(runtime));
+        settle(runtime, breaker);
         if (result.succeeded()) {
             charge = charge.spend(cost);
             setChanged();
@@ -415,8 +436,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ActionSettings.TargetRule rule = settings.target();
         LivingEntity sticky = rule.sticky() ? runtime.target(serverLevel) : null;
 
+        Operator attacker = operatorFor(runtime);
         ActionExecutor.AttackResult attack = ActionExecutor.executeAttack(
-                serverLevel, action, placement, ownerId, ownerName, rule, sticky);
+                serverLevel, action, placement, attacker, rule, sticky);
+        settle(runtime, attacker);
         runtime.setTarget(attack.targetId());
 
         // A swing absorbed by invulnerability frames did no work, so it buys none.
@@ -518,20 +541,23 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             ItemStacksResourceHandler inventory = inventoryOf(runtime);
             ActionSettings.SlotRule slot = timed.settings().slot();
+            Operator operator = operatorFor(runtime);
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
+                        serverLevel, a, placement, operator, inventory, slot);
                 case ChronoAction.AttackEntity a -> throw new IllegalStateException("handled above");
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
+                        serverLevel, a, placement, operator, inventory, slot);
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, slot);
+                        serverLevel, a, placement, operator, inventory, slot);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, timed.settings());
+                        serverLevel, a, placement, operator, inventory, timed.settings());
                 case ChronoAction.UseContainer a -> ActionExecutor.executeUseContainer(
-                        serverLevel, a, placement, ownerId, ownerName, inventory, timed.settings());
+                        serverLevel, a, placement, operator, inventory, timed.settings());
             };
+
+            settle(runtime, operator);
 
             if (result.succeeded()) {
                 // Only pay for work that happened.
@@ -554,6 +580,21 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private ItemStacksResourceHandler inventoryOf(CloneRuntime runtime) {
         return cloneInventories.get(runtime.index());
+    }
+
+    /**
+     * Who the anchor acts as for one action, carrying that clone's banked experience out and back.
+     */
+    private Operator operatorFor(CloneRuntime runtime) {
+        return new Operator(ownerId, ownerName, cloneExperience.get(runtime.index()));
+    }
+
+    /** Banks whatever the action left the operator holding. */
+    private void settle(CloneRuntime runtime, Operator operator) {
+        if (!operator.store().equals(cloneExperience.get(runtime.index()))) {
+            cloneExperience.set(runtime.index(), operator.store());
+            setChanged();
+        }
     }
 
     /** True if any active clone could still store something, used to clear an INVENTORY_FULL halt. */
@@ -722,6 +763,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         cloneInventories.forEach(clone -> spill(level, pos, clone));
+        if (level instanceof ServerLevel serverLevel) {
+            for (ExperienceStore banked : cloneExperience) {
+                if (!banked.isEmpty()) {
+                    ExperienceOrb.award(serverLevel, Vec3.atCenterOf(pos), banked.points());
+                }
+            }
+        }
         spill(level, pos, fuelSlot);
         spill(level, pos, upgradeSlots);
     }
@@ -776,6 +824,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return "inventory_" + clone;
     }
 
+    private static String experienceKey(int clone) {
+        return "experience_" + clone;
+    }
+
     /**
      * Moves an anchor saved before clones had their own inventories into the first one.
      */
@@ -801,6 +853,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         super.saveAdditional(output);
         for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
             cloneInventories.get(clone).serialize(output.child(inventoryKey(clone)));
+            output.store(experienceKey(clone), ExperienceStore.CODEC, cloneExperience.get(clone));
         }
         fuelSlot.serialize(output.child("fuel"));
         upgradeSlots.serialize(output.child("upgrades"));
@@ -828,6 +881,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             int index = clone;
             input.child(inventoryKey(clone))
                     .ifPresent(child -> cloneInventories.get(index).deserialize(child));
+        }
+        for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
+            cloneExperience.set(clone, input.read(experienceKey(clone), ExperienceStore.CODEC)
+                    .orElse(ExperienceStore.EMPTY));
         }
         input.child("inventory").ifPresent(this::adoptLegacyInventory);
         input.child("fuel").ifPresent(fuelSlot::deserialize);

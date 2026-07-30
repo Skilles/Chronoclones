@@ -47,6 +47,7 @@
   "gui.chronoclones.anchor.pill.rate": "rate",
   "gui.chronoclones.anchor.section.storage": "STORAGE",
   "gui.chronoclones.anchor.charge.detail": "%s / %s",
+  "gui.chronoclones.anchor.experience.detail": "Level %s · %s%% · %s points",
   "gui.chronoclones.anchor.section.fuel.tip": "Anything that burns in a furnace. Charge is drawn from it as it burns.",
   "gui.chronoclones.anchor.section.modules.tip": "Chrono Splitter and Accelerator. Multiples of one stack.",
   "gui.chronoclones.anchor.settings": "Edit routine",

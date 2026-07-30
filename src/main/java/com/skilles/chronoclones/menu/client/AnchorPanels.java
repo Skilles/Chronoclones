@@ -45,7 +45,11 @@ final class AnchorPanels {
     static final int WARNING = 0xFFE0B860;
     static final int HALTED = 0xFFE06060;
 
+    /** Vanilla's experience green, so the anchor's bar and the player's own agree. */
+    static final int LEVEL = 0xFF80FF20;
+
     static final int TRACK = 0xFF15151A;
+
     static void panel(GuiGraphicsExtractor g, int x, int y, int width, int height) {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_SPRITE, x, y, width, height);
     }
@@ -73,6 +77,20 @@ final class AnchorPanels {
         g.fill(x - 4, top, x + 6 + font.width(name) + 4, top + font.lineHeight + 1, WINDOW);
         g.fill(x, top + 3, x + 3, top + 6, ACCENT);
         g.text(font, name, x + 6, top, MUTED);
+    }
+
+    /**
+     * A segmented bar filling rightwards, for a quantity read along a row.
+     */
+    static void bar(GuiGraphicsExtractor g, int x, int y, int width, int height,
+                    float fraction, int colour) {
+        track(g, x, y, width, height);
+
+        int segments = width / 3;
+        int lit = Math.round(segments * Math.clamp(fraction, 0f, 1f));
+        for (int i = 0; i < lit; i++) {
+            g.fill(x + i * 3, y, x + i * 3 + 2, y + height, colour);
+        }
     }
 
     /** The recessed track a bar runs in. */

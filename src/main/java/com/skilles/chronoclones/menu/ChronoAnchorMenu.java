@@ -164,6 +164,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** Menu index of the fuel slot, which follows every clone's storage. */
     public static final int FUEL_SLOT = ANCHOR_SLOTS * CLONES;
 
+    /** Points banked by one clone, for the bar under its storage tab. */
+    public int getCloneExperience(int clone) {
+        return data.get(AnchorData.experience(clone));
+    }
+
     public int getPlayhead(int clone) {
         return data.get(AnchorData.playhead(clone));
     }
@@ -207,7 +212,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     public static final class Layout {
         public static final int WIDTH = 230;
-        public static final int HEIGHT = 250;
+        public static final int HEIGHT = 259;
 
         /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
         public static final int LINE_HEIGHT = 9;
@@ -240,7 +245,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         // ---------------------------------------------------------- the storage band
 
         public static final int BAND_Y = 65;
-        public static final int BAND_HEIGHT = 82;
+        public static final int BAND_HEIGHT = 91;
 
         /**
          * Fuel, the charge column and the modules stand beside the storage grid rather than under
@@ -251,7 +256,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int RAIL_WIDTH = 40;
         public static final int RAIL_SLOT_X = RAIL_X + PANEL_INSET;
 
-        public static final int MODULE_Y = BAND_Y + PANEL_INSET;
+        public static final int MODULE_Y = BAND_Y + PANEL_INSET + 4;
         public static final int FUEL_X = RAIL_SLOT_X;
         public static final int UPGRADE_X = RAIL_SLOT_X;
 
@@ -265,6 +270,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int STORAGE_PANEL_WIDTH = WIDTH - MARGIN - STORAGE_PANEL_X;
         public static final int STORAGE_Y = BAND_Y + PANEL_INSET;
         public static final int STORAGE_ROWS = 4;
+
+        /** Under the fourth row: what the clone whose tab is showing has banked. */
+        public static final int CLONE_XP_Y = STORAGE_Y + STORAGE_ROWS * 18 + 3;
+        public static final int CLONE_XP_HEIGHT = 6;
         public static final int STORAGE_X = STORAGE_PANEL_X + PANEL_INSET;
 
         /** The clone tabs straddle the storage panel's top border, at the other end from its name. */
@@ -273,13 +282,13 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
         // ---------------------------------------------------------- below the band
 
-        public static final int INVENTORY_PANEL_Y = 157;
+        public static final int INVENTORY_PANEL_Y = 166;
         public static final int INVENTORY_PANEL_HEIGHT = 87;
 
         /** Centred in its own panel, which the storage grid cannot be with the rail beside it. */
         public static final int GRID_X = (WIDTH - 9 * 18) / 2;
-        public static final int PLAYER_Y = 162;
-        public static final int HOTBAR_Y = 221;
+        public static final int PLAYER_Y = 171;
+        public static final int HOTBAR_Y = 230;
 
         /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
         public static int storageRow(int inventorySlot) {
