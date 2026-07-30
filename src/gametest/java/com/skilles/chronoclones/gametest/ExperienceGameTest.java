@@ -33,20 +33,25 @@ final class ExperienceGameTest {
 
     /**
      * destroyBlock never runs playerDestroy, so an ore mined by a clone used to pay nothing at all.
+     *
+     * <p>Diamond rather than coal: coal owes {@code UniformInt.of(0, 2)}, so a clone banking nothing
+     * from one is a legal roll of the dice and this test would fail about one run in three. Diamond
+     * owes three at the least.
      */
     private static void minedOreBanksItsExperience(GameTestHelper helper) {
-        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.COAL_ORE);
+        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.DIAMOND_ORE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
-                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.COAL_ORE));
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.DIAMOND_ORE));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
-                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.COAL) == 0) {
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.DIAMOND) == 0) {
                         helper.fail("the ore was never broken, so this proves nothing about its XP");
                         return;
                     }
-                    if (anchor.getCloneExperience(0).isEmpty()) {
-                        helper.fail("a coal ore was mined and the clone banked no experience");
+                    if (anchor.getCloneExperience(0).points() < 3) {
+                        helper.fail("a diamond ore was mined and the clone banked "
+                                + anchor.getCloneExperience(0).points() + " points");
                     }
                 })
                 .thenSucceed();
