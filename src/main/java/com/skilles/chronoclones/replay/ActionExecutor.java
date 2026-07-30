@@ -85,7 +85,7 @@ public final class ActionExecutor {
      */
     public static @org.jspecify.annotations.Nullable Result canBreak(
             ServerLevel level, ChronoAction.BreakBlock action, Placement placement,
-            boolean recordedOnly) {
+            boolean recordedOnly, ResourceHandler<ItemResource> inventory, SlotRule slot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -122,16 +122,39 @@ public final class ActionExecutor {
         if (recordedOnly && state.getBlock() != action.expectedBlock().value()) {
             return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
+
+        // 6. The tool, which the clone has to actually own. Breaking was the one action that took
+        //    what it needed from the recording rather than from the inventory, so a routine
+        //    recorded with a netherite pickaxe mined with one whether or not the anchor had it.
+        if (toolFor(action, inventory, slot) == null) {
+            return Result.fail(FailureReason.NO_ITEM, action.localPos());
+        }
         return null;
+    }
+
+    /**
+     * The tool the clone would swing, or null if it has none.
+     *
+     * <p>Read rather than lent: a swing neither consumes the tool nor damages it, and a loan taken
+     * and returned on every tick of a ten-second dig would be churn for its own sake.
+     */
+    private static @org.jspecify.annotations.Nullable ItemStack toolFor(
+            ChronoAction.BreakBlock action, ResourceHandler<ItemResource> inventory, SlotRule slot) {
+        return HeldItemLoan.peek(inventory, action.toolTemplate().getItem(), slot);
     }
 
     /**
      * How much of a block one tick of mining removes, as a fraction of the whole.
      */
     public static float breakProgressPerTick(ServerLevel level, ChronoAction.BreakBlock action,
-                                             Placement placement, Operator operator) {
+                                             Placement placement, Operator operator,
+                                             ResourceHandler<ItemResource> inventory, SlotRule slot) {
         BlockPos worldPos = placement.toWorld(action.localPos());
-        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
+        // The clone's own tool, not the recording's: an Efficiency V pickaxe in the recording does
+        // not make a plain one in the anchor dig any faster.
+        ItemStack tool = toolFor(action, inventory, slot);
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f,
+                tool == null ? ItemStack.EMPTY : tool);
         try {
             return level.getBlockState(worldPos).getDestroyProgress(owner, level, worldPos);
         } finally {
@@ -145,12 +168,17 @@ public final class ActionExecutor {
     public static Result finishBreak(ServerLevel level, ChronoAction.BreakBlock action,
                                      Placement placement,
                                      Operator operator,
-                                     ResourceHandler<ItemResource> inventory) {
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
         BlockState state = level.getBlockState(worldPos);
 
-        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, action.toolTemplate());
+        ItemStack tool = toolFor(action, inventory, slot);
+        if (tool == null) {
+            return Result.fail(FailureReason.NO_ITEM, action.localPos());
+        }
+
+        FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f, tool);
         try {
             // 6. Protection mods and land claims get their say, as the owner.
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);
@@ -158,8 +186,8 @@ public final class ActionExecutor {
                 return Result.fail(FailureReason.PROTECTED, action.localPos());
             }
 
-            // 7. The normal loot path, so fortune and silk touch on the recorded tool apply.
-            List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, action.toolTemplate());
+            // 7. The normal loot path, so fortune and silk touch on the clone's own tool apply.
+            List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, tool);
 
             // 8. Insert everything or nothing, so a full anchor never destroys what it cannot
             //    store and the action is simply re-runnable once emptied.
@@ -425,7 +453,8 @@ public final class ActionExecutor {
     public static Result executeUseOnBlock(ServerLevel level, ChronoAction.UseOnBlock action,
                                            Placement placement,
                                            Operator operator,
-                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot,
+                                           boolean recordedOnly) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -439,6 +468,13 @@ public final class ActionExecutor {
         // reconfigures its neighbours.
         if (level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
+        }
+
+        // The block it was used on, when one was recorded and nobody has widened it: a hoe told to
+        // till dirt should say so rather than striking whatever is standing there now.
+        if (recordedOnly && action.expectedBlock().isPresent()
+                && level.getBlockState(worldPos).getBlock() != action.expectedBlock().get().value()) {
+            return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
 
         HeldItemLoan.Loan loan = HeldItemLoan.take(inventory, action.item().value(), slot);

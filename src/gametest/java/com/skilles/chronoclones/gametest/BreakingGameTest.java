@@ -13,6 +13,8 @@ import com.skilles.chronoclones.recording.TimedAction;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -44,6 +46,82 @@ final class BreakingGameTest {
                 BreakingGameTest::bareHandsClearSoftBlocks);
         ChronoclonesGameTests.add("place_widened_to_any_block_builds_with_what_it_has",
                 BreakingGameTest::widenedPlacementUsesWhatItHas);
+        ChronoclonesGameTests.add("break_needs_the_tool_in_the_anchor",
+                BreakingGameTest::breakNeedsTheToolInTheAnchor);
+        ChronoclonesGameTests.add("break_digs_with_the_anchors_own_tool",
+                BreakingGameTest::breakDigsWithTheAnchorsOwnTool);
+    }
+
+    /**
+     * A clone swings a tool it owns, or it does not swing.
+     *
+     * <p>Breaking was the one action taking what it needed from the recording rather than from the
+     * inventory, so an empty anchor mined with a netherite pickaxe it had never been given.
+     */
+    private static void breakNeedsTheToolInTheAnchor(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.OBSIDIAN);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                breakWith(Blocks.OBSIDIAN, new ItemStack(Items.DIAMOND_PICKAXE)));
+        // The fixture stocks what a recording digs with; this is a test about not having it.
+        emptyEveryClone(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(60, () -> {
+                    helper.assertBlockPresent(Blocks.OBSIDIAN, target);
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
+                        helper.fail("expected NO_ITEM digging with a tool the anchor lacks, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * And it swings the one it owns, not the one in the recording.
+     *
+     * <p>Read off the drops, which say which pickaxe was in the clone's hand without any waiting
+     * about: recorded with Silk Touch and stocked with a plain pickaxe of the same kind, so stone
+     * coming back whole would be the recording's enchantment still doing the work.
+     */
+    private static void breakDigsWithTheAnchorsOwnTool(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.STONE);
+
+        ItemStack silked = new ItemStack(Items.DIAMOND_PICKAXE);
+        silked.enchant(helper.getLevel().registryAccess()
+                .lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), 1);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                breakWith(Blocks.STONE, silked));
+        emptyEveryClone(anchor);
+        // The same kind of pickaxe, so the slot rule still finds one, and a plain one.
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_PICKAXE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(40, () -> {
+                    helper.assertBlockNotPresent(Blocks.STONE, target);
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.STONE) > 0) {
+                        helper.fail("stone came back whole: the recording's Silk Touch was doing "
+                                + "the digging, not the plain pickaxe the anchor holds");
+                        return;
+                    }
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.COBBLESTONE) == 0) {
+                        helper.fail("the stone was broken but dropped nothing at all");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Undoes the tool the fixture hands out, for the tests that are about not having one. */
+    private static void emptyEveryClone(ChronoAnchorBlockEntity anchor) {
+        for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
+            var inventory = anchor.getCloneInventory(clone);
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                inventory.set(slot, ItemResource.EMPTY, 0);
+            }
+        }
     }
 
     /**

@@ -85,7 +85,11 @@ public final class RecordingCodecs {
             Vec3.CODEC.fieldOf("hit").forGetter(ChronoAction.UseOnBlock::localHitOffset),
             Codec.BOOL.fieldOf("inside").forGetter(ChronoAction.UseOnBlock::inside),
             HAND.fieldOf("hand").forGetter(ChronoAction.UseOnBlock::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseOnBlock::item)
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseOnBlock::item),
+            // Optional: a routine saved before the block was recorded has none to insist on, and
+            // goes on striking whatever is there rather than refusing everything.
+            BuiltInRegistries.BLOCK.holderByNameCodec().optionalFieldOf("expected")
+                    .forGetter(ChronoAction.UseOnBlock::expectedBlock)
     ).apply(i, ChronoAction.UseOnBlock::new));
 
     static final MapCodec<ChronoAction.UseItem> USE_ITEM = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -279,6 +283,8 @@ public final class RecordingCodecs {
                     ByteBufCodecs.BOOL.cast(), ChronoAction.UseOnBlock::inside,
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::hand,
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseOnBlock::item,
+                    ByteBufCodecs.optional(ByteBufCodecs.holderRegistry(Registries.BLOCK)),
+                    ChronoAction.UseOnBlock::expectedBlock,
                     ChronoAction.UseOnBlock::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseItem> USE_ITEM_STREAM =

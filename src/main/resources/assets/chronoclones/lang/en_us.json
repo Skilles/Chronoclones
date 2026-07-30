@@ -147,6 +147,7 @@
   "gui.chronoclones.editor.name.interact": "Interact with %s",
   "gui.chronoclones.editor.name.interact.any": "Interact",
   "gui.chronoclones.editor.name.use_on": "Use %s",
+  "gui.chronoclones.editor.name.use_on.on": "Use %s on %s",
   "gui.chronoclones.editor.name.use_on.empty": "Use block",
   "gui.chronoclones.editor.name.use": "Use %s",
   "gui.chronoclones.editor.name.use.empty": "Use hand",

@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.List;
+import java.util.Optional;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -69,9 +70,20 @@ public sealed interface ChronoAction {
 
     /**
      * Right-clicking a block, replayed through the server's own interaction entry point.
+     *
+     * @param expectedBlock what was standing there, so a routine can insist on it: a hoe told to
+     *                      till dirt should say so rather than striking whatever grew back. Empty
+     *                      for a session recorded before there was anything to record it with.
      */
     record UseOnBlock(BlockPos localPos, Direction localFace, Vec3 localHitOffset, boolean inside,
-                      InteractionHand hand, Holder<Item> item) implements ChronoAction {
+                      InteractionHand hand, Holder<Item> item,
+                      Optional<Holder<Block>> expectedBlock) implements ChronoAction {
+
+        public UseOnBlock(BlockPos localPos, Direction localFace, Vec3 localHitOffset, boolean inside,
+                          InteractionHand hand, Holder<Item> item) {
+            this(localPos, localFace, localHitOffset, inside, hand, item, Optional.empty());
+        }
+
         @Override
         public ChronoActionType type() {
             return ChronoActionType.USE_ON_BLOCK;

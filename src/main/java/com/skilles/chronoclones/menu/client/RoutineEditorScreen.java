@@ -284,10 +284,17 @@ public class RoutineEditorScreen extends Screen {
         return firstRow + 2;
     }
 
-    /** True for the actions whose subject is a block, and so can be widened to any block. */
+    /**
+     * True for the actions whose subject is a block, and so can be widened to any block.
+     *
+     * <p>A use-on-block only when one was recorded: a routine saved before the block was captured
+     * has nothing to narrow to, and an option whose two settings do the same thing is a lie.
+     */
     private boolean hasASubject() {
         return action() instanceof ChronoAction.BreakBlock
-                || action() instanceof ChronoAction.PlaceBlock;
+                || action() instanceof ChronoAction.PlaceBlock
+                || action() instanceof ChronoAction.UseOnBlock use
+                        && use.expectedBlock().isPresent();
     }
 
     /**
@@ -998,6 +1005,8 @@ public class RoutineEditorScreen extends Screen {
             case ChronoAction.BreakBlock a -> a.expectedBlock().value().getName();
             case ChronoAction.PlaceBlock a -> Component.translatable(
                     a.item().value().getDescriptionId());
+            case ChronoAction.UseOnBlock a when a.expectedBlock().isPresent() ->
+                    a.expectedBlock().get().value().getName();
             default -> Component.translatable("gui.chronoclones.editor.subject.any");
         };
     }

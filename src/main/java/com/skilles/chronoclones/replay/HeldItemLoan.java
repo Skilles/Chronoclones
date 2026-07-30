@@ -56,6 +56,48 @@ public final class HeldItemLoan {
         return null;
     }
 
+    /**
+     * The stack {@code rule} would lend, without lending it.
+     *
+     * <p>For an action that only ever reads what it is holding -- swinging a pickaxe damages
+     * nothing and consumes nothing -- where taking the tool out and putting it back every tick of a
+     * ten-second dig would be churn for its own sake.
+     *
+     * @return the stack, {@link ItemStack#EMPTY} for an action recorded empty-handed, or null when
+     *         the anchor has none of {@code item} anywhere the rule may look
+     */
+    public static @org.jspecify.annotations.Nullable ItemStack peek(
+            ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
+        if (item == net.minecraft.world.item.Items.AIR) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack preferred = peekAt(inventory, item, rule.preferred());
+        if (preferred != null || rule.strict()) {
+            return preferred;
+        }
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            ItemStack found = peekAt(inventory, item, slot);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private static @org.jspecify.annotations.Nullable ItemStack peekAt(
+            ResourceHandler<ItemResource> inventory, Item item, int slot) {
+        if (slot < 0 || slot >= inventory.size()) {
+            return null;
+        }
+        ItemResource resource = inventory.getResource(slot);
+        int amount = inventory.getAmountAsInt(slot);
+        if (resource.isEmpty() || resource.getItem() != item || amount <= 0) {
+            return null;
+        }
+        return resource.toStack(amount);
+    }
+
     private static @org.jspecify.annotations.Nullable Loan takeFrom(
             ResourceHandler<ItemResource> inventory, Item item, int slot) {
         if (slot < 0 || slot >= inventory.size()) {

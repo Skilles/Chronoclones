@@ -2,6 +2,7 @@ package com.skilles.chronoclones.item;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
@@ -11,6 +12,8 @@ import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.Item;
@@ -96,14 +99,33 @@ public final class RecordingDetail {
             case ChronoAction.InteractEntity a -> typed
                     ? name("interact", a.expectedType().value().getDescription())
                     : any("interact");
-            case ChronoAction.UseOnBlock a -> a.item().value() == Items.AIR
-                    ? empty("use_on")
-                    : name("use_on", itemName(a.item().value()));
+            case ChronoAction.UseOnBlock a -> useOnTitle(a, recorded);
             case ChronoAction.UseItem a -> a.item().value() == Items.AIR
                     ? empty("use")
                     : name("use", itemName(a.item().value()));
             case ChronoAction.UseContainer a -> containerTitle(a);
         };
+    }
+
+    /**
+     * Naming both halves of a use-on-block, either of which may be missing.
+     *
+     * <p>"Use Bone Meal on Wheat" while it insists on the wheat, "Use Bone Meal" once it does not,
+     * and the block alone for a bare-handed use, which is a thing people do to buttons and doors.
+     */
+    private static Component useOnTitle(ChronoAction.UseOnBlock action, boolean recorded) {
+        boolean holding = action.item().value() != Items.AIR;
+        Optional<Holder<Block>> block = recorded ? action.expectedBlock() : Optional.empty();
+
+        if (holding && block.isPresent()) {
+            return Component.translatable("gui.chronoclones.editor.name.use_on.on",
+                    itemName(action.item().value()).copy(), block.get().value().getName());
+        }
+        if (holding) {
+            return name("use_on", itemName(action.item().value()));
+        }
+        return block.map(held -> name("use_on", held.value().getName()))
+                .orElseGet(() -> empty("use_on"));
     }
 
     /** A session is named after what it was opened on, which is not always still recorded. */

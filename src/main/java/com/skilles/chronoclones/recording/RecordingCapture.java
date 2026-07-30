@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.recording;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import com.skilles.chronoclones.Chronoclones;
@@ -109,7 +110,14 @@ public final class RecordingCapture {
         ItemStack held = player.getMainHandItem();
 
         // The item that produced this block, matched against anchor inventory at replay.
-        if (held.isEmpty()) {
+        //
+        // A BlockItem, and only a BlockItem. Anything else that changes a block does so as the
+        // effect of using it -- a hoe tilling dirt, a bucket emptying, flint and steel -- and this
+        // event fires for that too, which is how tilling a field recorded a "Use Hoe" and then a
+        // "Place Hoe" that could only ever fail. Every one of those is already captured by
+        // onRightClickBlock, which skips BlockItems for exactly this reason: between them the two
+        // handlers cover every interaction once.
+        if (!(held.getItem() instanceof BlockItem)) {
             return;
         }
 
@@ -182,7 +190,10 @@ public final class RecordingCapture {
                             LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
                             hit.isInside(),
                             event.getHand(),
-                            BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
+                            BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()),
+                            // What it was used on, so the routine can be told to insist on it.
+                            Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
+                                    player.level().getBlockState(pos).getBlock()))),
                     Vec3.atCenterOf(pos));
         }
 

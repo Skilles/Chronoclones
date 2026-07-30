@@ -26,6 +26,8 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
@@ -119,7 +121,36 @@ final class AnchorTestFixture {
         keepTicking(helper, relativeAnchorPos);
         anchor.imprint(recording, imprinter);
         giveInfiniteCharge(anchor);
+        giveRecordedTools(anchor, recording);
         return anchor;
+    }
+
+    /**
+     * Stocks every clone with the tool each break in {@code recording} was recorded swinging.
+     *
+     * <p>A clone digs with a tool it owns, the same as it places with a block it owns, so a test
+     * about anything else has to be given one or it is really a test about an empty inventory.
+     * Alongside the creative charge cell, and for the same reason.
+     *
+     * <p>Only break tools: what a placement holds is the thing it consumes, and handing that out
+     * would feed the tests whose whole point is an anchor with nothing to build from.
+     */
+    static void giveRecordedTools(ChronoAnchorBlockEntity anchor, Recording recording) {
+        for (TimedAction timed : recording.actions()) {
+            if (!(timed.action() instanceof ChronoAction.BreakBlock breaking)
+                    || breaking.toolTemplate().isEmpty()) {
+                continue;
+            }
+            ItemResource tool = ItemResource.of(breaking.toolTemplate());
+            for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
+                ItemStacksResourceHandler inventory = anchor.getCloneInventory(clone);
+                if (countIn(inventory, breaking.toolTemplate().getItem()) == 0) {
+                    // The last square, so a test filling the inventory from the front has to
+                    // reach the tool deliberately rather than by accident.
+                    inventory.set(inventory.size() - 1, tool, 1);
+                }
+            }
+        }
     }
 
     /** How far from the anchor a routine may reach, and so how far its chunks must tick. */

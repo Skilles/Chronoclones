@@ -129,9 +129,11 @@ final class ReplayGameTest {
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        // Fill every storage slot with something that cannot merge with cobblestone.
+        // Fill every storage slot but the last with something that cannot merge with cobblestone.
+        // The last holds the pickaxe: a clone with a full inventory is still holding its tool, and
+        // taking that away would make this a test about an empty anchor instead.
         var inventory = anchor.getCloneInventory(0);
-        for (int slot = 0; slot < inventory.size(); slot++) {
+        for (int slot = 0; slot < inventory.size() - 1; slot++) {
             inventory.set(slot, ItemResource.of(Items.BEDROCK), 64);
         }
 

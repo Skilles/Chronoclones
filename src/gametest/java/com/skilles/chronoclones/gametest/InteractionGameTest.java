@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
@@ -18,6 +19,7 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.LeverBlock;
@@ -38,6 +40,10 @@ final class InteractionGameTest {
 
     static void register() {
         ChronoclonesGameTests.add("use_on_block_flips_a_lever", InteractionGameTest::flipsLever);
+        ChronoclonesGameTests.add("use_on_block_refuses_a_block_it_was_not_recorded_on",
+                InteractionGameTest::useOnRefusesAnotherBlock);
+        ChronoclonesGameTests.add("use_on_block_widened_works_whatever_is_there",
+                InteractionGameTest::widenedUseOnWorksAnyway);
         ChronoclonesGameTests.add("use_needs_its_item_in_the_anchor", InteractionGameTest::needsItsItem);
         ChronoclonesGameTests.add("use_returns_what_it_borrowed", InteractionGameTest::returnsWhatItBorrowed);
         ChronoclonesGameTests.add("container_splits_a_stack_by_intent", InteractionGameTest::splitsByIntent);
@@ -652,6 +658,59 @@ final class InteractionGameTest {
     private static ChronoAction useOnBlock(BlockPos localPos, Item item) {
         return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
                 InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item));
+    }
+
+    /** The same, recorded against a particular block, which is what a hoe on dirt looks like. */
+    private static ChronoAction useOnBlock(BlockPos localPos, Item item, Block on) {
+        return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
+                InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item),
+                java.util.Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(on)));
+    }
+
+    /**
+     * A hoe recorded tilling dirt says so rather than striking whatever is standing there now.
+     */
+    private static void useOnRefusesAnotherBlock(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        // Recorded on dirt, and there is stone here now.
+        helper.setBlock(target, Blocks.STONE);
+        helper.setBlock(target.above(), Blocks.AIR);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(
+                        useOnBlock(new BlockPos(0, 0, -1), Items.DIAMOND_HOE, Blocks.DIRT), 0));
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    helper.assertBlockPresent(Blocks.STONE, target);
+                    if (anchor.getLastFailure().reason()
+                            != DiagnosticState.FailureReason.WRONG_BLOCK) {
+                        helper.fail("expected WRONG_BLOCK for a hoe aimed at stone, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Widened to any block, the same routine tills whatever it finds. */
+    private static void widenedUseOnWorksAnyway(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        // Recorded on dirt, and there is coarse dirt here now, which a hoe also works.
+        helper.setBlock(target, Blocks.COARSE_DIRT);
+        helper.setBlock(target.above(), Blocks.AIR);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(
+                        useOnBlock(new BlockPos(0, 0, -1), Items.DIAMOND_HOE, Blocks.DIRT),
+                        ActionSettings.DEFAULT
+                                .withSlot(ActionSettings.SlotRule.prefer(0))
+                                .withRecordedSubject(false)));
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> helper.assertBlockPresent(Blocks.DIRT, target))
+                .thenSucceed();
     }
 
     private static void stock(ServerLevel level, BlockPos absolutePos, int slot, Item item, int amount) {

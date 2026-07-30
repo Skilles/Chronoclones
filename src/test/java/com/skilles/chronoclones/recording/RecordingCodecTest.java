@@ -72,7 +72,9 @@ class RecordingCodecTest {
                                 new Vec3(0.25, 0.5, -0.125),
                                 false,
                                 InteractionHand.MAIN_HAND,
-                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL))),
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL),
+                                // The block it was used on, which the filter is read from.
+                                Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.WHEAT)))),
                         new TimedAction(9, new ChronoAction.UseItem(
                                 InteractionHand.OFF_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.ENDER_PEARL))),
@@ -357,6 +359,11 @@ class RecordingCodecTest {
                 assertEquals(e.inside(), a.inside());
                 assertEquals(e.hand(), a.hand());
                 assertEquals(e.item().value(), a.item().value());
+                // Compared by block rather than by holder: two holders of one block need not be
+                // the same object across a round trip, and Optional::equals would say they differ.
+                assertEquals(e.expectedBlock().map(net.minecraft.core.Holder::value),
+                        a.expectedBlock().map(net.minecraft.core.Holder::value),
+                        "block used on at " + index);
             }
             case ChronoAction.UseItem e -> {
                 ChronoAction.UseItem a = (ChronoAction.UseItem) actual;

@@ -445,8 +445,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private boolean mineOneTick(ServerLevel serverLevel, CloneRuntime runtime,
                                 ChronoAction.BreakBlock action, ActionSettings settings,
                                 Placement placement, Direction facing, int cost) {
-        ActionExecutor.Result refusal =
-                ActionExecutor.canBreak(serverLevel, action, placement, settings.recordedSubject());
+        ItemStacksResourceHandler inventory = inventoryOf(runtime);
+        ActionExecutor.Result refusal = ActionExecutor.canBreak(serverLevel, action, placement,
+                settings.recordedSubject(), inventory, settings.slot());
         if (refusal != null) {
             // Also covers the block vanishing mid-dig.
             stopMining(serverLevel, runtime);
@@ -461,7 +462,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (!instant) {
             // Rate upgrades speed mining too: swinging is part of the routine.
             float perTick = ActionExecutor.breakProgressPerTick(serverLevel, action, placement,
-                    operatorFor(runtime)) * upgrades.ticksPerStep();
+                    operatorFor(runtime), inventory, settings.slot()) * upgrades.ticksPerStep();
             float progress = runtime.mine(worldPos, perTick);
 
             if (progress < 1.0f) {
@@ -475,7 +476,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         Operator breaker = operatorFor(runtime);
         ActionExecutor.Result result = ActionExecutor.finishBreak(serverLevel, action, placement,
-                breaker, inventoryOf(runtime));
+                breaker, inventory, settings.slot());
         settle(runtime, breaker);
         if (result.succeeded()) {
             charge = charge.spend(cost);
@@ -610,7 +611,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         timed.settings().recordedSubject());
                 case ChronoAction.AttackEntity a -> throw new IllegalStateException("handled above");
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
-                        serverLevel, a, placement, operator, inventory, slot);
+                        serverLevel, a, placement, operator, inventory, slot,
+                        timed.settings().recordedSubject());
                 case ChronoAction.UseItem a -> ActionExecutor.executeUseItem(
                         serverLevel, a, placement, operator, inventory, slot);
                 case ChronoAction.InteractEntity a -> ActionExecutor.executeInteractEntity(
