@@ -57,6 +57,13 @@ public class ChronoRecorderItem extends Item {
         return stack.get(ModDataComponents.RECORDING.get());
     }
 
+    /** The same recorder, now holding a recording and ready to imprint it. */
+    public static ItemStack holding(ItemStack stack, Recording recording) {
+        stack.set(ModDataComponents.RECORDING.get(), recording);
+        stack.remove(ModDataComponents.PROGRESS.get());
+        return stack;
+    }
+
     public static void clear(ItemStack stack) {
         stack.remove(ModDataComponents.RECORDING.get());
         stack.remove(ModDataComponents.PROGRESS.get());

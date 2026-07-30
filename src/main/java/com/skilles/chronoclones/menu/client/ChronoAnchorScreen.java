@@ -221,6 +221,15 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
 
         experienceBar(extractor, xo, yo);
+
+        // A blank anchor's squares hold nothing and take nothing, and should not look as though
+        // they might. Over the grid rather than instead of it, so the shape is still legible.
+        if (!menu.hasStorage()) {
+            extractor.fill(xo + Layout.STORAGE_X - 1, yo + Layout.STORAGE_Y - 1,
+                    xo + Layout.STORAGE_X - 1 + 9 * 18, yo + Layout.CLONE_XP_Y
+                            + Layout.CLONE_XP_HEIGHT + 1,
+                    AnchorPanels.wash(AnchorPanels.WINDOW, 190));
+        }
     }
 
     /**

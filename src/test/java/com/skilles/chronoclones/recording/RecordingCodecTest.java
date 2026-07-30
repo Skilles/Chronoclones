@@ -117,6 +117,18 @@ class RecordingCodecTest {
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
     }
 
+    /**
+     * A Trade holds ItemStacks, which compare by identity, so its steps need comparing by hand.
+     */
+    private static void assertStepsEqual(SessionStep expected, SessionStep actual, String where) {
+        if (expected instanceof SessionStep.Trade trade) {
+            assertTrue(actual instanceof SessionStep.Trade other && trade.sameOffer(other),
+                    "trade at " + where + " did not survive: " + actual);
+            return;
+        }
+        assertEquals(expected, actual, "step at " + where);
+    }
+
     private static <T> T unwrap(DataResult<T> result) {
         return result.getOrThrow(msg -> new AssertionError("codec failed: " + msg));
     }
@@ -362,7 +374,10 @@ class RecordingCodecTest {
                 ChronoAction.UseContainer a = (ChronoAction.UseContainer) actual;
                 assertEquals(e.target(), a.target());
                 assertEquals(e.menuSize(), a.menuSize());
-                assertEquals(e.steps(), a.steps());
+                assertEquals(e.steps().size(), a.steps().size());
+                for (int step = 0; step < e.steps().size(); step++) {
+                    assertStepsEqual(e.steps().get(step), a.steps().get(step), index + "/" + step);
+                }
                 assertEquals(e.carrier().size(), a.carrier().size());
                 for (int i = 0; i < e.carrier().size(); i++) {
                     assertEquals(e.carrier().get(i).menuSlot(), a.carrier().get(i).menuSlot());

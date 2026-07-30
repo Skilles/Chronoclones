@@ -291,14 +291,51 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         setChanged();
     }
 
+    /**
+     * Forgets the recording, and hands back everything the clones were holding for it.
+     *
+     * <p>The storage belongs to the routine that filled it: leaving a heap of ore and a bank of
+     * experience inside an anchor that no longer does anything is a way to lose both.
+     */
     public void clearRecording() {
         discardClones();
         runtimes.clear();
         recording = null;
         motionTrack = null;
         lastFailure = DiagnosticState.NONE;
+        spillStorage();
         setActive(false);
         setChanged();
+    }
+
+    /** Every clone's squares and banked experience, onto the ground above the anchor. */
+    private void spillStorage() {
+        if (level == null) {
+            return;
+        }
+        cloneInventories.forEach(clone -> spill(level, worldPosition, clone));
+        if (level instanceof ServerLevel serverLevel) {
+            for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
+                ExperienceStore banked = cloneExperience.get(clone);
+                if (!banked.isEmpty()) {
+                    ExperienceOrb.award(serverLevel, Vec3.atCenterOf(worldPosition), banked.points());
+                    cloneExperience.set(clone, ExperienceStore.EMPTY);
+                }
+            }
+        }
+    }
+
+    /**
+     * Hands the recording back to whoever asked for it, leaving the anchor blank.
+     *
+     * @return what it was holding, or null if it was already blank
+     */
+    public @Nullable Recording extractRecording() {
+        Recording held = recording;
+        if (held != null) {
+            clearRecording();
+        }
+        return held;
     }
 
     private void rebuildRuntimes() {

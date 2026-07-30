@@ -113,7 +113,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
                 addSlot(new ClonePageSlot(storage, storage::set, index,
                         Layout.STORAGE_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
-                        page, this::getSelectedClone));
+                        page, this::getSelectedClone, this::hasStorage));
             }
         }
 
@@ -152,6 +152,11 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** Where this menu's anchor stands, for anything that has to name it over the network. */
     public BlockPos getAnchorPos() {
         return anchor.getBlockPos();
+    }
+
+    /** Whether the storage can be reached: a blank anchor has nothing to keep in it. */
+    public boolean hasStorage() {
+        return getLengthTicks() > 0;
     }
 
     /** Clamped on read, so a clone going away takes its page with it. */

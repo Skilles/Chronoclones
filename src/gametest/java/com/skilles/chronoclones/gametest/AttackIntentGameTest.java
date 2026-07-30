@@ -84,7 +84,7 @@ final class AttackIntentGameTest {
         Mob cow = spawn(helper, ANCHOR.north());
         // A routine longer than the test window, so nothing but holding can land a second swing.
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
-                TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD), 400);
+                heldTightly(), 400);
 
         helper.startSequence()
                 // Wide margin: tests share one world, and a busy tick can slow the swing cadence.
@@ -106,7 +106,7 @@ final class AttackIntentGameTest {
         Mob cow = spawn(helper, ANCHOR.north());
         cow.setInvulnerable(true);
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
-                TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD), 400);
+                heldTightly(), 400);
 
         helper.startSequence()
                 // The cap is 100 ticks; this is comfortably past it.
@@ -120,6 +120,19 @@ final class AttackIntentGameTest {
     }
 
     // ---------------------------------------------------------------------- helpers
+
+    /**
+     * Until-dead, and reaching no further than the square it was recorded at.
+     *
+     * <p>The two until-dead tests each hold a clone swinging for a hundred ticks, and every test
+     * shares one world: with the default reach, one of them will sooner or later spend that hundred
+     * ticks swinging at the other's cow, which is invulnerable and never dies.
+     */
+    private static TargetRule heldTightly() {
+        return TargetRule.DEFAULT
+                .withCompletion(TargetRule.Completion.UNTIL_DEAD)
+                .withRadius(1.5);
+    }
 
     private static Mob spawn(GameTestHelper helper, BlockPos relative) {
         Mob cow = EntityTypes.COW.spawn(helper.getLevel(), helper.absolutePos(relative),

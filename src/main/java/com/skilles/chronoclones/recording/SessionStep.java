@@ -136,6 +136,20 @@ public sealed interface SessionStep {
             result = result.copy();
         }
 
+        /**
+         * Whether this is the same offer as another.
+         *
+         * <p>Not {@code equals}: a record compares its fields with {@code equals}, and an
+         * {@link ItemStack} does not have one -- two stacks of the same thing are only ever equal to
+         * themselves. So a record of three of them is never equal to anything but itself, which is
+         * how two clicks on one offer stayed two steps.
+         */
+        public boolean sameOffer(Trade other) {
+            return ItemStack.matches(costA, other.costA)
+                    && ItemStack.matches(costB, other.costB)
+                    && ItemStack.matches(result, other.result);
+        }
+
         @Override
         public Kind kind() {
             return Kind.TRADE;

@@ -72,6 +72,10 @@ public final class ChronoclonesNetwork {
                 RoutinePayloads.RemoveAction.STREAM_CODEC,
                 RoutinePayloads::handleRemove);
 
+        registrar.playToServer(RoutinePayloads.Reopen.TYPE,
+                RoutinePayloads.Reopen.STREAM_CODEC,
+                RoutinePayloads::handleReopen);
+
         registrar.playToServer(RoutinePayloads.Discard.TYPE,
                 RoutinePayloads.Discard.STREAM_CODEC,
                 RoutinePayloads::handleDiscard);

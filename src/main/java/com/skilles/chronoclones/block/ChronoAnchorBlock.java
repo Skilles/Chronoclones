@@ -5,6 +5,7 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.item.ChronoShardItem;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.registry.ModItems;
 import com.mojang.serialization.MapCodec;
 
@@ -130,7 +131,11 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         }
         Recording carried = isRecorder ? ChronoRecorderItem.recordingOf(stack) : ChronoShardItem.recordingOf(stack);
         boolean blankShard = isShard && carried == null;
-        if (carried == null && !blankShard) {
+        // A blank recorder, crouching: take the recording back out rather than open the screen.
+        boolean extracting = isRecorder && carried == null && player.isSecondaryUseActive()
+                && ChronoRecorderItem.stateOf(stack) == ChronoRecorderItem.State.IDLE;
+
+        if (carried == null && !blankShard && !extracting) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
@@ -145,6 +150,9 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         if (blankShard) {
             return inscribeShard(anchor, stack, serverPlayer, level, pos);
         }
+        if (extracting) {
+            return extractRecording(anchor, stack, serverPlayer, level, pos);
+        }
 
         anchor.imprint(carried, serverPlayer);
         // A recorder hands its recording over; a shard keeps it, so one shard can seed many anchors.
@@ -157,6 +165,43 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
                 Component.literal(carried.authorName()).withStyle(ChatFormatting.WHITE),
                 carried.actions().size()).withStyle(ChatFormatting.AQUA));
         level.playSound(null, pos, SoundEvents.BEACON_POWER_SELECT, SoundSource.BLOCKS, 0.8f, 1.2f);
+
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
+     * Takes an anchor's recording back onto a blank recorder, leaving the anchor blank.
+     *
+     * <p>One recorder at a time, so a stack of them cannot be turned into a stack of recordings.
+     */
+    private static InteractionResult extractRecording(ChronoAnchorBlockEntity anchor, ItemStack recorders,
+                                                      ServerPlayer player, Level level, BlockPos pos) {
+        if (anchor.getRecording() == null) {
+            player.sendOverlayMessage(Component
+                    .translatable("message.chronoclones.anchor.nothing_to_extract")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+        if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
+            player.sendOverlayMessage(Component
+                    .translatable("message.chronoclones.anchor.not_yours")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+
+        Recording taken = anchor.extractRecording();
+        ItemStack holding = ChronoRecorderItem.holding(recorders.copyWithCount(1), taken);
+        recorders.shrink(1);
+
+        if (!player.getInventory().add(holding)) {
+            player.drop(holding, false);
+        }
+
+        player.sendOverlayMessage(Component.translatable(
+                "message.chronoclones.anchor.extracted",
+                Component.literal(taken.authorName()).withStyle(ChatFormatting.WHITE),
+                taken.actions().size()).withStyle(ChatFormatting.AQUA));
+        level.playSound(null, pos, SoundEvents.BEACON_DEACTIVATE, SoundSource.BLOCKS, 0.8f, 1.4f);
 
         return InteractionResult.SUCCESS;
     }

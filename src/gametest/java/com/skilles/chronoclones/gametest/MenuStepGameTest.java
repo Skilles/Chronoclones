@@ -9,6 +9,7 @@ import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.LocalSpace;
 import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
+import com.skilles.chronoclones.recording.SessionSteps;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -48,6 +49,38 @@ final class MenuStepGameTest {
                 MenuStepGameTest::anvilWithoutExperienceSaysSo);
         ChronoclonesGameTests.add("anvil_drinks_a_bottle_to_afford_the_work",
                 MenuStepGameTest::anvilDrinksABottle);
+        ChronoclonesGameTests.add("choosing_one_offer_twice_is_one_step",
+                MenuStepGameTest::repeatedTradesAreOneStep);
+    }
+
+    /**
+     * Two clicks on one offer are one choice.
+     *
+     * <p>Here rather than in a unit test because it turns on comparing real stacks: an ItemStack has
+     * no value equality, so a Trade of empty ones compares equal to another by accident and proves
+     * nothing at all.
+     */
+    private static void repeatedTradesAreOneStep(GameTestHelper helper) {
+        SessionStep.Trade first = new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
+                ItemStack.EMPTY, new ItemStack(Items.BRICK, 4));
+        SessionStep.Trade again = new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
+                ItemStack.EMPTY, new ItemStack(Items.BRICK, 4));
+
+        List<SessionStep> steps = SessionSteps.interpret(List.of(
+                new SessionSteps.Event.Did(first), new SessionSteps.Event.Did(again)));
+
+        if (steps.size() != 1) {
+            helper.fail("clicking one offer twice made " + steps.size() + " steps: " + steps);
+        }
+
+        // And a different offer after it is still a second step.
+        SessionStep.Trade other = new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
+                ItemStack.EMPTY, new ItemStack(Items.BREAD, 6));
+        if (SessionSteps.interpret(List.of(new SessionSteps.Event.Did(first),
+                new SessionSteps.Event.Did(other))).size() != 2) {
+            helper.fail("two different offers were collapsed into one");
+        }
+        helper.succeed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

@@ -22,6 +22,10 @@ import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import com.skilles.chronoclones.menu.ChronoAnchorMenu;
+import net.minecraft.world.entity.ExperienceOrb;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -58,6 +62,105 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::cappedStepMovesPartOfIt);
         ChronoclonesGameTests.add("an_action_about_a_creature_is_pictured_as_that_creature",
                 RoutineEditGameTest::creatureActionsArePicturedAsCreatures);
+        ChronoclonesGameTests.add("discarding_hands_back_what_the_clones_were_holding",
+                RoutineEditGameTest::discardingSpillsTheStorage);
+        ChronoclonesGameTests.add("a_blank_anchor_has_no_storage_to_reach",
+                RoutineEditGameTest::blankAnchorHasNoStorage);
+        ChronoclonesGameTests.add("a_blank_recorder_takes_a_recording_back_out",
+                RoutineEditGameTest::blankRecorderTakesTheRecordingBack);
+    }
+
+    /**
+     * Crouching with an empty recorder takes the recording out, leaving the anchor blank.
+     */
+    private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 3);
+
+        Recording held = anchor.getRecording();
+        Recording taken = anchor.extractRecording();
+
+        if (taken == null || taken.actions().size() != held.actions().size()) {
+            helper.fail("the recording did not come back out whole");
+            return;
+        }
+        if (anchor.getRecording() != null) {
+            helper.fail("the anchor kept the recording it just handed over");
+        }
+        if (anchor.extractRecording() != null) {
+            helper.fail("a blank anchor handed over a second recording");
+        }
+        // Taking it out is a removal like any other, so the storage comes with it.
+        if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+            helper.fail("the storage stayed shut inside an anchor with nothing to run");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * The storage belongs to the recording that filled it.
+     *
+     * <p>Left inside a blank anchor it is unreachable in every sense: the squares are shut, and a
+     * player with no recording to imprint has no way to open them again.
+     */
+    private static void discardingSpillsTheStorage(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 7);
+        anchor.setCloneExperience(1, new com.skilles.chronoclones.block.ExperienceStore(40));
+
+        anchor.clearRecording();
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(ANCHOR);
+
+        helper.startSequence()
+                .thenExecuteAfter(6, () -> {
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+                        helper.fail("a discarded recording left its diamonds shut inside the anchor");
+                    }
+                    if (!anchor.getCloneExperience(1).isEmpty()) {
+                        helper.fail("a discarded recording kept its banked experience");
+                    }
+
+                    int diamonds = level.getEntitiesOfClass(ItemEntity.class,
+                                    new AABB(absolute).inflate(3.0)).stream()
+                            .filter(item -> item.getItem().is(Items.DIAMOND))
+                            .mapToInt(item -> item.getItem().getCount())
+                            .sum();
+                    if (diamonds != 7) {
+                        helper.fail("expected seven diamonds handed back, found " + diamonds);
+                    }
+                    // At least: a neighbouring test's orbs can drift into any box wide enough for
+                    // the spill's own random motion.
+                    int points = level.getEntitiesOfClass(ExperienceOrb.class,
+                                    new AABB(absolute).inflate(3.0)).stream()
+                            .mapToInt(ExperienceOrb::getValue).sum();
+                    if (points < 40) {
+                        helper.fail("expected the banked experience back, found " + points);
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Shut squares, so nothing can be put somewhere it would be stranded. */
+    private static void blankAnchorHasNoStorage(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        ChronoAnchorMenu menu = new ChronoAnchorMenu(1,
+                helper.makeMockServerPlayerInLevel().getInventory(), anchor,
+                anchor.getContainerData());
+        if (!menu.hasStorage()) {
+            helper.fail("an imprinted anchor refused its own storage");
+        }
+
+        anchor.clearRecording();
+        if (menu.hasStorage()) {
+            helper.fail("a blank anchor still offers squares nothing can come out of");
+        }
+        helper.succeed();
     }
 
     /**

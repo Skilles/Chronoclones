@@ -130,7 +130,8 @@ public final class SessionSteps {
         }
         return switch (step) {
             case SessionStep.Rename ignored -> previous instanceof SessionStep.Rename;
-            case SessionStep.Trade trade -> previous.equals(trade);
+            case SessionStep.Trade trade -> previous instanceof SessionStep.Trade before
+                    && before.sameOffer(trade);
             default -> false;
         };
     }

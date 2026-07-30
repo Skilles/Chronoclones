@@ -22,6 +22,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -328,16 +329,25 @@ public class RoutineEditorScreen extends Screen {
                 () -> applyStep(stepSettings().withSlot(cycled(stepSettings().slot()))));
         addControl(2, "items", stepItemsLabel(step), () -> applyStep(stepSettings().withItems(
                 stepSettings().items().isEmpty() ? List.of(move.item()) : List.of())));
-        // How much, not how many: a move takes all of a square, half of it, or one off the top,
-        // and it starts at whichever of those the player did.
-        addControl(3, "amount", amountLabel(step, move), () -> applyStep(
-                stepSettings().withAmount(Optional.of(
-                        nextAmount(stepSettings().amountOr(move.observed()))))));
+        // How much, not how many: a move takes all of a square, half of it, or one off the top.
+        addControl(3, "amount", amountLabel(step, move),
+                () -> applyStep(stepSettings().withAmount(nextAmount(stepSettings().amount()))));
     }
 
-    private static SessionStep.Amount nextAmount(SessionStep.Amount amount) {
+    /**
+     * Cycles all, half, one and back to what the recording did.
+     *
+     * <p>Deferring to the recording is a position of its own rather than a fourth value copied out
+     * of it: once you have picked one of the three there has to be a way back, and a copy would
+     * stop following the recording the moment it was taken again.
+     */
+    private static Optional<SessionStep.Amount> nextAmount(Optional<SessionStep.Amount> amount) {
         SessionStep.Amount[] amounts = SessionStep.Amount.values();
-        return amounts[(amount.ordinal() + 1) % amounts.length];
+        if (amount.isEmpty()) {
+            return Optional.of(amounts[0]);
+        }
+        int next = amount.get().ordinal() + 1;
+        return next < amounts.length ? Optional.of(amounts[next]) : Optional.empty();
     }
 
     private boolean hasNameBox;
@@ -876,6 +886,25 @@ public class RoutineEditorScreen extends Screen {
         return line < rowsVisible() && index < rows.size() ? rows.get(index) : null;
     }
 
+    /**
+     * The inventory key goes back to the anchor; escape leaves the screens entirely.
+     *
+     * <p>The editor is reached from the anchor's own screen, so the key that would close an
+     * inventory should hand it back rather than dropping the player into the world, which is a
+     * click on the block away from where they were.
+     */
+    @Override
+    public boolean keyPressed(@NonNull KeyEvent event) {
+        if (minecraft != null && minecraft.options.keyInventory.matches(event)
+                && source.anchor().isPresent()) {
+            flushName();
+            ClientPacketDistributor.sendToServer(
+                    new RoutinePayloads.Reopen(source.anchor().get()));
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;
@@ -960,12 +989,15 @@ public class RoutineEditorScreen extends Screen {
      * How much this move takes, which starts at how much the player took.
      */
     private Component amountLabel(StepSettings step, SessionStep.Move move) {
-        SessionStep.Amount amount = step.amountOr(move.observed());
-        Component name = Component.translatable(
+        return step.amount()
+                .map(RoutineEditorScreen::amountName)
+                .orElseGet(() -> Component.translatable("gui.chronoclones.editor.amount.recorded",
+                        amountName(move.observed())));
+    }
+
+    private static Component amountName(SessionStep.Amount amount) {
+        return Component.translatable(
                 "gui.chronoclones.editor.amount." + amount.getSerializedName());
-        return step.amount().isPresent()
-                ? name
-                : Component.translatable("gui.chronoclones.editor.amount.recorded", name);
     }
 
     /** A ticked box reads as the thing being on, so the label says what being on means. */

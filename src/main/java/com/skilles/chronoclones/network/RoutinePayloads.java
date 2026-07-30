@@ -5,6 +5,7 @@ import java.util.Optional;
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
@@ -123,6 +124,21 @@ public final class RoutinePayloads {
         }
     }
 
+    /** Client → server: put the anchor's own screen back up. */
+    public record Reopen(BlockPos anchor) implements CustomPacketPayload {
+
+        public static final CustomPacketPayload.Type<Reopen> TYPE =
+                new CustomPacketPayload.Type<>(Chronoclones.id("reopen_anchor"));
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, Reopen> STREAM_CODEC =
+                StreamCodec.composite(BlockPos.STREAM_CODEC.cast(), Reopen::anchor, Reopen::new);
+
+        @Override
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     /** Client → server: throw this routine away. */
     public record Discard(Source source) implements CustomPacketPayload {
 
@@ -162,6 +178,26 @@ public final class RoutinePayloads {
             return;
         }
         write(player, edit.source(), routine.withSettings(edit.index(), edit.settings()));
+    }
+
+    /**
+     * Opens the anchor's screen again, which is what leaving the editor by the inventory key means.
+     *
+     * <p>The same menu the block itself opens, through the same checks: the editor being open is no
+     * reason to trust a client asking for a screen onto somebody's storage.
+     */
+    public static void handleReopen(Reopen reopen, IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+        ChronoAnchorBlockEntity anchor = anchorFor(player, reopen.anchor());
+        if (anchor == null) {
+            return;
+        }
+        player.openMenu(anchor, buffer -> {
+            buffer.writeBlockPos(reopen.anchor());
+            ChronoAnchorMenu.writeTimeline(buffer, anchor.getRecording());
+        });
     }
 
     /**
