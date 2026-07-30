@@ -90,9 +90,15 @@ class RecordingCodecTest {
                                 // carrier therefore round trips in PrecisionGameTest, with a server.
                                 List.of(),
                                 List.of(
-                                        new ChronoAction.UseContainer.Click(4, 1, ContainerInput.PICKUP),
-                                        new ChronoAction.UseContainer.Click(54, 0, ContainerInput.PICKUP),
-                                        new ChronoAction.UseContainer.Click(-999, 0, ContainerInput.THROW))))),
+                                        new SessionStep.Move(4, 54,
+                                                BuiltInRegistries.ITEM.wrapAsHolder(Items.COAL),
+                                                SessionStep.Amount.HALF),
+                                        new SessionStep.Move(9, SessionStep.Move.ELSEWHERE,
+                                                BuiltInRegistries.ITEM.wrapAsHolder(Items.IRON_INGOT),
+                                                SessionStep.Amount.ALL),
+                                        new SessionStep.RawClick(4, 1, ContainerInput.PICKUP),
+                                        new SessionStep.RawClick(54, 0, ContainerInput.PICKUP),
+                                        new SessionStep.RawClick(-999, 0, ContainerInput.THROW))))),
                 200,
                 "Skilles",
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
@@ -161,6 +167,62 @@ class RecordingCodecTest {
             ChronoAction decoded = RecordingCodecs.ACTION_STREAM.decode(buf);
             assertEquals(timed.action(), decoded, "variant " + timed.action().type());
             assertEquals(0, buf.readableBytes(), "variant " + timed.action().type() + " left bytes");
+        }
+    }
+
+    @Test
+    @DisplayName("a session saved before steps existed reads its clicks as raw steps")
+    void legacyClicksBecomeRawSteps() {
+        // What an anchor imprinted before this release holds on disk: clicks, and no steps.
+        com.google.gson.JsonObject click = new com.google.gson.JsonObject();
+        click.addProperty("slot", 30);
+        click.addProperty("button", 1);
+        click.addProperty("input", "pickup");
+
+        com.google.gson.JsonArray clicks = new com.google.gson.JsonArray();
+        clicks.add(click);
+
+        com.google.gson.JsonObject session = new com.google.gson.JsonObject();
+        session.addProperty("type", "use_container");
+        session.add("pos", unwrap(BlockPos.CODEC.encodeStart(JsonOps.INSTANCE, new BlockPos(1, 2, 3))));
+        session.addProperty("menu_size", 63);
+        session.add("carrier", new com.google.gson.JsonArray());
+        session.add("clicks", clicks);
+
+        ChronoAction decoded = unwrap(RecordingCodecs.ACTION.parse(
+                registries.createSerializationContext(JsonOps.INSTANCE), session));
+
+        ChronoAction.UseContainer use = (ChronoAction.UseContainer) decoded;
+        assertEquals(List.of(new SessionStep.RawClick(30, 1, ContainerInput.PICKUP)), use.steps());
+        assertEquals(new BlockPos(1, 2, 3), use.localPos());
+    }
+
+    @Test
+    @DisplayName("steps are written, and the clicks they replaced are not")
+    void stepsReplaceClicksOnTheWayOut() {
+        ChronoAction.UseContainer session = (ChronoAction.UseContainer) sample().actions().stream()
+                .map(TimedAction::action)
+                .filter(a -> a instanceof ChronoAction.UseContainer)
+                .findFirst()
+                .orElseThrow();
+
+        var encoded = unwrap(RecordingCodecs.ACTION.encodeStart(
+                registries.createSerializationContext(JsonOps.INSTANCE), session)).getAsJsonObject();
+
+        assertTrue(encoded.has("steps"), "steps: " + encoded);
+        assertTrue(!encoded.has("clicks"), "the legacy field was written back: " + encoded);
+    }
+
+    @Test
+    @DisplayName("step kinds are serialised by name, so reordering the enum cannot reinterpret data")
+    void stepKindsAreSerialisedByName() {
+        for (SessionStep.Kind kind : SessionStep.Kind.values()) {
+            String name = unwrap(SessionStep.Kind.CODEC.encodeStart(JsonOps.INSTANCE, kind)).getAsString();
+            assertEquals(kind.getSerializedName(), name);
+        }
+        for (SessionStep.Amount amount : SessionStep.Amount.values()) {
+            String name = unwrap(SessionStep.Amount.CODEC.encodeStart(JsonOps.INSTANCE, amount)).getAsString();
+            assertEquals(amount.getSerializedName(), name);
         }
     }
 
@@ -266,7 +328,7 @@ class RecordingCodecTest {
                 ChronoAction.UseContainer a = (ChronoAction.UseContainer) actual;
                 assertEquals(e.localPos(), a.localPos());
                 assertEquals(e.menuSize(), a.menuSize());
-                assertEquals(e.clicks(), a.clicks());
+                assertEquals(e.steps(), a.steps());
                 assertEquals(e.carrier().size(), a.carrier().size());
                 for (int i = 0; i < e.carrier().size(); i++) {
                     assertEquals(e.carrier().get(i).menuSlot(), a.carrier().get(i).menuSlot());

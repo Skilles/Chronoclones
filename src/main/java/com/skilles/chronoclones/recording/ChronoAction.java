@@ -6,7 +6,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -99,15 +98,13 @@ public sealed interface ChronoAction {
     }
 
     /**
-     * A container session, recorded as clicks rather than net movement: "take 32" would bake in
-     * what the chest held that day, where a right-click means take half of whatever is there.
+     * A container session, as the steps the player worked through rather than net movement: "take
+     * 32" would bake in what the chest held that day, where "take half" is a thing to do to a chest.
      */
-    record UseContainer(BlockPos localPos, int menuSize, List<CarrierSlot> carrier, List<Click> clicks)
-            implements ChronoAction {
+    record UseContainer(BlockPos localPos, int menuSize, List<CarrierSlot> carrier,
+                        List<SessionStep> steps) implements ChronoAction {
 
-        public record Click(int slot, int button, ContainerInput input) {}
-
-        /** The count is a target for staging; the clicks operate on whatever is there. */
+        /** The count is a target for staging; the steps operate on whatever is there. */
         public record CarrierSlot(int menuSlot, ItemStack stack) {
             public CarrierSlot {
                 stack = stack.copy();
@@ -116,7 +113,7 @@ public sealed interface ChronoAction {
 
         public UseContainer {
             carrier = List.copyOf(carrier);
-            clicks = List.copyOf(clicks);
+            steps = List.copyOf(steps);
         }
 
         @Override

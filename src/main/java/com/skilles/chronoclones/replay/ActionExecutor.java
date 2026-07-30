@@ -11,6 +11,7 @@ import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 import com.skilles.chronoclones.recording.LocalSpace;
+import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
@@ -27,6 +28,7 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
@@ -553,12 +555,10 @@ public final class ActionExecutor {
 
             ContainerCarrier.load(inventory, owner, menu, settings);
             try {
-                for (ChronoAction.UseContainer.Click click : action.clicks()) {
-                    if (click.slot() >= menu.slots.size()) {
+                for (SessionStep step : action.steps()) {
+                    if (!runStep(menu, owner, step)) {
                         return Result.fail(FailureReason.NO_TARGET, action.localPos());
                     }
-                    // The square the player clicked, whatever is in it now.
-                    menu.clicked(click.slot(), click.button(), click.input(), owner);
                 }
             } finally {
                 // Returns whatever is on the cursor to the player, then everything the player is
@@ -571,5 +571,60 @@ public final class ActionExecutor {
         } finally {
             AnchorFakePlayer.release(operator, owner);
         }
+    }
+
+    /**
+     * One step of a session.
+     *
+     * @return false when the step names a square this menu does not have, which means the menu is
+     *         not the one that was recorded and nothing further should be clicked in it
+     */
+    private static boolean runStep(AbstractContainerMenu menu, FakePlayer owner, SessionStep step) {
+        return switch (step) {
+            case SessionStep.Move move -> runMove(menu, owner, move);
+            case SessionStep.RawClick raw -> {
+                if (raw.slot() >= menu.slots.size()) {
+                    yield false;
+                }
+                // The square the player clicked, whatever is in it now.
+                menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
+                yield true;
+            }
+        };
+    }
+
+    /**
+     * Moves an item as the player moved it: take, put, and put back whatever was not wanted.
+     *
+     * <p>Through {@code clicked} rather than by writing the slots, so a mod's own slot rules, its
+     * crafting result and its refusals all apply exactly as they do to a player.
+     */
+    private static boolean runMove(AbstractContainerMenu menu, FakePlayer owner, SessionStep.Move move) {
+        if (move.from() < 0 || move.from() >= menu.slots.size()) {
+            return false;
+        }
+        if (!move.quick() && (move.to() < 0 || move.to() >= menu.slots.size())) {
+            return false;
+        }
+        // Nothing there to take: the same outcome as clicking an empty square, without the clicks.
+        if (menu.getSlot(move.from()).getItem().isEmpty()) {
+            return true;
+        }
+
+        if (move.quick()) {
+            menu.clicked(move.from(), 0, ContainerInput.QUICK_MOVE, owner);
+            return true;
+        }
+
+        menu.clicked(move.from(), move.observed() == SessionStep.Amount.HALF ? 1 : 0,
+                ContainerInput.PICKUP, owner);
+        menu.clicked(move.to(), move.observed() == SessionStep.Amount.ONE ? 1 : 0,
+                ContainerInput.PICKUP, owner);
+
+        // What the destination would not take, or the rest of a stack the move only wanted one of.
+        if (!menu.getCarried().isEmpty()) {
+            menu.clicked(move.from(), 0, ContainerInput.PICKUP, owner);
+        }
+        return true;
     }
 }

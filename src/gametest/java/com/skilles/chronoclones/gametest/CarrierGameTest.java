@@ -5,6 +5,7 @@ import java.util.List;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
@@ -277,12 +278,12 @@ final class CarrierGameTest {
     // ---------------------------------------------------------------------- helpers
 
     private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
-                                                   List<ChronoAction.UseContainer.Click> clicks) {
+                                                   List<SessionStep> clicks) {
         return deposit(helper, clicks, ActionSettings.DEFAULT);
     }
 
     private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
-                                                   List<ChronoAction.UseContainer.Click> clicks,
+                                                   List<SessionStep> clicks,
                                                    ActionSettings settings) {
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
@@ -303,7 +304,7 @@ final class CarrierGameTest {
         }
     }
 
-    private static ChronoAction.UseContainer.Click click(int slot, int button, ContainerInput input) {
-        return new ChronoAction.UseContainer.Click(slot, button, input);
+    private static SessionStep.RawClick click(int slot, int button, ContainerInput input) {
+        return new SessionStep.RawClick(slot, button, input);
     }
 }

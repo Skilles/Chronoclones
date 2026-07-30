@@ -5,6 +5,7 @@ import java.util.List;
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -49,6 +50,14 @@ final class InteractionGameTest {
         ChronoclonesGameTests.add("container_untouched_stock_comes_home",
                 InteractionGameTest::untouchedStockComesHome);
         ChronoclonesGameTests.add("container_runs_understocked", InteractionGameTest::runsUnderstocked);
+        ChronoclonesGameTests.add("move_step_takes_half_of_what_is_there",
+                InteractionGameTest::moveStepTakesHalf);
+        ChronoclonesGameTests.add("move_step_drops_a_single_item",
+                InteractionGameTest::moveStepDropsOne);
+        ChronoclonesGameTests.add("move_step_sends_a_stack_elsewhere",
+                InteractionGameTest::moveStepSendsElsewhere);
+        ChronoclonesGameTests.add("move_step_over_an_empty_square_does_nothing",
+                InteractionGameTest::moveStepOverNothing);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
@@ -333,6 +342,137 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
+    // ------------------------------------------------------------------ steps
+
+    /**
+     * "Half" is half of whatever is standing there, which is the whole reason a move records an
+     * amount rather than a count.
+     */
+    private static void moveStepTakesHalf(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+        // Recorded against 16, replayed against 24: a baked count would move 8.
+        stock(level, absoluteTarget, 3, Items.COBBLESTONE, 24);
+
+        AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        move(3, 7, Items.COBBLESTONE, SessionStep.Amount.HALF))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
+                    if (barrel.getAmountAsInt(7) != 12) {
+                        helper.fail("expected half of 24 moved, slot 7 holds "
+                                + barrel.getAmountAsInt(7));
+                    }
+                    if (barrel.getAmountAsInt(3) != 12) {
+                        helper.fail("the other half did not stay put, slot 3 holds "
+                                + barrel.getAmountAsInt(3));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** One item down and the rest put back, which is three clicks to the menu and one step here. */
+    private static void moveStepDropsOne(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+        stock(level, absoluteTarget, 3, Items.COBBLESTONE, 24);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        move(3, 7, Items.COBBLESTONE, SessionStep.Amount.ONE))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    ResourceHandler<ItemResource> barrel =
+                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
+                    if (barrel.getAmountAsInt(7) != 1) {
+                        helper.fail("expected one item moved, slot 7 holds "
+                                + barrel.getAmountAsInt(7));
+                    }
+                    if (barrel.getAmountAsInt(3) != 23) {
+                        helper.fail("the remainder was not put back, slot 3 holds "
+                                + barrel.getAmountAsInt(3));
+                    }
+                    if (countIn(anchor.getInventory(), Items.COBBLESTONE) != 0) {
+                        helper.fail("the remainder came home with the clone instead of staying in "
+                                + "the barrel");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** A shift-click names no destination, so the menu picks one at replay as it did at record. */
+    private static void moveStepSendsElsewhere(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        stock(level, helper.absolutePos(target), 0, Items.DIAMOND, 5);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        move(0, SessionStep.Move.ELSEWHERE, Items.DIAMOND,
+                                SessionStep.Amount.ALL))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (countIn(anchor.getInventory(), Items.DIAMOND) != 5) {
+                        helper.fail("expected 5 diamonds sent into the anchor, got "
+                                + countIn(anchor.getInventory(), Items.DIAMOND));
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * An empty source is not a failure: a chest that has not refilled yet is the ordinary case, and
+     * the steps after it still have work to do.
+     */
+    private static void moveStepOverNothing(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absoluteTarget = helper.absolutePos(target);
+        stock(level, absoluteTarget, 5, Items.DIAMOND, 3);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
+                        move(3, 7, Items.COBBLESTONE, SessionStep.Amount.ALL),
+                        move(5, SessionStep.Move.ELSEWHERE, Items.DIAMOND,
+                                SessionStep.Amount.ALL))));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (countIn(anchor.getInventory(), Items.DIAMOND) != 3) {
+                        helper.fail("the step after the empty one never ran: the anchor holds "
+                                + countIn(anchor.getInventory(), Items.DIAMOND) + " diamonds");
+                    }
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NONE) {
+                        helper.fail("an empty source square was reported as "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
     // ------------------------------------------------------------------ menu geometry
 
     // Vanilla menu order: container slots, main inventory, hotbar.
@@ -417,17 +557,21 @@ final class InteractionGameTest {
 
     // ------------------------------------------------------------------ helpers
 
-    private static ChronoAction.UseContainer.Click click(int slot, int button, ContainerInput input) {
-        return new ChronoAction.UseContainer.Click(slot, button, input);
+    private static SessionStep.RawClick click(int slot, int button, ContainerInput input) {
+        return new SessionStep.RawClick(slot, button, input);
     }
 
-    private static ChronoAction session(int menuSize, ChronoAction.UseContainer.Click... clicks) {
-        return session(menuSize, List.of(), clicks);
+    private static ChronoAction session(int menuSize, SessionStep... steps) {
+        return session(menuSize, List.of(), steps);
     }
 
     private static ChronoAction session(int menuSize, List<ChronoAction.UseContainer.CarrierSlot> carrier,
-                                      ChronoAction.UseContainer.Click... clicks) {
-        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, carrier, List.of(clicks));
+                                      SessionStep... steps) {
+        return new ChronoAction.UseContainer(new BlockPos(0, 0, -1), menuSize, carrier, List.of(steps));
+    }
+
+    private static SessionStep.Move move(int from, int to, Item item, SessionStep.Amount amount) {
+        return new SessionStep.Move(from, to, BuiltInRegistries.ITEM.wrapAsHolder(item), amount);
     }
 
     private static ChronoAction.UseContainer.CarrierSlot carrying(int menuSlot, Item item, int count) {

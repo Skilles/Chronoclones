@@ -9,6 +9,7 @@ import java.util.Set;
 import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.client.Minecraft;
@@ -63,8 +64,8 @@ public final class GoggleSlots {
                 if (session.menuSize() != menuSize) {
                     continue;
                 }
-                for (ChronoAction.UseContainer.Click click : session.clicks()) {
-                    touched.add(click.slot());
+                for (SessionStep step : session.steps()) {
+                    step.squares().forEach(touched::add);
                 }
                 for (ChronoAction.UseContainer.CarrierSlot slot : session.carrier()) {
                     // First claim wins: two anchors on one square is a conflict to surface.

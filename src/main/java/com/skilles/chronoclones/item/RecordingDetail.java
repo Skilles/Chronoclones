@@ -4,11 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -23,7 +25,7 @@ public final class RecordingDetail {
     /** Beyond this the tooltip is taller than the screen and stops being readable. */
     private static final int MAX_LINES = 24;
     /** Container sessions expand too, but a long one would drown everything else. */
-    private static final int MAX_CLICKS = 6;
+    private static final int MAX_STEPS = 6;
 
     public static List<Component> describe(List<TimedAction> actions) {
         List<Component> lines = new ArrayList<>();
@@ -79,7 +81,7 @@ public final class RecordingDetail {
                     name(a.expectedType().value().getDescription()), at(a.localPos()))
                     .withStyle(ChatFormatting.AQUA);
             case ChronoAction.UseContainer a -> Component.translatable("tooltip.chronoclones.detail.container",
-                    at(a.localPos()), a.clicks().size())
+                    at(a.localPos()), a.steps().size())
                     .withStyle(ChatFormatting.YELLOW);
         };
     }
@@ -97,23 +99,43 @@ public final class RecordingDetail {
             added++;
         }
 
-        int clicks = Math.min(session.clicks().size(), MAX_CLICKS);
-        for (int i = 0; i < clicks; i++) {
-            lines.add(indent(clickLine(session.clicks().get(i)).withStyle(ChatFormatting.GRAY)));
+        int shown = Math.min(session.steps().size(), MAX_STEPS);
+        for (int i = 0; i < shown; i++) {
+            lines.add(indent(stepLine(session.steps().get(i)).withStyle(ChatFormatting.GRAY)));
             added++;
         }
-        if (session.clicks().size() > clicks) {
+        if (session.steps().size() > shown) {
             lines.add(indent(Component.translatable("tooltip.chronoclones.detail.more",
-                    session.clicks().size() - clicks).withStyle(ChatFormatting.DARK_GRAY)));
+                    session.steps().size() - shown).withStyle(ChatFormatting.DARK_GRAY)));
             added++;
         }
         return added;
     }
 
     /**
-     * A click in words.
+     * One step in words.
      */
-    private static net.minecraft.network.chat.MutableComponent clickLine(ChronoAction.UseContainer.Click click) {
+    public static MutableComponent stepLine(SessionStep step) {
+        return switch (step) {
+            case SessionStep.Move move -> moveLine(move);
+            case SessionStep.RawClick click -> clickLine(click);
+        };
+    }
+
+    private static MutableComponent moveLine(SessionStep.Move move) {
+        Component item = itemName(move.item().value());
+        if (move.quick()) {
+            return Component.translatable("tooltip.chronoclones.detail.step.send", item, move.from());
+        }
+        String key = switch (move.observed()) {
+            case ALL -> "tooltip.chronoclones.detail.step.move";
+            case HALF -> "tooltip.chronoclones.detail.step.move_half";
+            case ONE -> "tooltip.chronoclones.detail.step.move_one";
+        };
+        return Component.translatable(key, item, move.from(), move.to());
+    }
+
+    private static MutableComponent clickLine(SessionStep.RawClick click) {
         String key = switch (click.input()) {
             case PICKUP -> click.button() == 0
                     ? "tooltip.chronoclones.detail.click.pickup_all"

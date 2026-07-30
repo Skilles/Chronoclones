@@ -3,6 +3,7 @@ package com.skilles.chronoclones.item;
 import java.util.List;
 
 import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.SessionStep;
 import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.core.BlockPos;
@@ -64,8 +65,8 @@ class RecordingDetailTest {
                         new BlockPos(0, 0, -1), 63,
                         List.of(),
                         List.of(
-                                new ChronoAction.UseContainer.Click(0, 1, ContainerInput.PICKUP),
-                                new ChronoAction.UseContainer.Click(31, 0, ContainerInput.QUICK_MOVE))))));
+                                new SessionStep.RawClick(0, 1, ContainerInput.PICKUP),
+                                new SessionStep.RawClick(31, 0, ContainerInput.QUICK_MOVE))))));
 
         String text = keysOf(lines);
         assertTrue(text.contains("tooltip.chronoclones.detail.container"), text);
@@ -88,7 +89,7 @@ class RecordingDetailTest {
     private static TimedAction session(int button) {
         return new TimedAction(20, new ChronoAction.UseContainer(
                 BlockPos.ZERO, 63, List.of(),
-                List.of(new ChronoAction.UseContainer.Click(0, button, ContainerInput.PICKUP))));
+                List.of(new SessionStep.RawClick(0, button, ContainerInput.PICKUP))));
     }
 
     @Test

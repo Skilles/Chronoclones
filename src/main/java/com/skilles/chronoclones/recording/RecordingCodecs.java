@@ -114,11 +114,29 @@ public final class RecordingCodecs {
                     },
                     input -> DataResult.success(input.name().toLowerCase(java.util.Locale.ROOT)));
 
-    static final Codec<ChronoAction.UseContainer.Click> CLICK = RecordCodecBuilder.create(i -> i.group(
-            Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.Click::slot),
-            Codec.INT.fieldOf("button").forGetter(ChronoAction.UseContainer.Click::button),
-            CONTAINER_INPUT.fieldOf("input").forGetter(ChronoAction.UseContainer.Click::input)
-    ).apply(i, ChronoAction.UseContainer.Click::new));
+    static final MapCodec<SessionStep.Move> MOVE = RecordCodecBuilder.mapCodec(i -> i.group(
+            Codec.INT.fieldOf("from").forGetter(SessionStep.Move::from),
+            Codec.INT.fieldOf("to").forGetter(SessionStep.Move::to),
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(SessionStep.Move::item),
+            SessionStep.Amount.CODEC.optionalFieldOf("amount", SessionStep.Amount.ALL)
+                    .forGetter(SessionStep.Move::observed)
+    ).apply(i, SessionStep.Move::new));
+
+    static final MapCodec<SessionStep.RawClick> RAW_CLICK = RecordCodecBuilder.mapCodec(i -> i.group(
+            Codec.INT.fieldOf("slot").forGetter(SessionStep.RawClick::slot),
+            Codec.INT.fieldOf("button").forGetter(SessionStep.RawClick::button),
+            CONTAINER_INPUT.fieldOf("input").forGetter(SessionStep.RawClick::input)
+    ).apply(i, SessionStep.RawClick::new));
+
+    private static MapCodec<? extends SessionStep> stepCodecFor(SessionStep.Kind kind) {
+        return switch (kind) {
+            case MOVE -> MOVE;
+            case RAW_CLICK -> RAW_CLICK;
+        };
+    }
+
+    public static final Codec<SessionStep> SESSION_STEP =
+            SessionStep.Kind.CODEC.dispatch("step", SessionStep::kind, RecordingCodecs::stepCodecFor);
 
     static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
@@ -126,12 +144,20 @@ public final class RecordingCodecs {
             ItemStack.CODEC.fieldOf("stack").forGetter(ChronoAction.UseContainer.CarrierSlot::stack)
     ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
 
+    /**
+     * The {@code clicks} field is only ever read: sessions saved before steps existed carry their
+     * clicks there, and each becomes a raw step, which is exactly how it already behaved.
+     */
     static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.UseContainer::localPos),
             Codec.INT.fieldOf("menu_size").forGetter(ChronoAction.UseContainer::menuSize),
             CARRIER_SLOT.listOf().fieldOf("carrier").forGetter(ChronoAction.UseContainer::carrier),
-            CLICK.listOf().fieldOf("clicks").forGetter(ChronoAction.UseContainer::clicks)
-    ).apply(i, ChronoAction.UseContainer::new));
+            SESSION_STEP.listOf().optionalFieldOf("steps", List.of())
+                    .forGetter(ChronoAction.UseContainer::steps),
+            RAW_CLICK.codec().listOf().optionalFieldOf("clicks")
+                    .forGetter(a -> Optional.<List<SessionStep.RawClick>>empty())
+    ).apply(i, (pos, size, carrier, steps, legacy) -> new ChronoAction.UseContainer(pos, size, carrier,
+            steps.isEmpty() ? List.copyOf(legacy.orElse(List.of())) : steps)));
 
     private static MapCodec<? extends ChronoAction> mapCodecFor(ChronoActionType type) {
         return switch (type) {
@@ -198,14 +224,39 @@ public final class RecordingCodecs {
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.InteractEntity::item,
                     ChronoAction.InteractEntity::new);
 
-    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer.Click> CLICK_STREAM =
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Move> MOVE_STREAM =
             StreamCodec.composite(
-                    // Not VAR_INT: clicking outside a menu is slot -999, which unsigned varints
+                    ByteBufCodecs.INT, SessionStep.Move::from,
+                    // Not VAR_INT: a shift-click's destination is -1, which unsigned varints
                     // encode in five bytes.
-                    ByteBufCodecs.INT, ChronoAction.UseContainer.Click::slot,
-                    ByteBufCodecs.INT, ChronoAction.UseContainer.Click::button,
-                    ContainerInput.STREAM_CODEC.cast(), ChronoAction.UseContainer.Click::input,
-                    ChronoAction.UseContainer.Click::new);
+                    ByteBufCodecs.INT, SessionStep.Move::to,
+                    ByteBufCodecs.holderRegistry(Registries.ITEM), SessionStep.Move::item,
+                    ByteBufCodecs.idMapper(id -> SessionStep.Amount.values()[id], Enum::ordinal),
+                    SessionStep.Move::observed,
+                    SessionStep.Move::new);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.RawClick> RAW_CLICK_STREAM =
+            StreamCodec.composite(
+                    // Clicking outside a menu is slot -999, for the same reason.
+                    ByteBufCodecs.INT, SessionStep.RawClick::slot,
+                    ByteBufCodecs.INT, SessionStep.RawClick::button,
+                    ContainerInput.STREAM_CODEC.cast(), SessionStep.RawClick::input,
+                    SessionStep.RawClick::new);
+
+    @SuppressWarnings("unchecked")
+    private static StreamCodec<RegistryFriendlyByteBuf, SessionStep> stepStreamFor(SessionStep.Kind kind) {
+        StreamCodec<RegistryFriendlyByteBuf, ? extends SessionStep> codec = switch (kind) {
+            case MOVE -> MOVE_STREAM;
+            case RAW_CLICK -> RAW_CLICK_STREAM;
+        };
+        // Safe: dispatch only ever hands us the codec matching the value's own kind().
+        return (StreamCodec<RegistryFriendlyByteBuf, SessionStep>) codec;
+    }
+
+    static final StreamCodec<RegistryFriendlyByteBuf, SessionStep> SESSION_STEP_STREAM =
+            ByteBufCodecs.<SessionStep.Kind>idMapper(
+                            id -> SessionStep.Kind.values()[id], Enum::ordinal).<RegistryFriendlyByteBuf>cast()
+                    .dispatch(SessionStep::kind, RecordingCodecs::stepStreamFor);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT_STREAM =
             StreamCodec.composite(
@@ -219,8 +270,8 @@ public final class RecordingCodecs {
                     ByteBufCodecs.VAR_INT, ChronoAction.UseContainer::menuSize,
                     CARRIER_SLOT_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
                     ChronoAction.UseContainer::carrier,
-                    CLICK_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
-                    ChronoAction.UseContainer::clicks,
+                    SESSION_STEP_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ChronoAction.UseContainer::steps,
                     ChronoAction.UseContainer::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoActionType> ACTION_TYPE_STREAM =
