@@ -105,6 +105,24 @@ public final class RoutinePayloads {
         }
     }
 
+    /** Client → server: drop one action from the routine. */
+    public record RemoveAction(Source source, int index) implements CustomPacketPayload {
+
+        public static final CustomPacketPayload.Type<RemoveAction> TYPE =
+                new CustomPacketPayload.Type<>(Chronoclones.id("remove_action"));
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, RemoveAction> STREAM_CODEC =
+                StreamCodec.composite(
+                        Source.STREAM_CODEC, RemoveAction::source,
+                        ByteBufCodecs.VAR_INT, RemoveAction::index,
+                        RemoveAction::new);
+
+        @Override
+        public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
+            return TYPE;
+        }
+    }
+
     /** Client → server: throw this routine away. */
     public record Discard(Source source) implements CustomPacketPayload {
 
@@ -144,6 +162,20 @@ public final class RoutinePayloads {
             return;
         }
         write(player, edit.source(), routine.withSettings(edit.index(), edit.settings()));
+    }
+
+    /**
+     * Drops one action, subject to the same checks as an edit.
+     */
+    public static void handleRemove(RemoveAction remove, IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+        Recording routine = read(player, remove.source());
+        if (routine == null || remove.index() < 0 || remove.index() >= routine.actions().size()) {
+            return;
+        }
+        write(player, remove.source(), routine.without(remove.index()));
     }
 
     /**

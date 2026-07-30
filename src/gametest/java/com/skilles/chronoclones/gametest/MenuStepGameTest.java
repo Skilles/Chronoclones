@@ -201,10 +201,16 @@ final class MenuStepGameTest {
                                 + ", reporting " + anchor.getLastFailure().reason());
                         return;
                     }
+                    // A bottle is worth 3 to 11 points and a level costs 7, so one usually does and
+                    // sometimes does not: what matters is that it drank, and stopped when it could
+                    // afford the work.
                     int bottles = AnchorTestFixture.countIn(anchor.getInventory(),
                             Items.EXPERIENCE_BOTTLE);
-                    if (bottles != 3) {
-                        helper.fail("expected one bottle drunk of four, " + bottles + " left");
+                    if (bottles == 4) {
+                        helper.fail("the work was done without drinking anything");
+                    }
+                    if (bottles < 1) {
+                        helper.fail("it drank all four bottles for one level of work");
                     }
                 })
                 .thenSucceed();

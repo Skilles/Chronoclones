@@ -15,10 +15,14 @@ import org.jspecify.annotations.NonNull;
  * the recording behaved. The editor is where a player opts into anything narrower.
  */
 public record ActionSettings(String name, SlotRule slot, TargetRule target,
-                            TransferRule transfer) {
+                            TransferRule transfer, List<StepSettings> steps) {
 
     public static final ActionSettings DEFAULT = new ActionSettings(
-            "", SlotRule.DEFAULT, TargetRule.DEFAULT, TransferRule.DEFAULT);
+            "", SlotRule.DEFAULT, TargetRule.DEFAULT, TransferRule.DEFAULT, List.of());
+
+    public ActionSettings {
+        steps = List.copyOf(steps);
+    }
 
     /** Empty for "call it whatever the action is", which is what the tooltips already do. */
     public boolean hasName() {
@@ -26,19 +30,74 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target,
     }
 
     public ActionSettings withName(String name) {
-        return new ActionSettings(name, slot, target, transfer);
+        return new ActionSettings(name, slot, target, transfer, steps);
     }
 
     public ActionSettings withSlot(SlotRule slot) {
-        return new ActionSettings(name, slot, target, transfer);
+        return new ActionSettings(name, slot, target, transfer, steps);
     }
 
     public ActionSettings withTarget(TargetRule target) {
-        return new ActionSettings(name, slot, target, transfer);
+        return new ActionSettings(name, slot, target, transfer, steps);
     }
 
     public ActionSettings withTransfer(TransferRule transfer) {
-        return new ActionSettings(name, slot, target, transfer);
+        return new ActionSettings(name, slot, target, transfer, steps);
+    }
+
+    /**
+     * What one step of a session was told, which for an unedited step is nothing.
+     *
+     * <p>The list is short or empty by design: a routine nobody has opened the editor on carries no
+     * step settings at all, and one edited step does not oblige its neighbours to be described.
+     */
+    public StepSettings step(int index) {
+        return index >= 0 && index < steps.size() ? steps.get(index) : StepSettings.DEFAULT;
+    }
+
+    /** This, with one step replaced, padded with defaults up to it if need be. */
+    public ActionSettings withStep(int index, StepSettings step) {
+        if (index < 0) {
+            return this;
+        }
+        List<StepSettings> next = new java.util.ArrayList<>(steps);
+        while (next.size() <= index) {
+            next.add(StepSettings.DEFAULT);
+        }
+        next.set(index, step);
+        return new ActionSettings(name, slot, target, transfer, next);
+    }
+
+    /**
+     * What one step of a container session was told, over and above what it recorded.
+     *
+     * @param enabled false to skip the step entirely, which is how one is dropped without touching
+     *                the recording that would have to be performed again to get it back
+     */
+    public record StepSettings(String name, SlotRule slot, TransferRule transfer, boolean enabled) {
+
+        public static final StepSettings DEFAULT =
+                new StepSettings("", SlotRule.DEFAULT, TransferRule.DEFAULT, true);
+
+        public boolean hasName() {
+            return !name.isBlank();
+        }
+
+        public StepSettings withName(String name) {
+            return new StepSettings(name, slot, transfer, enabled);
+        }
+
+        public StepSettings withSlot(SlotRule slot) {
+            return new StepSettings(name, slot, transfer, enabled);
+        }
+
+        public StepSettings withTransfer(TransferRule transfer) {
+            return new StepSettings(name, slot, transfer, enabled);
+        }
+
+        public StepSettings withEnabled(boolean enabled) {
+            return new StepSettings(name, slot, transfer, enabled);
+        }
     }
 
     /**

@@ -29,6 +29,7 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -567,8 +568,12 @@ public final class ActionExecutor {
 
             ContainerCarrier.load(inventory, owner, menu, settings);
             try {
-                for (SessionStep step : action.steps()) {
-                    FailureReason refusal = runStep(menu, owner, step);
+                for (int index = 0; index < action.steps().size(); index++) {
+                    ActionSettings.StepSettings rule = settings.step(index);
+                    if (!rule.enabled()) {
+                        continue;
+                    }
+                    FailureReason refusal = runStep(menu, owner, action.steps().get(index), rule);
                     if (refusal != FailureReason.NONE) {
                         return Result.fail(refusal, localBlock);
                     }
@@ -687,14 +692,15 @@ public final class ActionExecutor {
      *         that names a square this menu does not have means the menu is not the one recorded, so
      *         nothing further should be clicked in it.
      */
-    private static FailureReason runStep(AbstractContainerMenu menu, FakePlayer owner, SessionStep step) {
+    private static FailureReason runStep(AbstractContainerMenu menu, FakePlayer owner,
+                                         SessionStep step, ActionSettings.StepSettings rule) {
         int levels = experienceCost(menu, step);
         if (levels > 0 && owner.experienceLevel < levels && !drinkUpTo(owner, levels)) {
             return FailureReason.NO_EXPERIENCE;
         }
 
         boolean ran = switch (step) {
-            case SessionStep.Move move -> runMove(menu, owner, move);
+            case SessionStep.Move move -> runMove(menu, owner, move, rule);
             case SessionStep.RawClick raw -> {
                 if (raw.slot() >= menu.slots.size()) {
                     yield false;
@@ -807,32 +813,76 @@ public final class ActionExecutor {
      * <p>Through {@code clicked} rather than by writing the slots, so a mod's own slot rules, its
      * crafting result and its refusals all apply exactly as they do to a player.
      */
-    private static boolean runMove(AbstractContainerMenu menu, FakePlayer owner, SessionStep.Move move) {
+    private static boolean runMove(AbstractContainerMenu menu, FakePlayer owner, SessionStep.Move move,
+                                   ActionSettings.StepSettings rule) {
         if (move.from() < 0 || move.from() >= menu.slots.size()) {
             return false;
         }
         if (!move.quick() && (move.to() < 0 || move.to() >= menu.slots.size())) {
             return false;
         }
-        // Nothing there to take: the same outcome as clicking an empty square, without the clicks.
-        if (menu.getSlot(move.from()).getItem().isEmpty()) {
+
+        int from = sourceFor(menu, move, rule.slot());
+        // Nothing to take: the same outcome as clicking an empty square, without the clicks. A
+        // chest that has not refilled yet is the ordinary case, not a broken routine.
+        if (from < 0) {
+            return true;
+        }
+        if (!rule.transfer().allows(menu.getSlot(from).getItem().getItem())) {
             return true;
         }
 
         if (move.quick()) {
-            menu.clicked(move.from(), 0, ContainerInput.QUICK_MOVE, owner);
+            // A shift-click's amount was always the menu's business, so a cap cannot apply to one.
+            menu.clicked(from, 0, ContainerInput.QUICK_MOVE, owner);
             return true;
         }
 
-        menu.clicked(move.from(), move.observed() == SessionStep.Amount.HALF ? 1 : 0,
-                ContainerInput.PICKUP, owner);
-        menu.clicked(move.to(), move.observed() == SessionStep.Amount.ONE ? 1 : 0,
+        menu.clicked(from, move.observed() == SessionStep.Amount.HALF ? 1 : 0,
                 ContainerInput.PICKUP, owner);
 
-        // What the destination would not take, or the rest of a stack the move only wanted one of.
+        int carried = menu.getCarried().getCount();
+        int wanted = move.observed() == SessionStep.Amount.ONE
+                ? 1
+                : Math.min(carried, rule.transfer().quantity().budget());
+
+        if (wanted >= carried) {
+            menu.clicked(move.to(), 0, ContainerInput.PICKUP, owner);
+        } else {
+            // One at a time, which is the only way a menu will take part of what is held.
+            for (int placed = 0; placed < wanted; placed++) {
+                menu.clicked(move.to(), 1, ContainerInput.PICKUP, owner);
+            }
+        }
+
+        // What the destination would not take, or what a cap held back.
         if (!menu.getCarried().isEmpty()) {
-            menu.clicked(move.from(), 0, ContainerInput.PICKUP, owner);
+            menu.clicked(from, 0, ContainerInput.PICKUP, owner);
         }
         return true;
+    }
+
+    /**
+     * The square this move takes from, which is the recorded one unless told to look further.
+     *
+     * <p>A looser rule only ever looks on the same side of the menu: slot indices say nothing about
+     * what they belong to, so searching the whole menu for a chest's coal would happily find the
+     * clone's own.
+     */
+    private static int sourceFor(AbstractContainerMenu menu, SessionStep.Move move, SlotRule rule) {
+        Item item = move.item().value();
+        if (rule.mode() != SlotRule.Mode.ANY && menu.getSlot(move.from()).getItem().is(item)) {
+            return move.from();
+        }
+        if (rule.mode() == SlotRule.Mode.EXACT) {
+            return -1;
+        }
+        Container side = menu.getSlot(move.from()).container;
+        for (int slot = 0; slot < menu.slots.size(); slot++) {
+            if (menu.getSlot(slot).container == side && menu.getSlot(slot).getItem().is(item)) {
+                return slot;
+            }
+        }
+        return -1;
     }
 }

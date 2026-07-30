@@ -44,6 +44,15 @@ public record Recording(
         return new Recording(motion, edited, lengthTicks, authorName, authorId, creative);
     }
 
+    /**
+     * This routine without one action, keeping its length so the rest still happen when they did.
+     */
+    public Recording without(int index) {
+        List<TimedAction> kept = new java.util.ArrayList<>(actions);
+        kept.remove(index);
+        return new Recording(motion, kept, lengthTicks, authorName, authorId, creative);
+    }
+
     public int lengthSeconds() {
         return lengthTicks / 20;
     }

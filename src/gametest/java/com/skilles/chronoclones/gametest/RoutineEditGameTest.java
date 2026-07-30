@@ -1,16 +1,30 @@
 package com.skilles.chronoclones.gametest;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
+import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /**
  * Editing how an anchor reads its routine, and who may.
@@ -28,6 +42,217 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::onlyTheOwnerMayReinterpret);
         ChronoclonesGameTests.add("discarding_leaves_the_anchor_blank",
                 RoutineEditGameTest::discardingLeavesTheAnchorBlank);
+        ChronoclonesGameTests.add("deleting_an_action_leaves_the_others_where_they_were",
+                RoutineEditGameTest::deletingAnActionKeepsTheRest);
+        ChronoclonesGameTests.add("a_skipped_step_moves_nothing_and_its_neighbours_still_run",
+                RoutineEditGameTest::skippedStepMovesNothing);
+        ChronoclonesGameTests.add("a_step_carries_only_what_it_is_told_to",
+                RoutineEditGameTest::stepCarriesOnlyItsItem);
+        ChronoclonesGameTests.add("a_step_finds_its_item_in_another_square",
+                RoutineEditGameTest::stepFindsItsItemElsewhere);
+        ChronoclonesGameTests.add("a_step_told_exactly_where_looks_nowhere_else",
+                RoutineEditGameTest::exactStepLooksNowhereElse);
+        ChronoclonesGameTests.add("a_step_capped_moves_only_what_it_is_allowed",
+                RoutineEditGameTest::cappedStepMovesPartOfIt);
+    }
+
+    /** An item filter is how a routine stops hauling whatever happens to be in the square. */
+    private static void stepCarriesOnlyItsItem(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 0, Items.DIAMOND,
+                ActionSettings.StepSettings.DEFAULT.withTransfer(
+                        ActionSettings.TransferRule.DEFAULT.withItems(
+                                List.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.EMERALD)))));
+        stock(helper.getLevel(), helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
+                0, Items.DIAMOND, 5);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> assertHolds(helper, anchor, Items.DIAMOND, 0,
+                        "a filter for emeralds let diamonds through"))
+                .thenSucceed();
+    }
+
+    /** Stock rarely lands back where it was, so the recorded square is a hint by default. */
+    private static void stepFindsItsItemElsewhere(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 3, Items.DIAMOND,
+                ActionSettings.StepSettings.DEFAULT);
+        // Recorded coming out of slot 3, actually sitting in slot 7.
+        stock(helper.getLevel(), helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
+                7, Items.DIAMOND, 5);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> assertHolds(helper, anchor, Items.DIAMOND, 5,
+                        "the diamonds moved one square along and the step gave up"))
+                .thenSucceed();
+    }
+
+    /** The same, told to sort as it works: the recorded square or nothing. */
+    private static void exactStepLooksNowhereElse(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 3, Items.DIAMOND,
+                ActionSettings.StepSettings.DEFAULT.withSlot(
+                        new SlotRule(SlotRule.Mode.EXACT, SlotRule.NONE)));
+        stock(helper.getLevel(), helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
+                7, Items.DIAMOND, 5);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> assertHolds(helper, anchor, Items.DIAMOND, 0,
+                        "a step told to use one square only went looking anyway"))
+                .thenSucceed();
+    }
+
+    /** A cap is how a routine feeds a furnace rather than emptying into it. */
+    private static void cappedStepMovesPartOfIt(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        BlockPos absolute = helper.absolutePos(target);
+        stock(helper.getLevel(), absolute, 0, Items.DIAMOND, 12);
+
+        // Slot to slot inside the barrel, so what stays behind is visible in the barrel itself.
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), 27 + 36, List.of(),
+                                List.of(new SessionStep.Move(0, 9,
+                                        BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND),
+                                        SessionStep.Amount.ALL))),
+                        ActionSettings.DEFAULT.withStep(0,
+                                ActionSettings.StepSettings.DEFAULT.withTransfer(
+                                        ActionSettings.TransferRule.DEFAULT.withQuantity(
+                                                ActionSettings.QuantityRule.atMost(3))))));
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    ResourceHandler<ItemResource> barrel = helper.getLevel().getCapability(
+                            Capabilities.Item.BLOCK, absolute, null);
+                    if (barrel == null) {
+                        helper.fail("the barrel exposes no item handler");
+                        return;
+                    }
+                    if (barrel.getAmountAsInt(9) != 3) {
+                        helper.fail("expected three moved under a cap of three, slot 9 holds "
+                                + barrel.getAmountAsInt(9));
+                    }
+                    if (barrel.getAmountAsInt(0) != 9) {
+                        helper.fail("the rest was not put back, slot 0 holds "
+                                + barrel.getAmountAsInt(0));
+                    }
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+                        helper.fail("the capped remainder came home with the clone");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * An anchor whose one step shift-clicks {@code item} out of {@code from}, under one step rule.
+     */
+    private static ChronoAnchorBlockEntity sendingAnchor(GameTestHelper helper, int from,
+                                                         net.minecraft.world.item.Item item,
+                                                         ActionSettings.StepSettings rule) {
+        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.BARREL);
+
+        return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), 27 + 36, List.of(),
+                                List.of(send(from, item))),
+                        ActionSettings.DEFAULT.withStep(0, rule)));
+    }
+
+    private static void assertHolds(GameTestHelper helper, ChronoAnchorBlockEntity anchor,
+                                    net.minecraft.world.item.Item item, int expected, String what) {
+        int held = AnchorTestFixture.countIn(anchor.getInventory(), item);
+        if (held != expected) {
+            helper.fail(what + ": expected " + expected + ", the anchor holds " + held);
+        }
+    }
+
+    /** Deleting one action is not the same as re-timing the rest of the routine. */
+    private static void deletingAnActionKeepsTheRest(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(List.of(
+                        useOn(new BlockPos(0, 0, -1)),
+                        useOn(new BlockPos(0, 0, -2)),
+                        useOn(new BlockPos(0, 0, -3)))));
+
+        Recording before = anchor.getRecording();
+        Recording after = before.without(1);
+
+        if (after.actions().size() != 2) {
+            helper.fail("expected two actions left of three, got " + after.actions().size());
+        }
+        if (after.lengthTicks() != before.lengthTicks()) {
+            helper.fail("deleting an action shortened the routine from " + before.lengthTicks()
+                    + " to " + after.lengthTicks() + " ticks");
+        }
+        // The survivors keep their own ticks, so what is left happens when it always did.
+        if (after.actions().get(0).tick() != before.actions().get(0).tick()
+                || after.actions().get(1).tick() != before.actions().get(2).tick()) {
+            helper.fail("the surviving actions were re-timed by the deletion");
+        }
+
+        UUID stranger = UUID.fromString("c0000000-0000-0000-0000-00000000000c");
+        if (AnchorAuthority.mayRetune(anchor.getOwnerId(), stranger)) {
+            helper.fail("a stranger was allowed to delete from somebody else's routine");
+        }
+        helper.succeed();
+    }
+
+    /**
+     * A step turned off is how one is dropped without re-performing the whole routine to get it back.
+     */
+    private static void skippedStepMovesNothing(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.BARREL);
+
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(target);
+        stock(level, absolute, 0, Items.DIAMOND, 5);
+        stock(level, absolute, 1, Items.EMERALD, 5);
+
+        // Two shift-clicks out of the barrel, the first of which is switched off.
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.UseContainer(
+                                new MenuTarget.Block(new BlockPos(0, 0, -1)), 27 + 36, List.of(),
+                                List.of(send(0, Items.DIAMOND), send(1, Items.EMERALD))),
+                        ActionSettings.DEFAULT.withStep(0,
+                                ActionSettings.StepSettings.DEFAULT.withEnabled(false))));
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+                        helper.fail("the skipped step ran anyway: the anchor holds "
+                                + AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND)
+                                + " diamonds");
+                    }
+                    if (AnchorTestFixture.countIn(anchor.getInventory(), Items.EMERALD) != 5) {
+                        helper.fail("the step after the skipped one did not run: the anchor holds "
+                                + AnchorTestFixture.countIn(anchor.getInventory(), Items.EMERALD)
+                                + " emeralds");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static SessionStep send(int from, net.minecraft.world.item.Item item) {
+        return new SessionStep.Move(from, SessionStep.Move.ELSEWHERE,
+                BuiltInRegistries.ITEM.wrapAsHolder(item), SessionStep.Amount.ALL);
+    }
+
+    private static ChronoAction useOn(BlockPos localPos) {
+        return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
+                InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.AIR));
+    }
+
+    private static void stock(ServerLevel level, BlockPos absolutePos, int slot,
+                              net.minecraft.world.item.Item item, int amount) {
+        ResourceHandler<ItemResource> handler =
+                level.getCapability(Capabilities.Item.BLOCK, absolutePos, null);
+        if (handler == null) {
+            return;
+        }
+        try (Transaction tx = Transaction.openRoot()) {
+            handler.insert(slot, ItemResource.of(item), amount, tx);
+            tx.commit();
+        }
     }
 
     /** What the editor's discard button reaches, once the payload has checked who is asking. */

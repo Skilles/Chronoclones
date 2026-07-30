@@ -422,6 +422,15 @@ public final class RecordingCodecs {
                     .forGetter(ActionSettings.TransferRule::quantity)
     ).apply(i, ActionSettings.TransferRule::new));
 
+    static final Codec<ActionSettings.StepSettings> STEP_SETTINGS = RecordCodecBuilder.create(i -> i.group(
+            Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings.StepSettings::name),
+            SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
+                    .forGetter(ActionSettings.StepSettings::slot),
+            TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
+                    .forGetter(ActionSettings.StepSettings::transfer),
+            Codec.BOOL.optionalFieldOf("enabled", true).forGetter(ActionSettings.StepSettings::enabled)
+    ).apply(i, ActionSettings.StepSettings::new));
+
     public static final Codec<ActionSettings> ACTION_SETTINGS = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings::name),
             SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
@@ -429,7 +438,9 @@ public final class RecordingCodecs {
             TARGET_RULE.optionalFieldOf("target", ActionSettings.TargetRule.DEFAULT)
                     .forGetter(ActionSettings::target),
             TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
-                    .forGetter(ActionSettings::transfer)
+                    .forGetter(ActionSettings::transfer),
+            STEP_SETTINGS.listOf().optionalFieldOf("steps", List.of())
+                    .forGetter(ActionSettings::steps)
     ).apply(i, ActionSettings::new));
 
     static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.SlotRule> SLOT_RULE_STREAM =
@@ -466,12 +477,22 @@ public final class RecordingCodecs {
                     ActionSettings.TransferRule::quantity,
                     ActionSettings.TransferRule::new);
 
+    static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.StepSettings> STEP_SETTINGS_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.STRING_UTF8, ActionSettings.StepSettings::name,
+                    SLOT_RULE_STREAM, ActionSettings.StepSettings::slot,
+                    TRANSFER_RULE_STREAM, ActionSettings.StepSettings::transfer,
+                    ByteBufCodecs.BOOL, ActionSettings.StepSettings::enabled,
+                    ActionSettings.StepSettings::new);
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings> ACTION_SETTINGS_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, ActionSettings::name,
                     SLOT_RULE_STREAM, ActionSettings::slot,
                     TARGET_RULE_STREAM, ActionSettings::target,
                     TRANSFER_RULE_STREAM, ActionSettings::transfer,
+                    STEP_SETTINGS_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
+                    ActionSettings::steps,
                     ActionSettings::new);
 
     // ------------------------------------------------------------------ timed action
