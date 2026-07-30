@@ -94,9 +94,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             return;
         }
 
-        for (int tick : menu.getActionTicks()) {
-            int at = x + (width - 1) * Math.clamp(tick, 0, length) / length;
-            extractor.fill(at, y, at + 1, y + height, AnchorPanels.ACCENT);
+        for (ChronoAnchorMenu.Mark mark : menu.getActionMarks()) {
+            int at = x + (width - 1) * Math.clamp(mark.tick(), 0, length) / length;
+            // The picture where there is one, and the tick it replaces where there is not.
+            if (!ActionIcon.draw(extractor, mark.icon(), at - MARK_SIZE / 2,
+                    y + (height - MARK_SIZE) / 2, MARK_SIZE)) {
+                extractor.fill(at, y, at + 1, y + height, AnchorPanels.ACCENT);
+            }
         }
 
         // A stopped anchor has no clones, so it has nowhere to draw a playhead.
@@ -109,6 +113,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             AnchorPanels.playhead(extractor, at, y - 1, AnchorPanels.TEXT);
         }
     }
+
+    /**
+     * As tall as the track it stands on, so a mark reads as part of the ruler rather than on top
+     * of it. The row's slack above and below is what makes even this much possible.
+     */
+    private static final int MARK_SIZE = 11;
 
     /** The three glyphs in the order they read: play, pause, stop. */
     private static final AnchorPanels.Kind[] TRANSPORT = {

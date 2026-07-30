@@ -583,7 +583,10 @@ public class RoutineEditorScreen extends Screen {
     }
 
     /** How near the pointer has to be to a mark to be asking about it. */
-    private static final int MARK_REACH = 4;
+    private static final int MARK_REACH = 5;
+
+    /** Big enough to tell a chest from a villager, small enough that a dozen fit on the ruler. */
+    private static final int MARK_SIZE = 10;
 
     /**
      * The action whose mark is under the pointer, or -1.
@@ -646,8 +649,20 @@ public class RoutineEditorScreen extends Screen {
 
         for (int i = 0; i < actions().size(); i++) {
             boolean current = i == selected;
-            diamond(g, markX(i), trackY + 1, current ? 4 : 3,
-                    current ? AnchorPanels.TEXT : kindColour(actions().get(i).action()));
+            ChronoAction action = actions().get(i).action();
+            int at = markX(i);
+
+            if (current) {
+                // A ring rather than a bigger picture, so the selected mark stands out without
+                // changing size and shuffling its neighbours.
+                AnchorPanels.outline(g, at - MARK_SIZE / 2 - 1, trackY + 1 - MARK_SIZE / 2 - 1,
+                        MARK_SIZE + 2, MARK_SIZE + 2, AnchorPanels.TEXT);
+            }
+            if (!ActionIcon.draw(g, action, at - MARK_SIZE / 2, trackY + 1 - MARK_SIZE / 2,
+                    MARK_SIZE)) {
+                diamond(g, at, trackY + 1, current ? 4 : 3,
+                        current ? AnchorPanels.TEXT : kindColour(action));
+            }
         }
     }
 
@@ -693,14 +708,40 @@ public class RoutineEditorScreen extends Screen {
             drawStepRow(g, row, timed, x, y, width, current);
             return;
         }
+        drawActionCard(g, timed, x, y, width, current);
+    }
 
-        g.text(font, timed.tick() / 20 + "s", x + 6, y + 3, AnchorPanels.MUTED);
-        diamond(g, x + 30, y + 6, 3, kindColour(timed.action()));
+    /** How wide the coloured end of a card is, with the time written on it. */
+    private static final int CARD_STRIP = 26;
+    private static final int CARD_ICON = 16;
 
-        int textX = x + 38;
-        int textWidth = width - 44;
+    /**
+     * One action as a card: its kind in the colour, its subject in the picture.
+     *
+     * <p>A wash across the whole card rather than a mark on it, because the kind is what the card is
+     * rather than one more thing written on it.
+     */
+    private void drawActionCard(GuiGraphicsExtractor g, TimedAction timed, int x, int y, int width,
+                                boolean current) {
+        int colour = kindColour(timed.action());
+        int top = y + 1;
+        int bottom = y + ROW_HEIGHT - 2;
+
+        g.fill(x + 3, top, x + width - 3, bottom, AnchorPanels.wash(colour, current ? 42 : 26));
+        g.fill(x + 3, top, x + 3 + CARD_STRIP, bottom, AnchorPanels.wash(colour, 90));
+
+        String at = timed.tick() / 20 + "s";
+        g.text(font, at, x + 3 + (CARD_STRIP - font.width(at)) / 2, y + 7, AnchorPanels.TEXT);
+
+        int iconX = x + 3 + CARD_STRIP + 4;
+        if (!ActionIcon.draw(g, timed.action(), iconX, y + (ROW_HEIGHT - CARD_ICON) / 2, CARD_ICON)) {
+            diamond(g, iconX + CARD_ICON / 2, y + ROW_HEIGHT / 2, 3, colour);
+        }
+
+        int textX = iconX + CARD_ICON + 4;
+        int textWidth = x + width - 5 - textX;
         g.text(font, font.plainSubstrByWidth(rowTitle(timed), textWidth), textX, y + 3,
-                current ? AnchorPanels.ACCENT : AnchorPanels.TEXT);
+                current ? AnchorPanels.TEXT : colour);
         g.text(font, font.plainSubstrByWidth(summaryOf(timed), textWidth), textX, y + 12,
                 AnchorPanels.MUTED);
     }

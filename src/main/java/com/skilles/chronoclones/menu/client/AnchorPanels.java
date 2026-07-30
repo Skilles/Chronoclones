@@ -156,6 +156,13 @@ final class AnchorPanels {
         STOP
     }
 
+    /**
+     * The same colour at a given opacity, for a wash behind something rather than a line around it.
+     */
+    static int wash(int colour, int alpha) {
+        return (colour & 0x00FFFFFF) | (Math.clamp(alpha, 0, 255) << 24);
+    }
+
     /** A tick mark, drawn inside a box of {@code size}: down to the left, then up to the right. */
     static void tick(GuiGraphicsExtractor g, int x, int y, int size, int colour) {
         int foot = size / 2;

@@ -1,5 +1,7 @@
 package com.skilles.chronoclones.recording;
 
+import java.util.Optional;
+
 import com.mojang.serialization.Codec;
 
 import net.minecraft.core.BlockPos;
@@ -54,7 +56,16 @@ public sealed interface MenuTarget {
         }
     }
 
-    record Block(BlockPos localPos) implements MenuTarget {
+    /**
+     * @param expectedBlock what stood there, kept so the editor can show it. Empty for sessions
+     *                      recorded before there was anything to show it with.
+     */
+    record Block(BlockPos localPos, Optional<Holder<net.minecraft.world.level.block.Block>> expectedBlock)
+            implements MenuTarget {
+
+        public Block(BlockPos localPos) {
+            this(localPos, Optional.empty());
+        }
 
         @Override
         public Kind kind() {

@@ -3,6 +3,7 @@ package com.skilles.chronoclones.menu;
 import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.item.ActionIcons;
 import com.skilles.chronoclones.block.RunState;
 import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.block.UpgradeState;
@@ -42,8 +43,8 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** Which clone's squares are the visible ones. Each side sets its own on the same click. */
     private int selectedClone;
 
-    /** The tick each recorded action falls on, for the timeline. Empty on the server side. */
-    private final int[] actionTicks;
+    /** A mark per recorded action, for the timeline. Empty on the server side. */
+    private final List<Mark> actionMarks;
 
     /**
      * Client-side constructor, reached via the extra data written when the menu is opened.
@@ -57,35 +58,51 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this(containerId, playerInventory, anchor, data, NO_TIMELINE);
     }
 
-    private static final int[] NO_TIMELINE = new int[0];
+    private static final List<Mark> NO_TIMELINE = List.of();
+
+    /**
+     * One action as the anchor's timeline needs it: when it happens, and what it is about.
+     *
+     * <p>The whole action would do, but the screen only ever draws a mark and the recording is the
+     * one thing the anchor does not otherwise send to a client that is merely looking at it.
+     */
+    public record Mark(int tick, java.util.Optional<net.minecraft.core.Holder<net.minecraft.world.item.Item>> icon) {}
+
+    private static final net.minecraft.network.codec.StreamCodec<RegistryFriendlyByteBuf,
+            java.util.Optional<net.minecraft.core.Holder<net.minecraft.world.item.Item>>> ICON_STREAM =
+            net.minecraft.network.codec.ByteBufCodecs.optional(
+                    net.minecraft.network.codec.ByteBufCodecs.holderRegistry(
+                            net.minecraft.core.registries.Registries.ITEM));
 
     public static void writeTimeline(RegistryFriendlyByteBuf buffer, @Nullable Recording recording) {
         List<TimedAction> actions = recording == null ? List.of() : recording.actions();
         buffer.writeVarInt(actions.size());
         for (TimedAction action : actions) {
             buffer.writeVarInt(action.tick());
+            ICON_STREAM.encode(buffer, ActionIcons.of(action.action()));
         }
     }
 
-    private static int[] readTimeline(RegistryFriendlyByteBuf buffer) {
-        int[] ticks = new int[buffer.readVarInt()];
-        for (int i = 0; i < ticks.length; i++) {
-            ticks[i] = buffer.readVarInt();
+    private static List<Mark> readTimeline(RegistryFriendlyByteBuf buffer) {
+        int count = buffer.readVarInt();
+        List<Mark> marks = new java.util.ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            marks.add(new Mark(buffer.readVarInt(), ICON_STREAM.decode(buffer)));
         }
-        return ticks;
+        return List.copyOf(marks);
     }
 
-    /** The tick each action falls on, in order. Only the client is given these. */
-    public int[] getActionTicks() {
-        return actionTicks;
+    /** Each action's mark, in order. Only the client is given these. */
+    public List<Mark> getActionMarks() {
+        return actionMarks;
     }
 
     public ChronoAnchorMenu(int containerId, Inventory playerInventory, ChronoAnchorBlockEntity anchor,
-                            ContainerData data, int[] actionTicks) {
+                            ContainerData data, List<Mark> actionMarks) {
         super(ModMenus.CHRONO_ANCHOR.get(), containerId);
         this.anchor = anchor;
         this.data = data;
-        this.actionTicks = actionTicks;
+        this.actionMarks = actionMarks;
 
         // Every clone's squares, stacked on the same coordinates. Laid out like a player's own
         // inventory, the storage rows above the hotbar row.

@@ -82,7 +82,8 @@ class RecordingCodecTest {
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
                         new TimedAction(13, new ChronoAction.UseContainer(
-                                new MenuTarget.Block(new BlockPos(2, 0, -3)), 63,
+                                new MenuTarget.Block(new BlockPos(2, 0, -3),
+                                        Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.CHEST))), 63,
                                 // No carrier entries, for the same reason the templates above are
                                 // empty: one holds a whole ItemStack, and a carrier slot may not be
                                 // empty. Its codec is the strict ItemStack.CODEC so that

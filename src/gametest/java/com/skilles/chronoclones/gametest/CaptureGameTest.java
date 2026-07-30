@@ -1,12 +1,19 @@
 package com.skilles.chronoclones.gametest;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ChronoAction;
+import com.skilles.chronoclones.recording.ContainerWatch;
+import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.core.Holder;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.common.util.FakePlayer;
 
@@ -19,6 +26,50 @@ final class CaptureGameTest {
 
     static void register() {
         ChronoclonesGameTests.add("recording_ignores_own_clones", CaptureGameTest::recordingIgnoresOwnClones);
+        ChronoclonesGameTests.add("a_recorded_session_remembers_what_it_opened",
+                CaptureGameTest::recordedSessionRemembersWhatItOpened);
+    }
+
+    /**
+     * A session keeps the block it was opened on, which is what the editor draws it as.
+     */
+    private static void recordedSessionRemembersWhatItOpened(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.CHEST);
+
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        RecordingSession session = RecordingSessions.start(player);
+        try {
+            BlockPos absolute = helper.absolutePos(target);
+            ContainerWatch.noteInteraction(player, absolute, -1, session);
+
+            // Opening the chest for real, so the watch sees the menu the player is looking at.
+            helper.useBlock(target, player);
+            if (!(player.containerMenu instanceof ChestMenu)) {
+                helper.fail("the chest never opened, so nothing was recorded to check");
+                return;
+            }
+            ContainerWatch.onContainerOpened(player, session);
+            ContainerWatch.onClick(player, 0, 0, ContainerInput.PICKUP);
+
+            ChronoAction.UseContainer recorded = ContainerWatch.onContainerClosed(player, session);
+            if (recorded == null) {
+                helper.fail("nothing was recorded for a session that was clicked in");
+                return;
+            }
+            if (!(recorded.target() instanceof MenuTarget.Block block)) {
+                helper.fail("a chest was recorded as " + recorded.target());
+                return;
+            }
+            if (block.expectedBlock().map(Holder::value).orElse(null) != Blocks.CHEST) {
+                helper.fail("the session did not remember the chest it was opened on, got "
+                        + block.expectedBlock().map(Holder::value).orElse(null));
+            }
+        } finally {
+            RecordingSessions.discard(player);
+            ContainerWatch.forget(player);
+        }
+        helper.succeed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);

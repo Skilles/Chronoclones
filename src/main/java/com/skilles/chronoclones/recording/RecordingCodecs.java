@@ -115,7 +115,9 @@ public final class RecordingCodecs {
                     input -> DataResult.success(input.name().toLowerCase(java.util.Locale.ROOT)));
 
     static final MapCodec<MenuTarget.Block> MENU_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
-            BlockPos.CODEC.fieldOf("pos").forGetter(MenuTarget.Block::localPos)
+            BlockPos.CODEC.fieldOf("pos").forGetter(MenuTarget.Block::localPos),
+            BuiltInRegistries.BLOCK.holderByNameCodec().optionalFieldOf("block")
+                    .forGetter(MenuTarget.Block::expectedBlock)
     ).apply(i, MenuTarget.Block::new));
 
     static final MapCodec<MenuTarget.Entity> MENU_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -137,6 +139,8 @@ public final class RecordingCodecs {
     static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Block> MENU_BLOCK_STREAM =
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC.cast(), MenuTarget.Block::localPos,
+                    ByteBufCodecs.optional(ByteBufCodecs.holderRegistry(Registries.BLOCK)),
+                    MenuTarget.Block::expectedBlock,
                     MenuTarget.Block::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Entity> MENU_ENTITY_STREAM =

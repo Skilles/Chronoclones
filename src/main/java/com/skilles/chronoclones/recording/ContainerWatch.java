@@ -71,8 +71,10 @@ public final class ContainerWatch {
         if (player.level().getBlockState(pos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
             return;
         }
-        PENDING.put(player.getUUID(),
-                new Pending(new MenuTarget.Block(session.toLocal(pos)), pos, actionIndex));
+        PENDING.put(player.getUUID(), new Pending(
+                new MenuTarget.Block(session.toLocal(pos), Optional.of(
+                        player.level().getBlockState(pos).typeHolder())),
+                pos, actionIndex));
     }
 
     /** The same, for an entity: a villager's trades, a horse's saddlebags, a chest boat. */
@@ -292,9 +294,15 @@ public final class ContainerWatch {
         send(player, new RecordingHighlightPayload(NO_CONTAINER, List.of(), List.of()));
     }
 
-    /** Forgetting a watch also happens on the way out of a dimension, and on respawn. */
+    /**
+     * Forgetting a watch also happens on the way out of a dimension, and on respawn.
+     *
+     * <p>Asked whether the channel exists rather than assumed: sending down a connection that has
+     * not negotiated it is a hard error, not a dropped packet.
+     */
     private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
-        if (player.connection != null && !player.hasDisconnected()) {
+        if (player.connection != null && !player.hasDisconnected()
+                && player.connection.hasChannel(RecordingHighlightPayload.TYPE)) {
             PacketDistributor.sendToPlayer(player, payload);
         }
     }

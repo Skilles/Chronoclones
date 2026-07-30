@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.item.ActionIcons;
 import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
@@ -17,6 +18,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -54,6 +56,38 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::exactStepLooksNowhereElse);
         ChronoclonesGameTests.add("a_step_told_to_move_one_moves_one",
                 RoutineEditGameTest::cappedStepMovesPartOfIt);
+        ChronoclonesGameTests.add("an_action_about_a_creature_is_pictured_as_that_creature",
+                RoutineEditGameTest::creatureActionsArePicturedAsCreatures);
+    }
+
+    /**
+     * The half of the icon choice a unit test cannot reach: finding a creature's spawn egg reads
+     * item components, which are not bound until a datapack has loaded.
+     */
+    private static void creatureActionsArePicturedAsCreatures(GameTestHelper helper) {
+        // A bucket says nothing about which cow was milked, so the cow is what is shown.
+        assertIcon(helper, new ChronoAction.InteractEntity(
+                        Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                        InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET)),
+                Items.COW_SPAWN_EGG);
+
+        assertIcon(helper, new ChronoAction.UseContainer(
+                        new MenuTarget.Entity(Vec3.ZERO,
+                                BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                        39, List.of(), List.of()),
+                Items.VILLAGER_SPAWN_EGG);
+
+        helper.succeed();
+    }
+
+    private static void assertIcon(GameTestHelper helper, ChronoAction action,
+                                   net.minecraft.world.item.Item expected) {
+        net.minecraft.world.item.Item shown = ActionIcons.of(action)
+                .map(net.minecraft.core.Holder::value)
+                .orElse(null);
+        if (shown != expected) {
+            helper.fail("expected " + expected + " to stand for " + action.type() + ", got " + shown);
+        }
     }
 
     /** An item filter is how a routine stops hauling whatever happens to be in the square. */

@@ -83,15 +83,19 @@ final class AttackIntentGameTest {
     private static void untilDeadFinishesTheKill(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north());
         // A routine longer than the test window, so nothing but holding can land a second swing.
-        attackingAnchor(helper, TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD), 400);
+        ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
+                TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD), 400);
 
         helper.startSequence()
                 // Wide margin: tests share one world, and a busy tick can slow the swing cadence.
                 // The 400-tick routine still cannot loop in here, so only holding lands a second hit.
-                .thenExecuteAfter(120, () -> {
+                .thenExecuteAfter(160, () -> {
                     if (cow.isAlive()) {
+                        // The reason matters: giving up is a different failure from never swinging,
+                        // and one of them is the hold cap being too near this window.
                         helper.fail("the cow survived an attack told to finish it, at "
-                                + cow.getHealth() + " health");
+                                + cow.getHealth() + " health, reporting "
+                                + anchor.getLastFailure().reason());
                     }
                 })
                 .thenSucceed();
