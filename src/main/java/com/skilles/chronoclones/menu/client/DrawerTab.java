@@ -1,8 +1,5 @@
 package com.skilles.chronoclones.menu.client;
 
-import java.util.function.BooleanSupplier;
-
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -10,23 +7,33 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
-/** The handle that opens and closes the precision drawer. Points the way the drawer will move. */
+/**
+ * The handle on the anchor window's edge that opens the routine editor.
+ *
+ * <p>It used to pull out a drawer, which existed to hold one button that opened the editor. The
+ * handle does that itself now.
+ */
 final class DrawerTab extends AbstractButton {
 
-    static final int WIDTH = DrawerLayout.TAB_WIDTH;
+    static final int WIDTH = 15;
     static final int HEIGHT = 20;
 
-    private final Font font;
-    private final BooleanSupplier open;
-    private final boolean onLeft;
+    /**
+     * How far the handle tucks under the window's edge, so it reads as growing out of the window
+     * rather than as a button parked against it.
+     */
+    static final int OVERLAP = 3;
+
     private final Runnable onPress;
 
-    DrawerTab(Font font, Component narration, boolean onLeft, BooleanSupplier open, Runnable onPress) {
+    DrawerTab(Component narration, Runnable onPress) {
         super(0, 0, WIDTH, HEIGHT, narration);
-        this.font = font;
-        this.open = open;
-        this.onLeft = onLeft;
         this.onPress = onPress;
+    }
+
+    /** Always the right edge: with no body to make room for, there is no side to choose. */
+    static int tabX(int leftPos, int imageWidth) {
+        return leftPos + imageWidth - OVERLAP;
     }
 
     @Override
@@ -35,25 +42,20 @@ final class DrawerTab extends AbstractButton {
     }
 
     @Override
-    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         int x = getX();
         int y = getY();
 
-        // Lit means open, not focused: a clicked button keeps focus, so the drawer stayed lit
-        // after it had slid shut.
-        boolean lit = open.getAsBoolean() || isHovered();
+        AnchorPanels.panel(g, x, y, WIDTH, HEIGHT);
 
-        AnchorPanels.panel(graphics, x, y, WIDTH, HEIGHT);
+        int colour = !active ? AnchorPanels.SLOT_EDGE
+                : isHovered() ? AnchorPanels.ACCENT
+                : AnchorPanels.MUTED;
 
         // The gear centres on the part that is not tucked under the window.
-        int visible = WIDTH - DrawerLayout.TAB_OVERLAP;
-        int iconX = onLeft
-                ? x + (visible - AnchorPanels.ICON_SIZE) / 2
-                : x + DrawerLayout.TAB_OVERLAP + (visible - AnchorPanels.ICON_SIZE) / 2;
-
-        AnchorPanels.icon(graphics, AnchorPanels.ICON_GEAR,
-                iconX, y + (HEIGHT - AnchorPanels.ICON_SIZE) / 2,
-                lit ? AnchorPanels.ACCENT : AnchorPanels.MUTED);
+        AnchorPanels.icon(g, AnchorPanels.ICON_GEAR,
+                x + OVERLAP + (WIDTH - OVERLAP - AnchorPanels.ICON_SIZE) / 2,
+                y + (HEIGHT - AnchorPanels.ICON_SIZE) / 2, colour);
     }
 
     @Override

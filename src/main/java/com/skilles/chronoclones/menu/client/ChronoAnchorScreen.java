@@ -7,7 +7,6 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 import com.skilles.chronoclones.network.RoutinePayloads;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.Button;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
@@ -23,21 +22,10 @@ import org.jspecify.annotations.NonNull;
  */
 public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu> {
 
-    /** A quarter per tick: five frames of movement, enough to read as a drawer and not as a stutter. */
-    private static final float DRAWER_STEP = 0.25f;
     /** Level with the storage band, so the handle reads as attached to a section. */
-    private static final int DRAWER_TAB_Y = Layout.BAND_Y;
-    private static final int DRAWER_PADDING = 6;
-    private static final int DRAWER_TITLE_Y = 6;
-    private static final int DRAWER_HEIGHT = Layout.BAND_HEIGHT;
+    private static final int EDITOR_TAB_Y = Layout.BAND_Y;
 
-    /** How far the drawer is open, 0 to 1. Advanced a step per tick, so it slides rather than snaps. */
-    private float openness;
-    private float previousOpenness;
-    private boolean drawerOpen;
-    private boolean drawerOnLeft;
-
-    private Button editButton;
+    private DrawerTab editorTab;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
         // imageWidth/imageHeight are final in 26.x and must go through the 5-arg constructor.
@@ -48,29 +36,19 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     protected void init() {
         super.init();
 
-        drawerOnLeft = DrawerLayout.opensLeft(width, leftPos, imageWidth);
-
-        addRenderableWidget(new DrawerTab(font,
+        editorTab = addRenderableWidget(new DrawerTab(
                 Component.translatable("gui.chronoclones.anchor.settings"),
-                drawerOnLeft, () -> drawerOpen, () -> drawerOpen = !drawerOpen))
-                .setPosition(DrawerLayout.tabX(drawerOnLeft, leftPos, imageWidth),
-                        topPos + DRAWER_TAB_Y);
-
-        // Repositioned by the drawer as it slides, and only shown once it has finished arriving.
-        editButton = addRenderableWidget(Button.builder(
-                        Component.translatable("gui.chronoclones.anchor.settings.edit"),
-                        button -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
-                                RoutinePayloads.Source.ofAnchor(menu.getAnchorPos()))))
-                .bounds(0, 0, DrawerLayout.WIDTH - DRAWER_PADDING * 2, 16).build());
-        editButton.visible = false;
+                () -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
+                        RoutinePayloads.Source.ofAnchor(menu.getAnchorPos())))));
+        editorTab.setPosition(DrawerTab.tabX(leftPos, imageWidth), topPos + EDITOR_TAB_Y);
     }
 
     @Override
     protected void containerTick() {
         super.containerTick();
 
-        previousOpenness = openness;
-        openness = Math.clamp(openness + (drawerOpen ? DRAWER_STEP : -DRAWER_STEP), 0f, 1f);
+        // Nothing to edit until something is imprinted, and the handle should say so.
+        editorTab.active = menu.getLengthTicks() > 0;
     }
 
     /** Not inside the container's pose translation, so coordinates here are absolute. */
@@ -80,9 +58,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         int xo = leftPos;
         int yo = topPos;
-
-        // Before the window, so a drawer still sliding out passes behind it rather than over it.
-        drawer(extractor, xo, yo, partialTick);
 
         AnchorPanels.panel(extractor, xo - 2, yo - 2, imageWidth + 4, imageHeight + 4);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, AnchorPanels.WINDOW);
@@ -231,29 +206,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
         for (int col = 0; col < 9; col++) {
             AnchorPanels.slot(extractor, xo + Layout.GRID_X + col * 18, yo + Layout.HOTBAR_Y);
-        }
-    }
-
-    /**
-     * The precision drawer, as wide as it has slid so far.
-     */
-    private void drawer(GuiGraphicsExtractor extractor, int xo, int yo, float partialTick) {
-        float eased = previousOpenness + (openness - previousOpenness) * partialTick;
-        int open = Math.round(DrawerLayout.WIDTH * eased);
-        editButton.visible = open >= DrawerLayout.WIDTH && menu.getLengthTicks() > 0;
-        if (open <= 0) {
-            return;
-        }
-
-        int x = DrawerLayout.bodyX(drawerOnLeft, xo, imageWidth, open);
-        int top = yo + DRAWER_TAB_Y;
-        AnchorPanels.panel(extractor, x, top, open, DRAWER_HEIGHT);
-
-        // The title only once there is room for it, rather than sliding in clipped from the edge.
-        if (open >= DrawerLayout.WIDTH) {
-            extractor.text(font, Component.translatable("gui.chronoclones.anchor.settings"),
-                    x + DRAWER_PADDING, top + DRAWER_TITLE_Y, AnchorPanels.ACCENT);
-            editButton.setPosition(x + DRAWER_PADDING, top + DRAWER_TITLE_Y + 14);
         }
     }
 
