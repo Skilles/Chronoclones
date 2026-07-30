@@ -4,11 +4,8 @@ import java.util.function.IntConsumer;
 
 import com.skilles.chronoclones.recording.ActionSettings.QuantityRule;
 
-import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.narration.NarratedElementType;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.NonNull;
 
 /**
  * A ceiling on what a container session may carry, in items.
@@ -16,16 +13,16 @@ import org.jspecify.annotations.NonNull;
  * <p>Zero is the bottom of the scale and means no ceiling at all, because "as much as the clone is
  * holding" is the default and a slider needs somewhere to put it.
  */
-final class QuantitySlider extends AbstractSliderButton {
+final class QuantitySlider extends FlatSlider {
 
-    /** A double chest's worth: past this a cap is the same as no cap. */
+    /** A stack's worth: past this a cap is the same as no cap. */
     private static final int MAX = 64;
 
     private final IntConsumer onChange;
 
-    QuantitySlider(int x, int y, int width, int height, QuantityRule rule, IntConsumer onChange) {
-        super(x, y, width, height, Component.empty(),
-                Math.clamp(capOf(rule) / (double) MAX, 0.0, 1.0));
+    QuantitySlider(Font font, int x, int y, int width, int height, QuantityRule rule,
+                   IntConsumer onChange) {
+        super(font, x, y, width, height, Math.clamp(capOf(rule) / (double) MAX, 0.0, 1.0));
         this.onChange = onChange;
         updateMessage();
     }
@@ -48,10 +45,5 @@ final class QuantitySlider extends AbstractSliderButton {
     @Override
     protected void applyValue() {
         onChange.accept(cap());
-    }
-
-    @Override
-    public void updateWidgetNarration(@NonNull NarrationElementOutput output) {
-        output.add(NarratedElementType.TITLE, getMessage());
     }
 }

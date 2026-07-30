@@ -5,10 +5,8 @@ import java.util.function.DoubleConsumer;
 import com.skilles.chronoclones.ChronoclonesConfig;
 import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 
-import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
-import org.jspecify.annotations.NonNull;
 
 /**
  * How far an action looks for something to act on, in blocks.
@@ -16,13 +14,14 @@ import org.jspecify.annotations.NonNull;
  * <p>The top of the scale is the anchor's own reach, because a setting that could exceed it would be
  * clamped at replay and the slider would be lying.
  */
-final class RadiusSlider extends AbstractSliderButton {
+final class RadiusSlider extends FlatSlider {
 
     private final DoubleConsumer onChange;
     private final int maxRadius;
 
-    RadiusSlider(int x, int y, int width, int height, TargetRule rule, DoubleConsumer onChange) {
-        super(x, y, width, height, Component.empty(),
+    RadiusSlider(Font font, int x, int y, int width, int height, TargetRule rule,
+                 DoubleConsumer onChange) {
+        super(font, x, y, width, height,
                 Math.clamp(rule.radius() / (double) ChronoclonesConfig.MAX_RADIUS.getAsInt(), 0.0, 1.0));
         this.onChange = onChange;
         this.maxRadius = ChronoclonesConfig.MAX_RADIUS.getAsInt();
@@ -42,10 +41,5 @@ final class RadiusSlider extends AbstractSliderButton {
     @Override
     protected void applyValue() {
         onChange.accept(radius());
-    }
-
-    @Override
-    public void updateWidgetNarration(@NonNull NarrationElementOutput output) {
-        output.add(net.minecraft.client.gui.narration.NarratedElementType.TITLE, getMessage());
     }
 }
