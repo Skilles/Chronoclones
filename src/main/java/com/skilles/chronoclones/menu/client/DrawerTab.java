@@ -53,8 +53,10 @@ final class DrawerTab extends AbstractButton {
                 : AnchorPanels.MUTED;
 
         // The gear centres on the part that is not tucked under the window.
+        float halfOverlap = (float) OVERLAP / 2;
+        float xFloat = x + halfOverlap + (WIDTH - halfOverlap - AnchorPanels.ICON_SIZE) / 2;
         AnchorPanels.icon(g, AnchorPanels.ICON_GEAR,
-                x + OVERLAP + (WIDTH - OVERLAP - AnchorPanels.ICON_SIZE) / 2,
+                (int) xFloat,
                 y + (HEIGHT - AnchorPanels.ICON_SIZE) / 2, colour);
     }
 
