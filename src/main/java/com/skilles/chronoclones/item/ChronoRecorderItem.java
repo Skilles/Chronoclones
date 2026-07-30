@@ -3,6 +3,8 @@ package com.skilles.chronoclones.item;
 import java.util.List;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.block.ChronoAnchorBlock;
+import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.ContainerWatch;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingSession;
@@ -23,6 +25,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
@@ -67,6 +70,39 @@ public class ChronoRecorderItem extends Item {
     public static void clear(ItemStack stack) {
         stack.remove(ModDataComponents.RECORDING.get());
         stack.remove(ModDataComponents.PROGRESS.get());
+    }
+
+    /**
+     * Crouching onto an imprinted anchor with a blank recorder takes the recording back out.
+     *
+     * <p>Here rather than on the anchor, where every other recorder interaction lives, because
+     * vanilla skips a block's {@code useItemOn} entirely for a crouching player holding anything --
+     * that is what makes crouch-and-place put a block against a chest instead of opening it. The
+     * block never saw this interaction, so it did nothing at all.
+     *
+     * <p>Not crouching is left alone: the anchor consumes that one to open its screen, so this is
+     * never reached for it.
+     */
+    @Override
+    public @NonNull InteractionResult useOn(UseOnContext context) {
+        Player player = context.getPlayer();
+        Level level = context.getLevel();
+
+        if (player == null || !player.isSecondaryUseActive() || stateOf(context.getItemInHand()) != State.IDLE) {
+            return InteractionResult.PASS;
+        }
+        if (!(level.getBlockEntity(context.getClickedPos()) instanceof ChronoAnchorBlockEntity anchor)) {
+            return InteractionResult.PASS;
+        }
+        if (level.isClientSide()) {
+            return InteractionResult.SUCCESS;
+        }
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return InteractionResult.PASS;
+        }
+
+        return ChronoAnchorBlock.extractRecording(anchor, context.getItemInHand(), serverPlayer,
+                level, context.getClickedPos());
     }
 
     @Override

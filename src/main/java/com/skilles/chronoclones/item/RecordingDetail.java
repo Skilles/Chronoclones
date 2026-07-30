@@ -3,6 +3,7 @@ package com.skilles.chronoclones.item;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
@@ -59,6 +60,106 @@ public final class RecordingDetail {
     /** What one action does, for a row that has not been given a name of its own. */
     public static Component summary(ChronoAction action) {
         return describe(action);
+    }
+
+    // ------------------------------------------------------------------ editor rows
+
+    /**
+     * What to call one row.
+     *
+     * <p>A name of the player's own if they gave it one, and otherwise a name read off the action
+     * and the settings together: an action narrowed to cobblestone is "Break Cobblestone", and the
+     * same action widened to anything is "Break block". The settings are half of it because the
+     * name has to keep telling the truth after the options are changed, and a name typed by hand
+     * has to survive that -- it is the one thing here nothing else may overwrite.
+     */
+    public static Component title(TimedAction timed) {
+        return timed.settings().hasName()
+                ? Component.literal(timed.settings().name())
+                : derivedTitle(timed.action(), timed.settings());
+    }
+
+    private static Component derivedTitle(ChronoAction action, ActionSettings settings) {
+        boolean recorded = settings.recordedSubject();
+        boolean typed = !settings.target().filter().isEmpty();
+
+        return switch (action) {
+            case ChronoAction.BreakBlock a -> recorded
+                    ? name("break", a.expectedBlock().value().getName())
+                    : any("break");
+            case ChronoAction.PlaceBlock a -> recorded
+                    ? name("place", itemName(a.item().value()))
+                    : any("place");
+            case ChronoAction.AttackEntity a -> typed
+                    ? name("attack", a.expectedType().value().getDescription())
+                    : any("attack");
+            case ChronoAction.InteractEntity a -> typed
+                    ? name("interact", a.expectedType().value().getDescription())
+                    : any("interact");
+            case ChronoAction.UseOnBlock a -> a.item().value() == Items.AIR
+                    ? empty("use_on")
+                    : name("use_on", itemName(a.item().value()));
+            case ChronoAction.UseItem a -> a.item().value() == Items.AIR
+                    ? empty("use")
+                    : name("use", itemName(a.item().value()));
+            case ChronoAction.UseContainer a -> containerTitle(a);
+        };
+    }
+
+    /** A session is named after what it was opened on, which is not always still recorded. */
+    private static Component containerTitle(ChronoAction.UseContainer session) {
+        if (session.target() instanceof MenuTarget.Entity entity) {
+            return name("container", entity.expectedType().value().getDescription());
+        }
+        if (session.target() instanceof MenuTarget.Block block && block.expectedBlock().isPresent()) {
+            return name("container", block.expectedBlock().get().value().getName());
+        }
+        return any("container");
+    }
+
+    /**
+     * The second line of a row, which says only what the title has not.
+     *
+     * <p>Not {@link #summary}: that is a whole sentence because a tooltip line has no heading over
+     * it, and under a heading it would say "Break Cobblestone" twice.
+     */
+    public static Component subtitle(ChronoAction action) {
+        return switch (action) {
+            case ChronoAction.BreakBlock a -> at("at", a.localPos());
+            case ChronoAction.PlaceBlock a -> at("at", a.localPos());
+            case ChronoAction.AttackEntity a -> at("at", BlockPos.containing(a.localPos()));
+            case ChronoAction.UseOnBlock a -> at("at", a.localPos());
+            case ChronoAction.InteractEntity a -> at("at", BlockPos.containing(a.localPos()));
+            case ChronoAction.UseItem a -> Component.translatable(
+                    "gui.chronoclones.editor.detail." + a.hand().name().toLowerCase(java.util.Locale.ROOT));
+            case ChronoAction.UseContainer a -> containerSubtitle(a);
+        };
+    }
+
+    private static Component containerSubtitle(ChronoAction.UseContainer session) {
+        int steps = session.steps().size();
+        String plural = steps == 1 ? "" : "s";
+        if (session.target() instanceof MenuTarget.Entity) {
+            return Component.translatable("gui.chronoclones.editor.detail.step" + plural, steps);
+        }
+        return Component.translatable("gui.chronoclones.editor.detail.at_step" + plural,
+                at(session.target().localBlock()), steps);
+    }
+
+    private static Component name(String verb, Component subject) {
+        return Component.translatable("gui.chronoclones.editor.name." + verb, subject.copy());
+    }
+
+    private static Component any(String verb) {
+        return Component.translatable("gui.chronoclones.editor.name." + verb + ".any");
+    }
+
+    private static Component empty(String verb) {
+        return Component.translatable("gui.chronoclones.editor.name." + verb + ".empty");
+    }
+
+    private static Component at(String key, BlockPos pos) {
+        return Component.translatable("gui.chronoclones.editor.detail." + key, at(pos));
     }
 
     private static Component describe(ChronoAction action) {

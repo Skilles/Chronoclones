@@ -223,12 +223,18 @@ public class RoutineEditorScreen extends Screen {
 
         int row = 1;
         if (takesAnItem()) {
-            addControl(row++, "slot", slotLabel(settings().slot()),
+            addControl(row++, "slot", slotHelp(), slotLabel(settings().slot()),
                     () -> apply(settings().withSlot(cycled(settings().slot()))));
+        }
+        if (hasASubject()) {
+            // The block half of the target filter: work only on what was recorded, or on whatever
+            // is there. The row renames itself either way, which is most of the point of it.
+            addControl(row++, "subject", "subject", subjectLabel(),
+                    () -> apply(settings().withRecordedSubject(!settings().recordedSubject())));
         }
         if (action() instanceof ChronoAction.AttackEntity) {
             // Only a swing can be told to finish something off. Nothing else has a "dead" to reach.
-            addControl(row++, "finish", completionLabel(), () -> {
+            addControl(row++, "finish", "finish", completionLabel(), () -> {
                 TargetRule rule = settings().target();
                 apply(settings().withTarget(rule.withCompletion(
                         rule.completion() == TargetRule.Completion.ONCE
@@ -242,12 +248,12 @@ public class RoutineEditorScreen extends Screen {
         if (looksForATarget()) {
             addCheckbox(row++, "gui.chronoclones.editor.label.sticky", settings().target().sticky(),
                     on -> apply(settings().withTarget(settings().target().withSticky(on))));
-            addControl(row++, "target", targetLabel(), () -> {
+            addControl(row++, "target", "target", targetLabel(), () -> {
                 TargetRule rule = settings().target();
                 apply(settings().withTarget(rule.withFilter(
                         rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
             });
-            addSlider(row++, "radius", new RadiusSlider(font, controlX(), controlRowY(row - 1),
+            addSlider(row++, "radius", "radius", new RadiusSlider(font, controlX(), controlRowY(row - 1),
                     CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
                     radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
         }
@@ -263,17 +269,38 @@ public class RoutineEditorScreen extends Screen {
         if (session.carrier().isEmpty()) {
             return firstRow;
         }
-        addControl(firstRow, "items", itemsLabel(), () -> {
+        addControl(firstRow, "items", "items", itemsLabel(), () -> {
             TransferRule rule = settings().transfer();
             apply(settings().withTransfer(rule.withItems(
                     rule.items().isEmpty() ? carriedItems(session) : List.of())));
         });
-        addSlider(firstRow + 1, "amount", new QuantitySlider(font, controlX(),
+        // Labelled "Amount" like a move's, but a different question: a ceiling on what the session
+        // may carry in, not how much of one square a click takes.
+        addSlider(firstRow + 1, "amount", "quantity", new QuantitySlider(font, controlX(),
                 controlRowY(firstRow + 1), CONTROL_WIDTH, CONTROL_HEIGHT,
                 settings().transfer().quantity(),
                 cap -> apply(settings().withTransfer(
                         settings().transfer().withQuantity(QuantityRule.atMost(cap))))));
         return firstRow + 2;
+    }
+
+    /** True for the actions whose subject is a block, and so can be widened to any block. */
+    private boolean hasASubject() {
+        return action() instanceof ChronoAction.BreakBlock
+                || action() instanceof ChronoAction.PlaceBlock;
+    }
+
+    /**
+     * Which sentence explains the slot control here.
+     *
+     * <p>Every one of these is a square of the clone's own inventory; what comes out of it is what
+     * differs, and "the item" is not what anybody calls the pickaxe they are swinging.
+     */
+    private String slotHelp() {
+        if (action() instanceof ChronoAction.BreakBlock) {
+            return "slot.tool";
+        }
+        return action() instanceof ChronoAction.AttackEntity ? "slot.weapon" : "slot.item";
     }
 
     /** True for the actions that reach into the clone's inventory for something to hold. */
@@ -325,12 +352,12 @@ public class RoutineEditorScreen extends Screen {
             return;
         }
 
-        addControl(1, "slot", slotLabel(step.slot()),
+        addControl(1, "slot", "slot.menu", slotLabel(step.slot()),
                 () -> applyStep(stepSettings().withSlot(cycled(stepSettings().slot()))));
-        addControl(2, "items", stepItemsLabel(step), () -> applyStep(stepSettings().withItems(
+        addControl(2, "item", "item", stepItemsLabel(step), () -> applyStep(stepSettings().withItems(
                 stepSettings().items().isEmpty() ? List.of(move.item()) : List.of())));
         // How much, not how many: a move takes all of a square, half of it, or one off the top.
-        addControl(3, "amount", amountLabel(step, move),
+        addControl(3, "amount", "amount", amountLabel(step, move),
                 () -> applyStep(stepSettings().withAmount(nextAmount(stepSettings().amount()))));
     }
 
@@ -375,14 +402,20 @@ public class RoutineEditorScreen extends Screen {
         return selectedRow().isStep() ? 1 : 0;
     }
 
-    /** Cycling buttons rebuild the whole pane, so every label rereads the settings it shows. */
-    private void addControl(int row, String option, Component label, Runnable onPress) {
+    /**
+     * Cycling buttons rebuild the whole pane, so every label rereads the settings it shows.
+     *
+     * <p>The help key is separate from the option because one label can ask more than one question:
+     * "Slot" means a square of the clone's own inventory on an action and a square inside the open
+     * container on a step, and one sentence cannot honestly describe both.
+     */
+    private void addControl(int row, String option, String help, Component label, Runnable onPress) {
         FlatButton button = new FlatButton(font, controlX(), controlRowY(row), CONTROL_WIDTH,
                 CONTROL_HEIGHT, label, () -> {
                     onPress.run();
                     rebuildControls();
                 });
-        button.setTooltip(explain(option));
+        button.setTooltip(explain(help));
         addRenderableWidget(button);
         rows.add(new Labelled(row, "gui.chronoclones.editor.label." + option, option));
     }
@@ -400,8 +433,8 @@ public class RoutineEditorScreen extends Screen {
         rows.add(new Labelled(row, labelKey, option));
     }
 
-    private void addSlider(int row, String option, FlatSlider slider) {
-        slider.setTooltip(explain(option));
+    private void addSlider(int row, String option, String help, FlatSlider slider) {
+        slider.setTooltip(explain(help));
         addRenderableWidget(slider);
         rows.add(new Labelled(row, "gui.chronoclones.editor.label." + option, option));
     }
@@ -892,10 +925,15 @@ public class RoutineEditorScreen extends Screen {
      * <p>The editor is reached from the anchor's own screen, so the key that would close an
      * inventory should hand it back rather than dropping the player into the world, which is a
      * click on the block away from where they were.
+     *
+     * <p>Unless a name is being typed, where the inventory key is a letter like any other. A screen
+     * that vanished mid-word because the action was going to be called "Rake" is a screen that
+     * cannot be used.
      */
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (minecraft != null && minecraft.options.keyInventory.matches(event)
+                && !isTyping()
                 && source.anchor().isPresent()) {
             flushName();
             ClientPacketDistributor.sendToServer(
@@ -905,6 +943,11 @@ public class RoutineEditorScreen extends Screen {
         return super.keyPressed(event);
     }
 
+    /** Whether a keystroke belongs to the name box rather than to the screen. */
+    private boolean isTyping() {
+        return getFocused() instanceof EditBox box && box.canConsumeInput();
+    }
+
     @Override
     public boolean isPauseScreen() {
         return false;
@@ -912,11 +955,9 @@ public class RoutineEditorScreen extends Screen {
 
     // ------------------------------------------------------------------ labels
 
-    /** The player's name for the action, or the short name of its kind. */
+    /** The player's name for the action, or one read off the action and its settings. */
     private String rowTitle(TimedAction timed) {
-        return timed.settings().hasName()
-                ? timed.settings().name()
-                : Component.translatable(typeKey(timed.action())).getString();
+        return RecordingDetail.title(timed).getString();
     }
 
     /** The player's name for the step, or the short name of its kind. */
@@ -927,15 +968,9 @@ public class RoutineEditorScreen extends Screen {
                         + step.kind().getSerializedName()).getString();
     }
 
+    /** The line under the title, which says only what the title has left out. */
     private String summaryOf(TimedAction timed) {
-        return RecordingDetail.summary(timed.action()).getString();
-    }
-
-    private static String typeKey(ChronoAction action) {
-        if (action instanceof ChronoAction.UseContainer useContainer && useContainer.target() instanceof MenuTarget.Entity) {
-            return "gui.chronoclones.editor.type." + action.type().getSerializedName() + ".entity";
-        }
-        return "gui.chronoclones.editor.type." + action.type().getSerializedName();
+        return RecordingDetail.subtitle(timed.action()).getString();
     }
 
     private Component slotLabel(SlotRule rule) {
@@ -952,6 +987,19 @@ public class RoutineEditorScreen extends Screen {
         return Component.translatable(rule.mode() == SlotRule.Mode.EXACT
                 ? "gui.chronoclones.editor.slot.exact"
                 : "gui.chronoclones.editor.slot.prefer", rule.slot());
+    }
+
+    /** The recorded block, or the word for having stopped caring which block it is. */
+    private Component subjectLabel() {
+        if (!settings().recordedSubject()) {
+            return Component.translatable("gui.chronoclones.editor.subject.any");
+        }
+        return switch (action()) {
+            case ChronoAction.BreakBlock a -> a.expectedBlock().value().getName();
+            case ChronoAction.PlaceBlock a -> Component.translatable(
+                    a.item().value().getDescriptionId());
+            default -> Component.translatable("gui.chronoclones.editor.subject.any");
+        };
     }
 
     private Component completionLabel() {

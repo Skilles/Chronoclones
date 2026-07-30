@@ -17,6 +17,7 @@ import com.mojang.authlib.GameProfile;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -115,9 +116,41 @@ final class AnchorTestFixture {
             throw new IllegalStateException("unreachable");
         }
 
+        keepTicking(helper, relativeAnchorPos);
         anchor.imprint(recording, imprinter);
         giveInfiniteCharge(anchor);
         return anchor;
+    }
+
+    /** How far from the anchor a routine may reach, and so how far its chunks must tick. */
+    private static final int WORKING_RADIUS = 8;
+
+    /**
+     * Forces the chunks a plot works in, so the entities standing in them are ticked.
+     *
+     * <p>The framework force-loads only the chunks its structure box covers, and these tests build
+     * their scenery outside that box: an anchor a couple of blocks from the corner can sit in the
+     * next chunk along, which loads far enough to tick block entities and not far enough to tick
+     * mobs. An anchor is a block entity and a cow is not, so the anchor would go on swinging at a
+     * mob whose invulnerability never wore off -- one swing landing and every later one refused.
+     *
+     * <p>Nothing here has to undo this: the framework drops every forced chunk in the level when
+     * the batch ends.
+     */
+    private static void keepTicking(GameTestHelper helper, BlockPos relativeAnchorPos) {
+        ServerLevel level = helper.getLevel();
+        BlockPos anchor = helper.absolutePos(relativeAnchorPos);
+
+        int lowX = SectionPos.blockToSectionCoord(anchor.getX() - WORKING_RADIUS);
+        int highX = SectionPos.blockToSectionCoord(anchor.getX() + WORKING_RADIUS);
+        int lowZ = SectionPos.blockToSectionCoord(anchor.getZ() - WORKING_RADIUS);
+        int highZ = SectionPos.blockToSectionCoord(anchor.getZ() + WORKING_RADIUS);
+
+        for (int x = lowX; x <= highX; x++) {
+            for (int z = lowZ; z <= highZ; z++) {
+                level.setChunkForced(x, z, true);
+            }
+        }
     }
 
     static FakePlayer owner(ServerLevel level) {

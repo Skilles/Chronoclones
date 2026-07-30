@@ -4,12 +4,14 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MotionSample;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
@@ -17,6 +19,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
  * What a routine breaks, and how long it takes about it.
@@ -39,6 +42,38 @@ final class BreakingGameTest {
                 BreakingGameTest::aPoorToolIsSlowNotRefused);
         ChronoclonesGameTests.add("break_bare_hands_clear_soft_blocks",
                 BreakingGameTest::bareHandsClearSoftBlocks);
+        ChronoclonesGameTests.add("place_widened_to_any_block_builds_with_what_it_has",
+                BreakingGameTest::widenedPlacementUsesWhatItHas);
+    }
+
+    /**
+     * A placement told it no longer cares which block builds with whatever the clone was given.
+     *
+     * <p>The other side of {@code break_refuses_a_block_it_was_not_recorded_on}: the same option,
+     * on the action that puts blocks down rather than the one that takes them up.
+     */
+    private static void widenedPlacementUsesWhatItHas(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.AIR);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.PlaceBlock(
+                                new BlockPos(0, 0, -1), Direction.UP,
+                                BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE),
+                                Blocks.STONE.defaultBlockState()),
+                        ActionSettings.DEFAULT.withRecordedSubject(false)));
+
+        // Not one stone anywhere: only the widened rule can find anything to build with.
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIRT), 8);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    helper.assertBlockPresent(Blocks.DIRT, target);
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.DIRT) != 7) {
+                        helper.fail("the dirt it placed was never paid for");
+                    }
+                })
+                .thenSucceed();
     }
 
     /**
@@ -76,14 +111,15 @@ final class BreakingGameTest {
     }
 
     /**
-     * The routine recorded stone, obsidian is there, and the clone swings its pickaxe at the obsidian.
+     * Widened to any block, the routine recorded stone swings its pickaxe at the obsidian there now.
      */
     private static void breaksWhateverIsThere(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
         AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE)));
+                breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE))
+                        .withSettings(0, ActionSettings.DEFAULT.withRecordedSubject(false)));
 
         // Obsidian with a diamond pickaxe is over nine seconds of mining, which is the point.
         helper.startSequence()
@@ -98,8 +134,9 @@ final class BreakingGameTest {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
+        // Recorded on the obsidian it is aimed at, so the tool is the only thing under test.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                breakWith(Blocks.STONE, new ItemStack(Items.WOODEN_PICKAXE)));
+                breakWith(Blocks.OBSIDIAN, new ItemStack(Items.WOODEN_PICKAXE)));
 
         helper.startSequence()
                 .thenExecuteAfter(120, () -> {
@@ -118,7 +155,7 @@ final class BreakingGameTest {
         helper.setBlock(target, Blocks.DIRT);
 
         AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                breakWith(Blocks.GRASS_BLOCK, ItemStack.EMPTY));
+                breakWith(Blocks.DIRT, ItemStack.EMPTY));
 
         helper.startSequence()
                 .thenExecuteAfter(60, () -> helper.assertBlockPresent(Blocks.AIR, target))

@@ -84,7 +84,8 @@ public final class ActionExecutor {
      * @return the failure, or {@code null} if mining may proceed
      */
     public static @org.jspecify.annotations.Nullable Result canBreak(
-            ServerLevel level, ChronoAction.BreakBlock action, Placement placement) {
+            ServerLevel level, ChronoAction.BreakBlock action, Placement placement,
+            boolean recordedOnly) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -104,17 +105,22 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
-        // 3. What the block IS is not checked; the clone swings the recorded tool at whatever
-        //    is standing there.
-        //
-        // 4. Blacklist, plus a blanket refusal to touch block entities.
+        // 3. Blacklist, plus a blanket refusal to touch block entities. Before the subject check,
+        //    so a routine aimed at a chest still reports the refusal that matters.
         if (state.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        // 5. Indestructible blocks refuse regardless of tags.
+        // 4. Indestructible blocks refuse regardless of tags.
         if (state.getDestroySpeed(level, worldPos) < 0.0f) {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
+        }
+
+        // 5. What the block is, unless the owner has widened this to anything. A routine that
+        //    mines one square of a quarry should not quietly start eating whatever grew back
+        //    there, and one that harvests a crop should say so rather than chewing the farmland.
+        if (recordedOnly && state.getBlock() != action.expectedBlock().value()) {
+            return Result.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
         return null;
     }
@@ -191,7 +197,8 @@ public final class ActionExecutor {
     public static Result executePlace(ServerLevel level, ChronoAction.PlaceBlock action,
                                       Placement placement,
                                       Operator operator,
-                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot,
+                                      boolean recordedOnly) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -208,14 +215,18 @@ public final class ActionExecutor {
             return Result.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        Item item = action.item().value();
-        if (!(item instanceof BlockItem blockItem)) {
-            return Result.fail(FailureReason.NOT_PLACEABLE, action.localPos());
-        }
-
-        int found = findSlotWith(inventory, item, slot);
+        // Widened to anything, the square decides what goes there rather than the recording: the
+        // routine becomes "build with whatever you are given" instead of "build in cobblestone".
+        int found = recordedOnly
+                ? findSlotWith(inventory, action.item().value(), slot)
+                : findAnyBlock(inventory, slot);
         if (found < 0) {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
+        }
+
+        Item item = inventory.getResource(found).getItem();
+        if (!(item instanceof BlockItem blockItem)) {
+            return Result.fail(FailureReason.NOT_PLACEABLE, action.localPos());
         }
 
         ItemStack toPlace = new ItemStack(item);
@@ -253,6 +264,31 @@ public final class ActionExecutor {
         } finally {
             AnchorFakePlayer.release(operator, owner);
         }
+    }
+
+    /** The same search, for a placement that no longer cares which block it is putting down. */
+    private static int findAnyBlock(ResourceHandler<ItemResource> inventory, SlotRule rule) {
+        if (holdsABlock(inventory, rule.preferred())) {
+            return rule.preferred();
+        }
+        if (rule.strict()) {
+            return -1;
+        }
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            if (holdsABlock(inventory, slot)) {
+                return slot;
+            }
+        }
+        return -1;
+    }
+
+    private static boolean holdsABlock(ResourceHandler<ItemResource> inventory, int slot) {
+        if (slot < 0 || slot >= inventory.size()) {
+            return false;
+        }
+        ItemResource resource = inventory.getResource(slot);
+        return !resource.isEmpty() && resource.getItem() instanceof BlockItem
+                && inventory.getAmountAsInt(slot) > 0;
     }
 
     /** The recorded slot if it still holds the item, otherwise as much of a search as allowed. */

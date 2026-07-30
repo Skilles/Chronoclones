@@ -443,10 +443,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
      * @return true if the action finished this tick
      */
     private boolean mineOneTick(ServerLevel serverLevel, CloneRuntime runtime,
-                                ChronoAction.BreakBlock action, Placement placement,
-                                Direction facing, int cost) {
+                                ChronoAction.BreakBlock action, ActionSettings settings,
+                                Placement placement, Direction facing, int cost) {
         ActionExecutor.Result refusal =
-                ActionExecutor.canBreak(serverLevel, action, placement);
+                ActionExecutor.canBreak(serverLevel, action, placement, settings.recordedSubject());
         if (refusal != null) {
             // Also covers the block vanishing mid-dig.
             stopMining(serverLevel, runtime);
@@ -583,7 +583,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             // Breaking holds the cursor until the block is gone.
             if (action instanceof ChronoAction.BreakBlock breaking) {
-                if (!mineOneTick(serverLevel, runtime, breaking, placement, facing, cost)) {
+                if (!mineOneTick(serverLevel, runtime, breaking, timed.settings(), placement, facing, cost)) {
                     return;
                 }
                 continue;
@@ -606,7 +606,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             ActionExecutor.Result result = switch (action) {
                 case ChronoAction.BreakBlock a -> throw new IllegalStateException("handled above");
                 case ChronoAction.PlaceBlock a -> ActionExecutor.executePlace(
-                        serverLevel, a, placement, operator, inventory, slot);
+                        serverLevel, a, placement, operator, inventory, slot,
+                        timed.settings().recordedSubject());
                 case ChronoAction.AttackEntity a -> throw new IllegalStateException("handled above");
                 case ChronoAction.UseOnBlock a -> ActionExecutor.executeUseOnBlock(
                         serverLevel, a, placement, operator, inventory, slot);

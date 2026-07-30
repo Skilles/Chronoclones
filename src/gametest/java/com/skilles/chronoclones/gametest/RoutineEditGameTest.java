@@ -5,7 +5,11 @@ import java.util.UUID;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.item.ActionIcons;
+import com.skilles.chronoclones.item.ChronoRecorderItem;
+import com.skilles.chronoclones.item.RecordingDetail;
+import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.network.AnchorAuthority;
+import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 import com.skilles.chronoclones.recording.ChronoAction;
@@ -17,11 +21,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.neoforge.common.util.FakePlayer;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -68,34 +77,130 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::blankAnchorHasNoStorage);
         ChronoclonesGameTests.add("a_blank_recorder_takes_a_recording_back_out",
                 RoutineEditGameTest::blankRecorderTakesTheRecordingBack);
+        ChronoclonesGameTests.add("a_row_names_itself_after_its_options",
+                RoutineEditGameTest::rowsNameThemselvesAfterTheirOptions);
     }
 
     /**
      * Crouching with an empty recorder takes the recording out, leaving the anchor blank.
+     *
+     * <p>Driven through {@code gameMode.useItemOn} rather than by calling the anchor's own method,
+     * because the routing is what was broken: vanilla skips a block's {@code useItemOn} entirely
+     * for a crouching player holding anything, so the anchor never saw this and nothing happened.
+     * A test that called {@code extractRecording} directly passed the whole time.
      */
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 3);
 
-        Recording held = anchor.getRecording();
-        Recording taken = anchor.extractRecording();
+        int actions = anchor.getRecording().actions().size();
+        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        crouchOnto(helper, player, new ItemStack(ModItems.CHRONO_RECORDER.get()), ANCHOR);
 
-        if (taken == null || taken.actions().size() != held.actions().size()) {
-            helper.fail("the recording did not come back out whole");
+        try {
+            if (anchor.getRecording() != null) {
+                helper.fail("crouching with a blank recorder left the recording on the anchor");
+                return;
+            }
+            Recording taken = recordingCarriedBy(player);
+            if (taken == null || taken.actions().size() != actions) {
+                helper.fail("the recording did not come back out whole");
+                return;
+            }
+            // Taking it out is a removal like any other, so the storage comes with it.
+            if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
+                helper.fail("the storage stayed shut inside an anchor with nothing to run");
+                return;
+            }
+
+            // And a second try finds nothing to take, rather than handing over a blank recording.
+            crouchOnto(helper, player, new ItemStack(ModItems.CHRONO_RECORDER.get()), ANCHOR);
+            if (anchor.extractRecording() != null) {
+                helper.fail("a blank anchor handed over a second recording");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            // The fake player for an owner is shared by every test in this level.
+            player.getInventory().clearContent();
+        }
+    }
+
+    /**
+     * A row is named after what it does, and renames itself when an option changes what that is.
+     *
+     * <p>Asserted on the translation key rather than the words, because a server has no language
+     * loaded and the words are the one part of this a translator is meant to change.
+     */
+    private static void rowsNameThemselvesAfterTheirOptions(GameTestHelper helper) {
+        TimedAction breaking = new TimedAction(1, new ChronoAction.BreakBlock(
+                new BlockPos(0, 0, -1),
+                BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.COBBLESTONE),
+                new ItemStack(Items.NETHERITE_PICKAXE)));
+
+        // Recorded on cobblestone, so it is the cobblestone one.
+        if (!keyOf(RecordingDetail.title(breaking)).equals("gui.chronoclones.editor.name.break")) {
+            helper.fail("a break recorded on cobblestone was not named after it: "
+                    + keyOf(RecordingDetail.title(breaking)));
             return;
         }
-        if (anchor.getRecording() != null) {
-            helper.fail("the anchor kept the recording it just handed over");
+
+        // Widened to any block, and no longer entitled to name one.
+        TimedAction widened = breaking.withSettings(
+                ActionSettings.DEFAULT.withRecordedSubject(false));
+        if (!keyOf(RecordingDetail.title(widened)).equals("gui.chronoclones.editor.name.break.any")) {
+            helper.fail("a break widened to any block kept the name of one: "
+                    + keyOf(RecordingDetail.title(widened)));
+            return;
         }
-        if (anchor.extractRecording() != null) {
-            helper.fail("a blank anchor handed over a second recording");
-        }
-        // Taking it out is a removal like any other, so the storage comes with it.
-        if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
-            helper.fail("the storage stayed shut inside an anchor with nothing to run");
+
+        // A name of the player's own outlives every option they touch afterwards.
+        TimedAction named = breaking.withSettings(
+                ActionSettings.DEFAULT.withName("Cobble farm").withRecordedSubject(false));
+        if (!RecordingDetail.title(named).getString().equals("Cobble farm")) {
+            helper.fail("changing an option overwrote a name the player typed: "
+                    + RecordingDetail.title(named).getString());
+            return;
         }
         helper.succeed();
+    }
+
+    /** The translation key a component was built from, or its literal contents. */
+    private static String keyOf(Component component) {
+        return component.getContents() instanceof TranslatableContents translatable
+                ? translatable.getKey()
+                : component.getString();
+    }
+
+    /** Uses an item on a block the way a crouching player does, through the server's own path. */
+    private static void crouchOnto(GameTestHelper helper, FakePlayer player, ItemStack held,
+                                   BlockPos relativePos) {
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(relativePos);
+
+        player.setItemInHand(InteractionHand.MAIN_HAND, held);
+        player.setShiftKeyDown(true);
+        try {
+            player.gameMode.useItemOn(player, level, player.getMainHandItem(),
+                    InteractionHand.MAIN_HAND,
+                    new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false));
+        } finally {
+            // The hand is left alone: what comes back goes into the inventory, and the emptied
+            // hand is the likeliest square for it. The caller clears the lot afterwards.
+            player.setShiftKeyDown(false);
+        }
+    }
+
+    /** The first recording on any recorder the player is carrying. */
+    private static @org.jspecify.annotations.Nullable Recording recordingCarriedBy(FakePlayer player) {
+        for (ItemStack stack : player.getInventory()) {
+            Recording recording = ChronoRecorderItem.recordingOf(stack);
+            if (recording != null) {
+                return recording;
+            }
+        }
+        return null;
     }
 
     /**

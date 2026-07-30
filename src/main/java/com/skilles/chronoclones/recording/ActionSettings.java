@@ -15,11 +15,11 @@ import org.jspecify.annotations.NonNull;
  * <p>Every field starts at what the player did, so a routine nobody has edited behaves exactly as
  * the recording behaved. The editor is where a player opts into anything narrower.
  */
-public record ActionSettings(String name, SlotRule slot, TargetRule target,
+public record ActionSettings(String name, SlotRule slot, boolean recordedSubject, TargetRule target,
                             TransferRule transfer, List<StepSettings> steps) {
 
     public static final ActionSettings DEFAULT = new ActionSettings(
-            "", SlotRule.DEFAULT, TargetRule.DEFAULT, TransferRule.DEFAULT, List.of());
+            "", SlotRule.DEFAULT, true, TargetRule.DEFAULT, TransferRule.DEFAULT, List.of());
 
     public ActionSettings {
         steps = List.copyOf(steps);
@@ -31,19 +31,30 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target,
     }
 
     public ActionSettings withName(String name) {
-        return new ActionSettings(name, slot, target, transfer, steps);
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withSlot(SlotRule slot) {
-        return new ActionSettings(name, slot, target, transfer, steps);
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+    }
+
+    /**
+     * Whether this acts only on the thing it recorded, or on whatever is there instead.
+     *
+     * <p>The block half of what {@link TargetRule#filter} is for creatures: an attack narrowed to
+     * cows and a break narrowed to cobblestone are one question asked of two kinds of action, and
+     * the row names itself after the answer -- "Break Cobblestone" against "Break block".
+     */
+    public ActionSettings withRecordedSubject(boolean recordedSubject) {
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withTarget(TargetRule target) {
-        return new ActionSettings(name, slot, target, transfer, steps);
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withTransfer(TransferRule transfer) {
-        return new ActionSettings(name, slot, target, transfer, steps);
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
     }
 
     /**
@@ -66,7 +77,7 @@ public record ActionSettings(String name, SlotRule slot, TargetRule target,
             next.add(StepSettings.DEFAULT);
         }
         next.set(index, step);
-        return new ActionSettings(name, slot, target, transfer, next);
+        return new ActionSettings(name, slot, recordedSubject, target, transfer, next);
     }
 
     /**

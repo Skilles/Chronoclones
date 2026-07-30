@@ -131,11 +131,11 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         }
         Recording carried = isRecorder ? ChronoRecorderItem.recordingOf(stack) : ChronoShardItem.recordingOf(stack);
         boolean blankShard = isShard && carried == null;
-        // A blank recorder, crouching: take the recording back out rather than open the screen.
-        boolean extracting = isRecorder && carried == null && player.isSecondaryUseActive()
-                && ChronoRecorderItem.stateOf(stack) == ChronoRecorderItem.State.IDLE;
 
-        if (carried == null && !blankShard && !extracting) {
+        // Extraction is not handled here. It is a crouching interaction, and vanilla skips a
+        // block's useItemOn entirely for a crouching player holding anything, so this method is
+        // never called for it; ChronoRecorderItem.useOn is on the path that does run.
+        if (carried == null && !blankShard) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
 
@@ -149,9 +149,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
 
         if (blankShard) {
             return inscribeShard(anchor, stack, serverPlayer, level, pos);
-        }
-        if (extracting) {
-            return extractRecording(anchor, stack, serverPlayer, level, pos);
         }
 
         anchor.imprint(carried, serverPlayer);
@@ -173,9 +170,11 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
      * Takes an anchor's recording back onto a blank recorder, leaving the anchor blank.
      *
      * <p>One recorder at a time, so a stack of them cannot be turned into a stack of recordings.
+     *
+     * <p>Called from the item rather than from here: see {@link #useItemOn}.
      */
-    private static InteractionResult extractRecording(ChronoAnchorBlockEntity anchor, ItemStack recorders,
-                                                      ServerPlayer player, Level level, BlockPos pos) {
+    public static InteractionResult extractRecording(ChronoAnchorBlockEntity anchor, ItemStack recorders,
+                                                     ServerPlayer player, Level level, BlockPos pos) {
         if (anchor.getRecording() == null) {
             player.sendOverlayMessage(Component
                     .translatable("message.chronoclones.anchor.nothing_to_extract")

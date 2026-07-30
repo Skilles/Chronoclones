@@ -33,7 +33,12 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
     public enum FailureReason implements StringRepresentable {
         NONE("none", false),
         NO_BLOCK("no_block", false),
-        /** Something is there, but not what the recording expected. */
+        /**
+         * Something is there, but not what the recording expected.
+         *
+         * <p>Transient by nature -- the block a routine wants may be on its way back, which is the
+         * whole business of a farm -- so it says so and lets the next pass try again.
+         */
         WRONG_BLOCK("wrong_block", false),
         /** On the unbreakable tag, or a block entity we refuse to touch. */
         BLACKLISTED("blacklisted", false),

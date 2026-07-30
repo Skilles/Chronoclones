@@ -14,6 +14,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.Mob;
@@ -86,19 +87,76 @@ final class AttackIntentGameTest {
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
                 heldTightly(), 400);
 
+        // Sampled every tick, printed on none of them: this test used to fail about one run in ten
+        // and the printouts that would have explained it moved the timing enough to hide it.
+        CowTrace trace = new CowTrace();
+
         helper.startSequence()
                 // Wide margin: tests share one world, and a busy tick can slow the swing cadence.
                 // The 400-tick routine still cannot loop in here, so only holding lands a second hit.
-                .thenExecuteAfter(160, () -> {
+                .thenExecuteFor(WINDOW, () -> trace.sample(helper.getLevel(), cow))
+                .thenExecute(() -> {
                     if (cow.isAlive()) {
                         // The reason matters: giving up is a different failure from never swinging,
                         // and one of them is the hold cap being too near this window.
                         helper.fail("the cow survived an attack told to finish it, at "
                                 + cow.getHealth() + " health, reporting "
-                                + anchor.getLastFailure().reason());
+                                + anchor.getLastFailure().reason() + "\n" + trace.report());
                     }
                 })
                 .thenSucceed();
+    }
+
+    private static final int WINDOW = 160;
+
+    /**
+     * What one cow looked like on every tick of the window, kept in arrays and read only on failure.
+     *
+     * <p>Between them these say which of the ways this could go wrong actually happened: a tick
+     * count that stops rising means the mob is not being ticked, invulnerability pinned at full
+     * means something keeps re-hitting it, and a sawtooth over unchanged health means swings are
+     * landing and doing nothing. It was the first of those, which is why the chunk's ticking state
+     * is sampled beside them.
+     */
+    private static final class CowTrace {
+
+        private final int[] tickCount = new int[WINDOW];
+        private final float[] health = new float[WINDOW];
+        private final int[] invulnerable = new int[WINDOW];
+        private final int[] hurtTime = new int[WINDOW];
+        private final boolean[] ticking = new boolean[WINDOW];
+        private int samples;
+
+        void sample(ServerLevel level, Mob cow) {
+            if (samples >= WINDOW) {
+                return;
+            }
+            tickCount[samples] = cow.tickCount;
+            health[samples] = cow.getHealth();
+            invulnerable[samples] = cow.invulnerableTime;
+            hurtTime[samples] = cow.hurtTime;
+            ticking[samples] = level.isPositionEntityTicking(cow.blockPosition());
+            samples++;
+        }
+
+        /** One line per tick that differs from the one before it, so a stall shows as a gap. */
+        String report() {
+            StringBuilder out = new StringBuilder("tick/health/invulnerable/hurt/chunk-ticks:");
+            for (int i = 0; i < samples; i++) {
+                boolean changed = i == 0
+                        || tickCount[i] != tickCount[i - 1] + 1
+                        || health[i] != health[i - 1]
+                        || invulnerable[i] != invulnerable[i - 1] - 1
+                        || hurtTime[i] != Math.max(0, hurtTime[i - 1] - 1)
+                        || ticking[i] != ticking[i - 1];
+                if (changed || i == samples - 1) {
+                    out.append("\n  ").append(i).append(": ").append(tickCount[i]).append(' ')
+                            .append(health[i]).append(' ').append(invulnerable[i]).append(' ')
+                            .append(hurtTime[i]).append(' ').append(ticking[i]);
+                }
+            }
+            return out.toString();
+        }
     }
 
     /** A target that cannot die must not hold the routine forever. */

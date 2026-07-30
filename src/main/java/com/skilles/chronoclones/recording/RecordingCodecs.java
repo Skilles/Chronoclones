@@ -441,6 +441,10 @@ public final class RecordingCodecs {
             Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings::name),
             SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
                     .forGetter(ActionSettings::slot),
+            // Absent means the recorded thing, so a routine saved before this existed goes on
+            // naming itself after what it saw rather than silently widening to anything.
+            Codec.BOOL.optionalFieldOf("recorded_subject", true)
+                    .forGetter(ActionSettings::recordedSubject),
             TARGET_RULE.optionalFieldOf("target", ActionSettings.TargetRule.DEFAULT)
                     .forGetter(ActionSettings::target),
             TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
@@ -500,6 +504,7 @@ public final class RecordingCodecs {
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, ActionSettings::name,
                     SLOT_RULE_STREAM, ActionSettings::slot,
+                    ByteBufCodecs.BOOL, ActionSettings::recordedSubject,
                     TARGET_RULE_STREAM, ActionSettings::target,
                     TRANSFER_RULE_STREAM, ActionSettings::transfer,
                     STEP_SETTINGS_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),

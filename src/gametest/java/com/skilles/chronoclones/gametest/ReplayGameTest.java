@@ -2,6 +2,7 @@ package com.skilles.chronoclones.gametest;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.recording.ActionSettings;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -20,6 +21,8 @@ final class ReplayGameTest {
         ChronoclonesGameTests.add("blacklisted_block_survives", ReplayGameTest::blacklistedBlockSurvives);
         ChronoclonesGameTests.add("carries_on_when_the_block_changed",
                 ReplayGameTest::carriesOnWhenTheBlockChanged);
+        ChronoclonesGameTests.add("break_refuses_a_block_it_was_not_recorded_on",
+                ReplayGameTest::refusesABlockItWasNotRecordedOn);
         ChronoclonesGameTests.add("full_inventory_does_not_destroy", ReplayGameTest::fullInventoryDoesNotDestroy);
         ChronoclonesGameTests.add("block_entities_are_never_broken", ReplayGameTest::blockEntitiesAreNeverBroken);
     }
@@ -65,14 +68,20 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** The square holds a different block now; the routine mines it and keeps its drops. */
+    /**
+     * The square holds a different block now; a routine widened to any block mines it anyway.
+     *
+     * <p>Widened, because a routine says which block it is for: see
+     * {@code break_refuses_a_block_it_was_not_recorded_on} for what the same setup does by default.
+     */
     private static void carriesOnWhenTheBlockChanged(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         // The canonical drift: recorded against stone, cobblestone now.
         helper.setBlock(target, Blocks.COBBLESTONE);
 
-        ChronoAnchorBlockEntity anchor =
-                AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.breakOneBlock(Blocks.STONE)
+                        .withSettings(0, ActionSettings.DEFAULT.withRecordedSubject(false)));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
@@ -80,6 +89,31 @@ final class ReplayGameTest {
                     // Drops prove it was mined rather than replaced.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.COBBLESTONE) != 1) {
                         helper.fail("expected the drop of the block that was actually there");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * By default a routine is for the block it was recorded on, and says so when that is gone.
+     *
+     * <p>The other half of {@code carries_on_when_the_block_changed}: same drift, same square, and
+     * the opposite outcome, because the only difference between them is the option.
+     */
+    private static void refusesABlockItWasNotRecordedOn(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.COBBLESTONE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        helper.startSequence()
+                .thenExecuteAfter(40, () -> {
+                    helper.assertBlockPresent(Blocks.COBBLESTONE, target);
+                    if (anchor.getLastFailure().reason()
+                            != DiagnosticState.FailureReason.WRONG_BLOCK) {
+                        helper.fail("expected WRONG_BLOCK for a square holding something else, got "
+                                + anchor.getLastFailure().reason());
                     }
                 })
                 .thenSucceed();
