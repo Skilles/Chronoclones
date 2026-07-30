@@ -16,6 +16,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AnchorLayoutTest {
 
+    /** The canvas Minecraft guarantees whatever the window size and GUI scale. */
+    private static final int MIN_CANVAS = 240;
+
     private record Row(String name, int top, int height) {
         int bottom() {
             return top + height;
@@ -126,15 +129,44 @@ class AnchorLayoutTest {
     }
 
     @Test
+    @DisplayName("the transport controls fit the timeline's row without taking any more of it")
+    void transportFitsBesideTheTimeline() {
+        // The point of putting them here is that the row already had slack above and below the
+        // track. Spend more than that and the whole window below has to move down.
+        assertTrue(Layout.TRANSPORT_Y >= Layout.TITLE_Y + Layout.LINE_HEIGHT,
+                "the controls run into the title");
+        assertTrue(Layout.TRANSPORT_Y + Layout.TRANSPORT_SIZE <= Layout.PILLS_Y,
+                "the controls run into the pills below them");
+
+        assertTrue(Layout.TIMELINE_WIDTH > 0, "the controls left no room for the track");
+        assertTrue(Layout.MARGIN + Layout.TIMELINE_WIDTH < Layout.TRANSPORT_X,
+                "the track runs into the controls");
+        assertEquals(Layout.WIDTH - Layout.MARGIN,
+                Layout.transportX(Layout.TRANSPORT_COUNT - 1) + Layout.TRANSPORT_SIZE,
+                "the last control is not flush with the window's margin");
+    }
+
+    @Test
+    @DisplayName("every transport control is clickable and none of them overlap")
+    void transportControlsAreSeparate() {
+        for (int index = 1; index < Layout.TRANSPORT_COUNT; index++) {
+            assertTrue(Layout.transportX(index - 1) + Layout.TRANSPORT_SIZE
+                            <= Layout.transportX(index),
+                    "control " + index + " overlaps the one before it");
+        }
+        // Same clipping the tabs and the storage rows are held to.
+        int clipped = Math.max(0, Layout.HEIGHT - MIN_CANVAS) / 2;
+        assertTrue(Layout.TRANSPORT_Y >= clipped,
+                "the transport controls are pushed off the top by " + clipped + "px");
+    }
+
+    @Test
     @DisplayName("the slot grids are centred in the window")
     void gridsAreCentred() {
         int gridWidth = 9 * 18;
         assertEquals(Layout.WIDTH - Layout.GRID_X - gridWidth, Layout.GRID_X,
                 "the nine columns are not evenly inset");
     }
-
-    /** The canvas Minecraft guarantees whatever the window size and GUI scale. */
-    private static final int MIN_CANVAS = 240;
 
     @Test
     @DisplayName("everything clickable survives the smallest screen the game will scale to")

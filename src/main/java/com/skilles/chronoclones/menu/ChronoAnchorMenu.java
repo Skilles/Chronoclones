@@ -3,6 +3,8 @@ package com.skilles.chronoclones.menu;
 import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.block.RunState;
+import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
@@ -145,6 +147,9 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      */
     @Override
     public boolean clickMenuButton(@NonNull Player player, int buttonId) {
+        if (buttonId >= RUN_STATE_BUTTON) {
+            return setRunState(player, buttonId - RUN_STATE_BUTTON);
+        }
         // Against the synced count, not the anchor's own: UpgradeState is only ever recomputed on
         // the server tick, so a client asking the block entity is always told there is one clone.
         // A page with no clone behind it is never drawn again, so anything moved into it would be
@@ -154,6 +159,27 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
         selectedClone = buttonId;
         return true;
+    }
+
+    /**
+     * The first transport button's id. Past the clone tabs, which take the ids below it.
+     */
+    public static final int RUN_STATE_BUTTON = 16;
+
+    /**
+     * Unlike picking a tab, this changes what the anchor does, so it is asked whose anchor it is.
+     */
+    private boolean setRunState(Player player, int ordinal) {
+        if (ordinal < 0 || ordinal >= RunState.values().length
+                || !AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
+            return false;
+        }
+        anchor.setRunState(RunState.byOrdinal(ordinal));
+        return true;
+    }
+
+    public RunState getRunState() {
+        return RunState.byOrdinal(data.get(AnchorData.RUN_STATE));
     }
 
     /** Where the selected clone's squares start, for a shift-click that must not leave the page. */
@@ -238,6 +264,27 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
         public static final int TIMELINE_Y = 22;
         public static final int TIMELINE_HEIGHT = 7;
+
+        /**
+         * Play, pause and stop, at the right-hand end of the timeline's row.
+         *
+         * <p>Taller than the track they stand beside, which they can afford: the row has slack above
+         * and below that nothing else was using, so the controls cost the window no height at all.
+         */
+        public static final int TRANSPORT_SIZE = 14;
+        public static final int TRANSPORT_GAP = 2;
+        public static final int TRANSPORT_COUNT = 3;
+        public static final int TRANSPORT_WIDTH =
+                TRANSPORT_COUNT * TRANSPORT_SIZE + (TRANSPORT_COUNT - 1) * TRANSPORT_GAP;
+        public static final int TRANSPORT_X = WIDTH - MARGIN - TRANSPORT_WIDTH;
+        public static final int TRANSPORT_Y = TIMELINE_Y - (TRANSPORT_SIZE - TIMELINE_HEIGHT) / 2 - 1;
+
+        /** What the track has left once the controls have taken their end of the row. */
+        public static final int TIMELINE_WIDTH = TRANSPORT_X - MARGIN - 6;
+
+        public static int transportX(int index) {
+            return TRANSPORT_X + index * (TRANSPORT_SIZE + TRANSPORT_GAP);
+        }
 
         public static final int PILLS_Y = 37;
         public static final int PILLS_HEIGHT = 18;

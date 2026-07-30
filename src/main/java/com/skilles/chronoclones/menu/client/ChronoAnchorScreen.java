@@ -2,6 +2,7 @@ package com.skilles.chronoclones.menu.client;
 
 import com.skilles.chronoclones.block.DiagnosticState;
 import com.skilles.chronoclones.block.ExperienceStore;
+import com.skilles.chronoclones.block.RunState;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
@@ -60,6 +61,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         int xo = leftPos;
         int yo = topPos;
 
+        hoveredTransport = transportAt(mouseX, mouseY);
+
         AnchorPanels.panel(extractor, xo - 2, yo - 2, imageWidth + 4, imageHeight + 4);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, AnchorPanels.WINDOW);
 
@@ -78,10 +81,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private void timeline(GuiGraphicsExtractor extractor, int xo, int yo) {
         int x = xo + Layout.MARGIN;
         int y = yo + Layout.TIMELINE_Y;
-        int width = Layout.CONTENT_WIDTH;
+        int width = Layout.TIMELINE_WIDTH;
         int height = Layout.TIMELINE_HEIGHT;
 
         AnchorPanels.track(extractor, x, y, width, height);
+        transport(extractor, xo, yo);
 
         int length = menu.getLengthTicks();
         if (length <= 0) {
@@ -93,11 +97,47 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             extractor.fill(at, y, at + 1, y + height, AnchorPanels.ACCENT);
         }
 
+        // A stopped anchor has no clones, so it has nowhere to draw a playhead.
+        if (menu.getRunState() == RunState.STOPPED) {
+            return;
+        }
         for (int clone = 0; clone < menu.getActiveClones(); clone++) {
             int playhead = Math.clamp(menu.getPlayhead(clone), 0, length);
             int at = x + (width - 1) * playhead / length;
             AnchorPanels.playhead(extractor, at, y - 1, AnchorPanels.TEXT);
         }
+    }
+
+    /** The three glyphs in the order they read: play, pause, stop. */
+    private static final AnchorPanels.Kind[] TRANSPORT = {
+            AnchorPanels.Kind.PLAY, AnchorPanels.Kind.PAUSE, AnchorPanels.Kind.STOP
+    };
+
+    /**
+     * Play, pause and stop, at the far end of the timeline's row.
+     */
+    private void transport(GuiGraphicsExtractor extractor, int xo, int yo) {
+        RunState state = menu.getRunState();
+
+        for (int index = 0; index < TRANSPORT.length; index++) {
+            AnchorPanels.transport(extractor, TRANSPORT[index],
+                    xo + Layout.transportX(index), yo + Layout.TRANSPORT_Y, Layout.TRANSPORT_SIZE,
+                    RunState.byOrdinal(index) == state, index == hoveredTransport);
+        }
+    }
+
+    /** Which control the pointer is over, or -1. Read while drawing, set while hit-testing. */
+    private int hoveredTransport = -1;
+
+    /** The control at a screen position, or -1. */
+    private int transportAt(int mouseX, int mouseY) {
+        for (int index = 0; index < TRANSPORT.length; index++) {
+            if (within(mouseX, mouseY, Layout.transportX(index), Layout.TRANSPORT_Y,
+                    Layout.TRANSPORT_SIZE, Layout.TRANSPORT_SIZE)) {
+                return index;
+            }
+        }
+        return -1;
     }
 
     /**
@@ -302,6 +342,15 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
+        int control = transportAt((int) event.x(), (int) event.y());
+        if (control >= 0 && minecraft != null && minecraft.gameMode != null) {
+            // Sent, not applied: unlike a tab, the state lives on the anchor and comes back synced,
+            // and the server is the one that decides whether this player may set it.
+            minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
+                    ChronoAnchorMenu.RUN_STATE_BUTTON + control);
+            return true;
+        }
+
         int tabs = CloneTabs.count(menu.getActiveClones());
         int tab = CloneTabs.at((int) event.x() - leftPos, (int) event.y() - topPos, tabs,
                 Layout.TAB_RIGHT_EDGE, Layout.TAB_Y);
@@ -352,8 +401,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             tooltip(extractor, mouseX, mouseY, Component.translatable(
                     reasonOf(menu.getFailureOrdinal()).translationKey(),
                     String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ())));
+        } else if (transportAt(mouseX, mouseY) >= 0) {
+            int control = transportAt(mouseX, mouseY);
+            tooltip(extractor, mouseX, mouseY,
+                    Component.translatable(RunState.byOrdinal(control).translationKey()));
         } else if (within(mouseX, mouseY, Layout.MARGIN, Layout.TIMELINE_Y,
-                Layout.CONTENT_WIDTH, Layout.TIMELINE_HEIGHT) && menu.getLengthTicks() > 0) {
+                Layout.TIMELINE_WIDTH, Layout.TIMELINE_HEIGHT) && menu.getLengthTicks() > 0) {
             tooltip(extractor, mouseX, mouseY, Component.translatable(
                     "gui.chronoclones.anchor.timeline.tip",
                     menu.getLengthTicks() / 20, menu.getActionCount()));

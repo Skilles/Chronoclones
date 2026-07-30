@@ -486,6 +486,59 @@ public class RoutineEditorScreen extends Screen {
         timeline(g);
         listPanel(g, mouseX, mouseY);
         detailsPane(g);
+        timelineTooltip(g, mouseX, mouseY);
+    }
+
+    /**
+     * What the mark under the pointer is, since a diamond on a ruler says only that something
+     * happens there.
+     */
+    private void timelineTooltip(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+        int index = markAt(mouseX, mouseY);
+        if (index < 0) {
+            return;
+        }
+        TimedAction timed = actions().get(index);
+        g.setComponentTooltipForNextFrame(font, List.of(
+                Component.literal(rowTitle(timed)),
+                Component.literal(summaryOf(timed)),
+                Component.translatable("gui.chronoclones.editor.at", timed.tick() / 20.0f)),
+                mouseX, mouseY);
+    }
+
+    /** How near the pointer has to be to a mark to be asking about it. */
+    private static final int MARK_REACH = 4;
+
+    /**
+     * The action whose mark is under the pointer, or -1.
+     *
+     * <p>Nearest wins: marks crowd together on a long recording, and several within reach of one
+     * another is the ordinary case rather than the exception.
+     */
+    private int markAt(int mouseX, int mouseY) {
+        int trackY = top + TIMELINE_Y + TIMELINE_HEIGHT - 9;
+        if (mouseY < trackY - MARK_REACH || mouseY > trackY + MARK_REACH + 1) {
+            return -1;
+        }
+
+        int nearest = -1;
+        int best = MARK_REACH + 1;
+        for (int index = 0; index < actions().size(); index++) {
+            int distance = Math.abs(mouseX - markX(index));
+            if (distance < best) {
+                best = distance;
+                nearest = index;
+            }
+        }
+        return nearest;
+    }
+
+    /** Where one action's mark sits along the ruler. */
+    private int markX(int index) {
+        int x = left + MARGIN + 7;
+        int width = WIDTH - MARGIN * 2 - 14;
+        int length = Math.max(routine.lengthTicks(), 1);
+        return x + (width - 1) * Math.clamp(actions().get(index).tick(), 0, length) / length;
     }
 
     /**
@@ -516,9 +569,9 @@ public class RoutineEditorScreen extends Screen {
         }
 
         for (int i = 0; i < actions().size(); i++) {
-            int at = x + (width - 1) * Math.clamp(actions().get(i).tick(), 0, length) / length;
-            diamond(g, at, trackY + 1, i == selected ? 4 : 3,
-                    i == selected ? AnchorPanels.TEXT : kindColour(actions().get(i).action()));
+            boolean current = i == selected;
+            diamond(g, markX(i), trackY + 1, current ? 4 : 3,
+                    current ? AnchorPanels.TEXT : kindColour(actions().get(i).action()));
         }
     }
 
@@ -695,16 +748,30 @@ public class RoutineEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
+        int mark = markAt((int) event.x(), (int) event.y());
+        if (mark >= 0) {
+            select(new Row(mark, -1));
+            return true;
+        }
+
         Row row = rowAt((int) event.x(), (int) event.y());
         if (row != null && !row.equals(selectedRow())) {
-            flushName();
-            selected = row.action();
-            selectedStep = row.step();
-            discardArmed = false;
-            rebuildControls();
+            select(row);
             return true;
         }
         return super.mouseClicked(event, doubled);
+    }
+
+    /** Moves the selection, settling any half-typed name on the way out of the old one. */
+    private void select(Row row) {
+        if (row.equals(selectedRow())) {
+            return;
+        }
+        flushName();
+        selected = row.action();
+        selectedStep = row.step();
+        discardArmed = false;
+        rebuildControls();
     }
 
     @Override

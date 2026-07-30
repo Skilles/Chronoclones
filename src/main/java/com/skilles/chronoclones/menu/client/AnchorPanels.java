@@ -115,6 +115,47 @@ final class AnchorPanels {
         }
     }
 
+    /**
+     * A transport control: a box with a glyph in it, lit when it is the state the anchor is in.
+     *
+     * <p>Drawn rather than blitted, because a triangle, two bars and a square are less trouble as
+     * geometry than as three more sprites to keep in step with the rest of the kit.
+     */
+    static void transport(GuiGraphicsExtractor g, Kind kind, int x, int y, int size,
+                          boolean current, boolean hovered) {
+        int tint = current ? ACCENT : (hovered ? TEXT : MUTED);
+
+        g.fill(x, y, x + size, y + size, current ? SLOT_EDGE : TRACK);
+        outline(g, x, y, size, size, current ? ACCENT : SLOT_EDGE);
+
+        int inset = 4;
+        int left = x + inset;
+        int top = y + inset;
+        int span = size - inset * 2;
+
+        switch (kind) {
+            // A triangle, one row at a time, narrowing to a point at the right.
+            case PLAY -> {
+                for (int row = 0; row < span; row++) {
+                    int width = span - Math.abs(row - (span - 1) / 2) * 2;
+                    g.fill(left, top + row, left + Math.max(1, width), top + row + 1, tint);
+                }
+            }
+            case PAUSE -> {
+                g.fill(left, top, left + 2, top + span, tint);
+                g.fill(left + span - 2, top, left + span, top + span, tint);
+            }
+            case STOP -> g.fill(left, top, left + span, top + span, tint);
+        }
+    }
+
+    /** The three transport glyphs. */
+    enum Kind {
+        PLAY,
+        PAUSE,
+        STOP
+    }
+
     /** The playhead: a small diamond sitting astride the timeline. */
     static void playhead(GuiGraphicsExtractor g, int x, int y, int colour) {
         for (int row = 0; row < 4; row++) {

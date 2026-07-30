@@ -22,9 +22,10 @@ public final class AnchorData {
     public static final int FAILURE_X = 7;
     public static final int FAILURE_Y = 8;
     public static final int FAILURE_Z = 9;
+    public static final int RUN_STATE = 10;
 
     /** One playhead per clone, so the timeline can mark them all. */
-    public static final int PLAYHEAD = 10;
+    public static final int PLAYHEAD = 11;
 
     public static int playhead(int clone) {
         return PLAYHEAD + clone;

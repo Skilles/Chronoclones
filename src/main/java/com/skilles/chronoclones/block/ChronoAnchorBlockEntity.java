@@ -115,7 +115,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private BlockPos originOffset = BlockPos.ZERO;
     private UpgradeState upgrades = UpgradeState.BASE;
     private ChargeBuffer charge = ChargeBuffer.EMPTY;
-    private boolean enabled = true;
+    private RunState runState = RunState.RUNNING;
     private DiagnosticState lastFailure = DiagnosticState.NONE;
 
     private final ContainerData data = new ContainerData() {
@@ -132,7 +132,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case AnchorData.LENGTH_TICKS -> recording == null ? 0 : recording.lengthTicks();
                 case AnchorData.ACTION_COUNT -> recording == null ? 0 : recording.actions().size();
                 case AnchorData.FAILURE_REASON -> lastFailure.reason().ordinal();
-                case AnchorData.ACTIVE_CLONES -> runtimes.size();
+                case AnchorData.ACTIVE_CLONES -> upgrades.cloneCount();
+                case AnchorData.RUN_STATE -> runState.ordinal();
                 case AnchorData.CHARGE -> charge.stored();
                 case AnchorData.CHARGE_CAPACITY -> charge.capacity();
                 case AnchorData.TICKS_PER_STEP -> upgrades.ticksPerStep();
@@ -206,8 +207,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return lastFailure;
     }
 
-    public boolean isEnabled() {
-        return enabled;
+    public RunState getRunState() {
+        return runState;
+    }
+
+    /**
+     * Stopping takes the clones away and forgets where they were, so running again starts at the
+     * top. Pausing leaves them standing, so it carries on.
+     */
+    public void setRunState(RunState state) {
+        if (runState == state) {
+            return;
+        }
+        runState = state;
+        setChanged();
     }
 
     /** How far the routine has been nudged from the anchor, in anchor-local space. */
@@ -328,12 +341,23 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         // Above the early return: pulling a splitter spills, routine or no routine.
         reconcileUpgrades(serverLevel);
 
-        if (!enabled || recording == null || motionTrack == null || ownerId == null) {
+        if (runState == RunState.STOPPED || recording == null || motionTrack == null
+                || ownerId == null) {
             if (!runtimes.isEmpty()) {
                 discardClones();
                 runtimes.clear();
                 setActive(false);
             }
+            return;
+        }
+
+        if (runState == RunState.PAUSED) {
+            // Held, not put away: the clones keep standing where they got to, so resuming carries
+            // on rather than starting the recording again.
+            for (CloneRuntime runtime : runtimes) {
+                syncClone(serverLevel, runtime, getBlockState().getValue(ChronoAnchorBlock.FACING));
+            }
+            setActive(false);
             return;
         }
 
@@ -866,7 +890,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             output.store("owner_id", UUIDUtil.CODEC, ownerId);
             output.putString("owner_name", ownerName);
         }
-        output.putBoolean("enabled", enabled);
+        output.putString("run_state", runState.getSerializedName());
         if (!originOffset.equals(BlockPos.ZERO)) {
             output.store("origin_offset", BlockPos.CODEC, originOffset);
         }
@@ -896,7 +920,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         ownerId = input.read("owner_id", UUIDUtil.CODEC).orElse(null);
         ownerName = input.getStringOr("owner_name", "");
-        enabled = input.getBooleanOr("enabled", true);
+        // "enabled" is only ever read: anchors saved before there was anything but running
+        // and stopped carry their state as a boolean.
+        runState = input.getString("run_state")
+                .map(RunState::byName)
+                .orElseGet(() -> input.getBooleanOr("enabled", true)
+                        ? RunState.RUNNING
+                        : RunState.STOPPED);
         originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
 
