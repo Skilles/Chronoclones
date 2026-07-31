@@ -29,7 +29,7 @@ final class AnchorDropsGameTest {
         ChronoclonesGameTests.add("broken_anchor_spills_inventory", AnchorDropsGameTest::spillsInventory);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     private static final double SEARCH_RADIUS = 5.0;
 
@@ -94,10 +94,11 @@ final class AnchorDropsGameTest {
     }
 
     /**
-     * Scoped to a box around the anchor, since game tests share one world.
+     * The drops around this anchor.
      *
      * <p>Wide enough for the scatter: a spilled stack is thrown with random motion, and four
-     * inventories now spill at once, which is what made two blocks an intermittent miss.
+     * inventories now spill at once, which is what made two blocks an intermittent miss. The plot
+     * has room for that without reaching into anybody else's.
      */
     private static ItemStack findDrop(ServerLevel level, BlockPos absolute, net.minecraft.world.item.Item item) {
         List<ItemEntity> drops = level.getEntitiesOfClass(ItemEntity.class,

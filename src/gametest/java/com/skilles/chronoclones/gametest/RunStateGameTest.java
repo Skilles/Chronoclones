@@ -33,7 +33,7 @@ final class RunStateGameTest {
                 RunStateGameTest::onlyTheOwnerMayWorkTheTransport);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** A long enough recording that a few ticks of it are visibly partway through. */
     private static ChronoAnchorBlockEntity running(GameTestHelper helper) {
@@ -156,11 +156,14 @@ final class RunStateGameTest {
     }
 
     /**
-     * Kept tight to this anchor: every game test shares one world, and a wide box picks up the
-     * clones belonging to the test in the next plot along.
+     * Every clone this plot has, which is now the same thing as every clone in reach of it.
+     *
+     * <p>Kept to three blocks while the plots were six apart, to avoid counting the next test's
+     * clones as this one's. Wide enough to cover the whole plot now, so a clone that wandered is a
+     * clone this still finds.
      */
     private static java.util.List<ChronoCloneEntity> clones(GameTestHelper helper) {
         return helper.getLevel().getEntitiesOfClass(ChronoCloneEntity.class,
-                new AABB(helper.absolutePos(ANCHOR)).inflate(3.0));
+                new AABB(helper.absolutePos(ANCHOR)).inflate(8.0));
     }
 }

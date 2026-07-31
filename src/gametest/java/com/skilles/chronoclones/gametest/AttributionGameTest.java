@@ -30,7 +30,7 @@ final class AttributionGameTest {
         ChronoclonesGameTests.add("author_survives_imprint", AttributionGameTest::authorSurvivesImprint);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** The identity a protection mod would see on the break event. */
     private static void attributionResolvesToOwner(GameTestHelper helper) {

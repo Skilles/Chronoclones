@@ -136,7 +136,7 @@ final class CaptureGameTest {
         helper.succeed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     private static void recordingIgnoresOwnClones(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);

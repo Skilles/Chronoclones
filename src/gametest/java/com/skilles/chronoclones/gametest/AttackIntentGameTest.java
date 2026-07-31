@@ -40,7 +40,7 @@ final class AttackIntentGameTest {
                 AttackIntentGameTest::untilDeadGivesUpEventually);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** The point the routine swings at, one step north of the anchor. */
     private static final BlockPos RECORDED = new BlockPos(0, 0, -1);
@@ -85,7 +85,7 @@ final class AttackIntentGameTest {
         Mob cow = spawn(helper, ANCHOR.north());
         // A routine longer than the test window, so nothing but holding can land a second swing.
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
-                heldTightly(), 400);
+                untilDead(), 400);
 
         // Sampled every tick, printed on none of them: this test used to fail about one run in ten
         // and the printouts that would have explained it moved the timing enough to hide it.
@@ -164,7 +164,7 @@ final class AttackIntentGameTest {
         Mob cow = spawn(helper, ANCHOR.north());
         cow.setInvulnerable(true);
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
-                heldTightly(), 400);
+                untilDead(), 400);
 
         helper.startSequence()
                 // The cap is 100 ticks; this is comfortably past it.
@@ -180,16 +180,16 @@ final class AttackIntentGameTest {
     // ---------------------------------------------------------------------- helpers
 
     /**
-     * Until-dead, and reaching no further than the square it was recorded at.
+     * Until-dead, at the reach a routine actually has.
      *
-     * <p>The two until-dead tests each hold a clone swinging for a hundred ticks, and every test
-     * shares one world: with the default reach, one of them will sooner or later spend that hundred
-     * ticks swinging at the other's cow, which is invulnerable and never dies.
+     * <p>This used to narrow the reach to a block and a half, because the two until-dead tests each
+     * hold a clone swinging for a hundred ticks and the plots were laid out six blocks apart: one
+     * of them would sooner or later spend that hundred ticks swinging at the other's cow, which is
+     * invulnerable and never dies. A test that has to be aimed away from its neighbours is not
+     * testing the reach it claims to, so the plots were given room instead.
      */
-    private static TargetRule heldTightly() {
-        return TargetRule.DEFAULT
-                .withCompletion(TargetRule.Completion.UNTIL_DEAD)
-                .withRadius(1.5);
+    private static TargetRule untilDead() {
+        return TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD);
     }
 
     private static Mob spawn(GameTestHelper helper, BlockPos relative) {

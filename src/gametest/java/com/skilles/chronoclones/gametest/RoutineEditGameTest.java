@@ -237,12 +237,13 @@ final class RoutineEditGameTest {
                     if (diamonds != 7) {
                         helper.fail("expected seven diamonds handed back, found " + diamonds);
                     }
-                    // At least: a neighbouring test's orbs can drift into any box wide enough for
-                    // the spill's own random motion.
+                    // Exactly, now that a plot has room around it: this said "at least" while a
+                    // neighbouring test's orbs could drift into any box wide enough for the spill's
+                    // own motion, and so could not have noticed too much coming back either.
                     int points = level.getEntitiesOfClass(ExperienceOrb.class,
                                     new AABB(absolute).inflate(3.0)).stream()
                             .mapToInt(ExperienceOrb::getValue).sum();
-                    if (points < 40) {
+                    if (points != 40) {
                         helper.fail("expected the banked experience back, found " + points);
                     }
                 })
@@ -511,7 +512,7 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** An edit is only worth anything if the running anchor reads it. */
     private static void editedSettingsReachTheRoutine(GameTestHelper helper) {

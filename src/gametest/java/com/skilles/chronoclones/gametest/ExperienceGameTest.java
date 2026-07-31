@@ -99,7 +99,7 @@ final class ExperienceGameTest {
     private static final int FURNACE_MENU_SIZE = 3 + 36;
     private static final int FURNACE_RESULT = 2;
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /**
      * destroyBlock never runs playerDestroy, so an ore mined by a clone used to pay nothing at all.
@@ -162,10 +162,11 @@ final class ExperienceGameTest {
                     List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class,
                             new AABB(absolute).inflate(5.0));
                     int total = orbs.stream().mapToInt(ExperienceOrb::getValue).sum();
-                    // At least, not exactly: the box has to be wide enough for a spilled orb's random
-                    // motion, and every test shares one world, so a villager trading in the next test
-                    // along drops orbs of its own within reach of it.
-                    if (total < 40) {
+                    // Exactly, now that a plot has room around it: this used to say "at least",
+                    // because the box had to be wide enough for a spilled orb's own random motion
+                    // and that reached into whatever the next test along was doing. Which meant it
+                    // could not have noticed the anchor spilling too much.
+                    if (total != 40) {
                         helper.fail("expected 40 points back on the ground, found " + total);
                     }
                 })

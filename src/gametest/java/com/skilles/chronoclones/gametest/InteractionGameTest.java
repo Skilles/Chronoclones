@@ -135,7 +135,7 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /**
      * Nothing in this mod knows what a lever is.

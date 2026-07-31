@@ -130,7 +130,7 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** A single chest: 27 of its own, then the player's storage rows, then the hotbar. */
     private static final int CHEST_SLOTS = 27;

@@ -17,7 +17,6 @@ import com.mojang.authlib.GameProfile;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
@@ -25,6 +24,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
@@ -118,7 +118,7 @@ final class AnchorTestFixture {
             throw new IllegalStateException("unreachable");
         }
 
-        keepTicking(helper, relativeAnchorPos);
+        requireRoom(helper);
         anchor.imprint(recording, imprinter);
         giveInfiniteCharge(anchor);
         giveRecordedTools(anchor, recording);
@@ -153,34 +153,31 @@ final class AnchorTestFixture {
         }
     }
 
-    /** How far from the anchor a routine may reach, and so how far its chunks must tick. */
-    private static final int WORKING_RADIUS = 8;
+    /**
+     * How wide a plot is, which has to match the structure the tests are registered against.
+     *
+     * <p>Kept in step with {@code datagen/make_test_plot_structure.py}, which writes it.
+     */
+    private static final int PLOT_SIZE = 17;
 
     /**
-     * Forces the chunks a plot works in, so the entities standing in them are ticked.
+     * Refuses to run a test on a plot smaller than the tests were laid out for.
      *
-     * <p>The framework force-loads only the chunks its structure box covers, and these tests build
-     * their scenery outside that box: an anchor a couple of blocks from the corner can sit in the
-     * next chunk along, which loads far enough to tick block entities and not far enough to tick
-     * mobs. An anchor is a block entity and a cow is not, so the anchor would go on swinging at a
-     * mob whose invulnerability never wore off -- one swing landing and every later one refused.
-     *
-     * <p>Nothing here has to undo this: the framework drops every forced chunk in the level when
-     * the batch ends.
+     * <p>The plot's size is the framework's answer to three separate questions -- how far apart to
+     * put the next test, which entities to sweep up between runs, and which chunks to force-load --
+     * and a structure that fails to load silently answers all three with one block. That is not a
+     * failure anybody would recognise: what it looks like is a mob standing in a chunk that ticks
+     * block entities and not entities, so an anchor swings for a hundred ticks at a cow whose
+     * invulnerability never wears off, in roughly one run of four. It cost a long afternoon to find
+     * once. Better a sentence.
      */
-    private static void keepTicking(GameTestHelper helper, BlockPos relativeAnchorPos) {
-        ServerLevel level = helper.getLevel();
-        BlockPos anchor = helper.absolutePos(relativeAnchorPos);
-
-        int lowX = SectionPos.blockToSectionCoord(anchor.getX() - WORKING_RADIUS);
-        int highX = SectionPos.blockToSectionCoord(anchor.getX() + WORKING_RADIUS);
-        int lowZ = SectionPos.blockToSectionCoord(anchor.getZ() - WORKING_RADIUS);
-        int highZ = SectionPos.blockToSectionCoord(anchor.getZ() + WORKING_RADIUS);
-
-        for (int x = lowX; x <= highX; x++) {
-            for (int z = lowZ; z <= highZ; z++) {
-                level.setChunkForced(x, z, true);
-            }
+    private static void requireRoom(GameTestHelper helper) {
+        AABB plot = helper.getBounds();
+        if (plot.getXsize() < PLOT_SIZE || plot.getZsize() < PLOT_SIZE) {
+            helper.fail("this plot is " + (int) plot.getXsize() + "x" + (int) plot.getZsize()
+                    + " and the tests need " + PLOT_SIZE + "x" + PLOT_SIZE
+                    + ": the chronoclones:test_plot structure did not load, so the framework is"
+                    + " loading, clearing and ticking one block of it");
         }
     }
 

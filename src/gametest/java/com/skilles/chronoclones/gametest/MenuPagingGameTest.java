@@ -56,7 +56,7 @@ final class MenuPagingGameTest {
         helper.succeed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** Menu order: every clone's squares, then fuel, then the modules, then the player. */
     private static final int PLAYER_SLOTS_START =

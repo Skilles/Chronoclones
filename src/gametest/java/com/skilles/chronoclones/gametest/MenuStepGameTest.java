@@ -83,7 +83,7 @@ final class MenuStepGameTest {
         helper.succeed();
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** Vanilla menu order for a merchant: two payment slots, the result, then the player's own. */
     private static final int MERCHANT_MENU_SIZE = 3 + 36;

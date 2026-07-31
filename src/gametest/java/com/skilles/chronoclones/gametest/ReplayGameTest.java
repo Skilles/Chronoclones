@@ -27,7 +27,7 @@ final class ReplayGameTest {
         ChronoclonesGameTests.add("block_entities_are_never_broken", ReplayGameTest::blockEntitiesAreNeverBroken);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** The basic loop: the routine runs, the block goes, and its drops land in the anchor. */
     private static void breakStoresDropsInAnchor(GameTestHelper helper) {

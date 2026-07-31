@@ -32,7 +32,7 @@ final class ShardGameTest {
         ChronoclonesGameTests.add("shard_is_not_consumed_by_imprint", ShardGameTest::shardIsNotConsumed);
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** A second player's UUID, distinct from both the author and the original owner. */
     private static final UUID SECOND_OWNER_ID = UUID.fromString("c0000000-0000-0000-0000-00000000000c");

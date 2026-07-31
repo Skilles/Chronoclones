@@ -169,7 +169,7 @@ final class CloneInventoryGameTest {
                         ActionSettings.DEFAULT.withSlot(rule)));
     }
 
-    private static final BlockPos ANCHOR = new BlockPos(2, 1, 2);
+    private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
     /** One clone, stock in the second inventory: it must starve rather than borrow. */
     private static void cannotReachAnotherInventory(GameTestHelper helper) {
