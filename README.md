@@ -7,6 +7,8 @@
 
 Record yourself moving items, killing mobs, breaking blocks, building a house, or pretty much anything. Then have an army of clones do it time and time again.
 
+![Chronoclones showcase](https://media.forgecdn.net/attachments/1834/97/chronoclones-showcase-png.png)
+
 ![Chronoclones demo](https://media.forgecdn.net/attachments/1832/283/chronoclones-demo-web-gif.gif)
 
 ***
@@ -63,6 +65,8 @@ Since these clones mimic real players, expect weird behavior or rejections when 
 ## **Roadmap**
 
 *   Better upgrade system
+*   Redstone support
+*   Improved editor
 *   Improved visuals (most are placeholders)
 *   More interactions and controls
 *   Backport to 26.1, 1.21.x, and 1.20.1 (maybe)
