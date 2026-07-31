@@ -24,13 +24,13 @@ version="${mod_version}" #mandatory
 displayName="${mod_name}" #mandatory
 
 # A URL to query for updates for this mod. See the JSON update specification https://docs.neoforged.net/docs/misc/updatechecker/
-#updateJSONURL="https://change.me.example.invalid/updates.json" #optional
+updateJSONURL="https://neoforge.curseupdate.com/1625743/chronoclones" #optional
 
 # A URL for the "homepage" for this mod, displayed in the mod UI
-#displayURL="https://change.me.to.your.mods.homepage.example.invalid/" #optional
+displayURL="https://modrinth.com/project/chronoclones" #optional
 
 # A file name (in the root of the mod JAR) containing a logo for display
-#logoFile="examplemod.png" #optional
+logoFile="logo.png" #optional
 
 # A text field displayed in the mod UI
 #credits="" #optional
@@ -40,7 +40,7 @@ authors="Skilles"
 
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-Record what you do. A Chrono Anchor remembers it, and translucent clones of you keep doing it, forever.
+Record yourself moving items, killing mobs, breaking blocks, building a house... pretty much anything a player can do! Then have an army of clones do it time and time again..
 '''
 
 # One mixin, on AbstractContainerMenu.clicked. There is no event for slot clicks, and the click type
@@ -51,7 +51,7 @@ config="${mod_id}.mixins.json"
 # The [[accessTransformers]] block allows you to declare where your AT file is.
 # If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
 #[[accessTransformers]]
-#file="META-INF/accesstransformer.cfg"
+file="META-INF/accesstransformer.cfg"
 
 # The coremods config file path is not configurable and is always loaded from META-INF/coremods.json
 
