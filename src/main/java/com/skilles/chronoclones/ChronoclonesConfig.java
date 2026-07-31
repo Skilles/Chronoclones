@@ -22,30 +22,26 @@ public final class ChronoclonesConfig {
 
         b.push("limits");
         MAX_RADIUS = b.comment("Maximum distance in blocks a clone may act from its anchor.")
-                .defineInRange("maxRadius", 16, 1, 64);
+                .defineInRange("maxRadius", 24, 1, 64);
         MAX_RECORDING_TICKS = b.comment("Base recording length cap in ticks (20 ticks = 1 second).")
-                .defineInRange("maxRecordingTicks", 600, 20, 12000);
+                .defineInRange("maxRecordingTicks", 1200, 20, 12000);
         MAX_ACTIONS = b.comment("Base cap on recorded actions per recording.")
-                .defineInRange("maxActions", 128, 1, 4096);
+                .defineInRange("maxActions", 256, 1, 4096);
         MAX_CONTAINER_STEPS = b.comment(
                         "Cap on clicks recorded inside one container session.",
                         "maxActions counts a whole session as one action, so without this a player",
                         "clicking in one open chest could grow a single action without limit.")
                 .defineInRange("maxContainerSteps", 256, 8, 4096);
         MAX_RECORDING_BYTES = b.comment(
-                        "Cap on the encoded size of one recording, in bytes.",
-                        "The count limits bound how many things a routine does; this bounds how big",
-                        "they are, because an item stack carries components of no fixed size. A",
-                        "recording is stored in item data and sent whole to open the editor, so an",
-                        "oversized one is a network and save-file problem rather than a slow routine.")
-                .defineInRange("maxRecordingBytes", 131_072, 4_096, 8_388_608);
+                        "Cap on the encoded size of one recording, in bytes.")
+                .defineInRange("maxRecordingBytes", 262_144, 4_096, 8_388_608);
         MAX_ACTIONS_PER_TICK = b.comment("Global per-level budget of clone actions executed per tick.")
-                .defineInRange("maxActionsPerTick", 64, 1, 1024);
+                .defineInRange("maxActionsPerTick", 128, 1, 1024);
         MAX_ACTION_TICKS = b.comment(
                         "How long one action may hold a clone before it gives up, in ticks.",
                         "An attack told to finish a kill waits here; a target that cannot die "
                                 + "would otherwise stall the routine forever.")
-                .defineInRange("maxActionTicks", 100, 20, 1200);
+                .defineInRange("maxActionTicks", 160, 20, 1200);
         b.pop();
 
         b.push("gameplay");
@@ -54,9 +50,7 @@ public final class ChronoclonesConfig {
         GOGGLE_RADIUS = b.comment("How far Chrono Goggles reveal anchors, in blocks.")
                 .defineInRange("goggleRadius", 24, 4, 64);
         GOGGLES_SHOW_OTHERS = b.comment(
-                        "Whether Chrono Goggles reveal anchors owned by other players.",
-                        "Turning this off keeps a routine private to whoever imprinted it; leaving it",
-                        "on lets anyone with goggles inspect what an anchor near them will do.")
+                        "Whether Chrono Goggles reveal anchors owned by other players.")
                 .define("gogglesShowOthers", true);
         b.pop();
 
@@ -68,7 +62,7 @@ public final class ChronoclonesConfig {
     }
 
     public static int maxRecordingBytes() {
-        return orDefault(MAX_RECORDING_BYTES, 131_072);
+        return orDefault(MAX_RECORDING_BYTES, 262_144);
     }
 
     private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
