@@ -10,7 +10,6 @@ import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
-import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -58,12 +57,6 @@ public final class ContainerActionExecutor {
         }
         if (!level.isLoaded(worldPos)) {
             return ActionResult.fail(FailureReason.UNLOADED, localBlock);
-        }
-        // Anchors may not reach into other anchors, for the same reason they may not right-click
-        // them: a routine that loots its neighbours is a routine that loots its owner's other farms.
-        if (action.target() instanceof MenuTarget.Block
-                && level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
-            return ActionResult.fail(FailureReason.BLACKLISTED, localBlock);
         }
 
         FakePlayer owner = ctx.acquire(worldPoint,
@@ -205,13 +198,25 @@ public final class ContainerActionExecutor {
         }
 
         return switch (step) {
-            case SessionStep.Move move -> runMove(menu, owner, move, rule)
-                    ? FailureReason.NONE
-                    // A square this menu does not have means it is not the menu that was recorded.
-                    : FailureReason.WRONG_BLOCK;
+            case SessionStep.Move move -> {
+                // Reachable, not merely present. An anchor's storage keeps every clone's squares in
+                // one menu and shows one page of them, so a square can be in the menu and still be
+                // somewhere nothing can be put -- a page belonging to a clone that no longer exists.
+                if (!reachable(menu, move.from()) || (!move.quick() && !reachable(menu, move.to()))) {
+                    yield FailureReason.NO_SLOT;
+                }
+                yield runMove(menu, owner, move, rule)
+                        ? FailureReason.NONE
+                        // A square this menu does not have means it is not the menu recorded.
+                        : FailureReason.WRONG_BLOCK;
+            }
             case SessionStep.RawClick raw -> {
                 if (raw.slot() >= menu.slots.size()) {
                     yield FailureReason.WRONG_BLOCK;
+                }
+                // A click outside the window is not a square at all, and drops what is held.
+                if (raw.slot() >= 0 && !reachable(menu, raw.slot())) {
+                    yield FailureReason.NO_SLOT;
                 }
                 // The square the player clicked, whatever is in it now.
                 menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
@@ -232,6 +237,18 @@ public final class ContainerActionExecutor {
                 yield FailureReason.WRONG_BLOCK;
             }
         };
+    }
+
+    /**
+     * Whether this square can actually be clicked in the menu as it stands.
+     *
+     * <p>Every ordinary container says yes to all of its squares. An anchor is the one that does
+     * not: it holds four clones' storage in one menu and only the selected page is live, so this is
+     * what turns "the fourth clone is gone" into a diagnostic rather than into items in the wrong
+     * place.
+     */
+    private static boolean reachable(AbstractContainerMenu menu, int index) {
+        return index >= 0 && index < menu.slots.size() && menu.getSlot(index).isActive();
     }
 
     /**
@@ -381,7 +398,10 @@ public final class ContainerActionExecutor {
         }
         Container side = menu.getSlot(move.from()).container;
         for (int slot = 0; slot < menu.slots.size(); slot++) {
-            if (menu.getSlot(slot).container == side && menu.getSlot(slot).getItem().is(item)) {
+            // Reachable ones only: a wider search must not reach on to a page of an anchor that
+            // is not open, where nothing could be taken from anyway.
+            if (menu.getSlot(slot).container == side && menu.getSlot(slot).isActive()
+                    && menu.getSlot(slot).getItem().is(item)) {
                 return slot;
             }
         }

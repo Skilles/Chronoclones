@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.skilles.chronoclones.ChronoclonesConfig;
 import com.skilles.chronoclones.network.RecordingHighlightPayload;
-import com.skilles.chronoclones.registry.ModTags;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -80,10 +79,6 @@ public final class ContainerWatch {
      */
     public static void noteInteraction(ServerPlayer player, BlockPos pos,
                                        RecordingSession session) {
-        // An anchor's own slots are machinery; replay refuses to reach into one anyway.
-        if (player.level().getBlockState(pos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
-            return;
-        }
         PENDING.put(player.getUUID(), new Pending(
                 new MenuTarget.Block(session.toLocal(pos), Optional.of(
                         player.level().getBlockState(pos).typeHolder())),

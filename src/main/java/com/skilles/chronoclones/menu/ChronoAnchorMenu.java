@@ -192,6 +192,12 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
      * Unlike picking a tab, this changes what the anchor does, so it is asked whose anchor it is.
      */
     private boolean setRunState(Player player, int ordinal) {
+        // Never a clone. A routine may put things into an anchor and take things out of it, which
+        // is stock keeping; starting and stopping its neighbours is operating them, and a clone
+        // acts under its owner's name, so the ownership check below would wave it straight through.
+        if (player.isFakePlayer()) {
+            return false;
+        }
         if (ordinal < 0 || ordinal >= RunState.values().length
                 || !AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
             return false;

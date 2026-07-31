@@ -93,6 +93,15 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         /** The thing is there and it said no: an interaction that returned PASS or FAIL. */
         REFUSED("refused", false),
 
+        /**
+         * The menu is open, but the square the step names cannot be reached in it.
+         *
+         * <p>An anchor's storage is one page per clone, and a routine recorded reaching into the
+         * fourth clone's page has nowhere to put anything once the splitter making that clone is
+         * pulled out. Saying so beats quietly putting somebody's ore in the wrong clone.
+         */
+        NO_SLOT("no_slot", false),
+
         /** The item is still cooling down from the last time it was used. */
         ON_COOLDOWN("on_cooldown", false),
 

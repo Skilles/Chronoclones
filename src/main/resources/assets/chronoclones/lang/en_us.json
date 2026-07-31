@@ -233,5 +233,6 @@
   "gui.chronoclones.editor.slot.stored": "Row %s, slot %s",
   "gui.chronoclones.editor.slot.unrecorded": "No recorded slot",
   "gui.chronoclones.editor.label.quantity": "Carry limit",
-  "gui.chronoclones.editor.count.one": "%s action"
+  "gui.chronoclones.editor.count.one": "%s action",
+  "diagnostic.chronoclones.no_slot": "That inventory square is not there at %s"
 }
