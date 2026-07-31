@@ -11,14 +11,13 @@ import com.skilles.chronoclones.network.RecordingHighlightPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHighlights {
@@ -49,21 +48,17 @@ public final class RecordingHighlights {
     }
 
     @SubscribeEvent
-    static void render(ScreenEvent.Render.Foreground event) {
-        Screen screen = event.getScreen();
+    static void render(ContainerScreenEvent.Render.Foreground event) {
+        AbstractContainerScreen<?> screen = event.getContainerScreen();
 
-        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+        if (containerId >= 0 && screen.getMenu().containerId == containerId) {
+            paint(event.getGuiGraphics(), screen, TOUCHED, noAmounts(CARRIED));
             return;
         }
 
-        if (containerId >= 0 && containerScreen.getMenu().containerId == containerId) {
-            paint(event.getGuiGraphics(), containerScreen, TOUCHED, noAmounts(CARRIED));
-            return;
-        }
-
-        GoggleSlots.Session session = GoggleSlots.sessionFor(containerScreen);
+        GoggleSlots.Session session = GoggleSlots.sessionFor(screen);
         if (session != null) {
-            paint(event.getGuiGraphics(), containerScreen, session.touched(), session.carried());
+            paint(event.getGuiGraphics(), screen, session.touched(), session.carried());
         }
     }
 
