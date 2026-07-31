@@ -11,8 +11,16 @@ tasks.named('wrapper', Wrapper).configure {
 version = mod_version
 group = mod_group_id
 
+def release_channel = providers.gradleProperty('release_channel')
+        .map { it.trim() }
+        .orElse('')
+
 base {
-    archivesName = mod_id
+    archivesName = "${mod_id}-${minecraft_version}-neoforge"
+}
+
+tasks.named('jar', Jar).configure {
+    archiveClassifier.set(release_channel)
 }
 
 // Mojang ships Java 25 to end users in 26.2, so mods should target Java 25.
@@ -47,6 +55,8 @@ neoForge {
 
     accessTransformers.publish(project.file('src/main/resources/META-INF/accesstransformer.cfg'))
 
+    validateAccessTransformers = true
+
     addModdingDependenciesTo sourceSets.gametest
 
     mods {
@@ -64,6 +74,7 @@ neoForge {
 
         client {
             client()
+            devLogin = true
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             gameDirectory = project.file('run/client')
         }
