@@ -28,6 +28,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jspecify.annotations.NonNull;
 
@@ -222,7 +223,13 @@ public class RoutineEditorScreen extends Screen {
         addName(settings().name(), this::renameAction);
 
         int row = 1;
-        if (takesAnItem()) {
+        if (action() instanceof ChronoAction.BreakBlock) {
+            // Above the slot, which it can take away: the tool is the question and the square is
+            // only where to look for the answer.
+            addControl(row++, "tool", "tool", toolLabel(),
+                    () -> apply(settings().withTool(nextTool(settings().tool()))));
+        }
+        if (takesAnItem() && choosesItsOwnSquare()) {
             addControl(row++, "slot", slotHelp(), slotLabel(settings().slot()),
                     () -> apply(settings().withSlot(cycled(settings().slot()))));
         }
@@ -295,6 +302,23 @@ public class RoutineEditorScreen extends Screen {
                 || action() instanceof ChronoAction.PlaceBlock
                 || action() instanceof ChronoAction.UseOnBlock use
                         && use.expectedBlock().isPresent();
+    }
+
+    /**
+     * False once the anchor is picking the tool, where naming a square would answer nothing.
+     *
+     * <p>The setting is kept rather than cleared, so going back to the recorded tool finds the
+     * square it was told about still waiting.
+     */
+    private boolean choosesItsOwnSquare() {
+        return !(action() instanceof ChronoAction.BreakBlock)
+                || settings().tool() == ActionSettings.ToolRule.EXACT;
+    }
+
+    /** Cycles the tool modes, of which there will be more than two. */
+    private static ActionSettings.ToolRule nextTool(ActionSettings.ToolRule rule) {
+        ActionSettings.ToolRule[] rules = ActionSettings.ToolRule.values();
+        return rules[(rule.ordinal() + 1) % rules.length];
     }
 
     /**
@@ -994,6 +1018,22 @@ public class RoutineEditorScreen extends Screen {
         return Component.translatable(rule.mode() == SlotRule.Mode.EXACT
                 ? "gui.chronoclones.editor.slot.exact"
                 : "gui.chronoclones.editor.slot.prefer", rule.slot());
+    }
+
+    /**
+     * The recorded tool by name, so "Exact" reads as the thing rather than as a policy.
+     */
+    private Component toolLabel() {
+        if (settings().tool() != ActionSettings.ToolRule.EXACT) {
+            return Component.translatable(
+                    "gui.chronoclones.editor.tool." + settings().tool().getSerializedName());
+        }
+        ItemStack recorded = action() instanceof ChronoAction.BreakBlock breaking
+                ? breaking.toolTemplate()
+                : ItemStack.EMPTY;
+        return recorded.isEmpty()
+                ? Component.translatable("gui.chronoclones.editor.tool.hands")
+                : recorded.getHoverName();
     }
 
     /** The recorded block, or the word for having stopped caring which block it is. */

@@ -447,7 +447,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                                 Placement placement, Direction facing, int cost) {
         ItemStacksResourceHandler inventory = inventoryOf(runtime);
         ActionExecutor.Result refusal = ActionExecutor.canBreak(serverLevel, action, placement,
-                settings.recordedSubject(), inventory, settings.slot());
+                settings.recordedSubject(), inventory, settings.slot(), settings.tool());
         if (refusal != null) {
             // Also covers the block vanishing mid-dig.
             stopMining(serverLevel, runtime);
@@ -462,7 +462,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (!instant) {
             // Rate upgrades speed mining too: swinging is part of the routine.
             float perTick = ActionExecutor.breakProgressPerTick(serverLevel, action, placement,
-                    operatorFor(runtime), inventory, settings.slot()) * upgrades.ticksPerStep();
+                    operatorFor(runtime), inventory, settings.slot(), settings.tool())
+                    * upgrades.ticksPerStep();
             float progress = runtime.mine(worldPos, perTick);
 
             if (progress < 1.0f) {
@@ -476,7 +477,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         Operator breaker = operatorFor(runtime);
         ActionExecutor.Result result = ActionExecutor.finishBreak(serverLevel, action, placement,
-                breaker, inventory, settings.slot());
+                breaker, inventory, settings.slot(), settings.tool());
         settle(runtime, breaker);
         if (result.succeeded()) {
             charge = charge.spend(cost);

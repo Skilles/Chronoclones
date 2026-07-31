@@ -50,6 +50,91 @@ final class BreakingGameTest {
                 BreakingGameTest::breakNeedsTheToolInTheAnchor);
         ChronoclonesGameTests.add("break_digs_with_the_anchors_own_tool",
                 BreakingGameTest::breakDigsWithTheAnchorsOwnTool);
+        ChronoclonesGameTests.add("smart_tool_picks_something_the_recording_never_held",
+                BreakingGameTest::smartToolPicksSomethingElse);
+        ChronoclonesGameTests.add("smart_tool_falls_back_to_bare_hands",
+                BreakingGameTest::smartToolFallsBackToHands);
+        ChronoclonesGameTests.add("smart_tool_refuses_to_break_for_nothing",
+                BreakingGameTest::smartToolRefusesToBreakForNothing);
+    }
+
+    /**
+     * Told to pick for itself, the anchor uses a tool the recording never mentioned.
+     *
+     * <p>Recorded with a shovel, which is the wrong thing for stone and which the anchor does not
+     * have either. Exact would report having no shovel; smart reaches for the pickaxe.
+     */
+    private static void smartToolPicksSomethingElse(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.STONE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                smartly(breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_SHOVEL))));
+        emptyEveryClone(anchor);
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_PICKAXE), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(40, () -> {
+                    helper.assertBlockNotPresent(Blocks.STONE, target);
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.COBBLESTONE) == 0) {
+                        helper.fail("the stone went but dropped nothing, so it was not mined "
+                                + "with the pickaxe the anchor was holding");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Nothing a block needs, and nothing it needs: hands will do. */
+    private static void smartToolFallsBackToHands(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.DIRT);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                smartly(breakWith(Blocks.DIRT, new ItemStack(Items.NETHERITE_PICKAXE))));
+        // Not a tool anywhere, and dirt does not ask for one.
+        emptyEveryClone(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(60, () -> {
+                    helper.assertBlockNotPresent(Blocks.DIRT, target);
+                    if (AnchorTestFixture.countIn(anchor.getCloneInventory(0), Items.DIRT) == 0) {
+                        helper.fail("the dirt went but never reached the anchor");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * And where hands would leave nothing behind, it stops instead.
+     *
+     * <p>Bare hands do break stone, eventually, and drop nothing for it. An anchor that destroys
+     * what it cannot keep is worse than one that says it has no pickaxe.
+     */
+    private static void smartToolRefusesToBreakForNothing(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.STONE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                smartly(breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE))));
+        emptyEveryClone(anchor);
+        // A shovel breaks stone for nothing, so it is no better than the hands beside it.
+        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_SHOVEL), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(60, () -> {
+                    helper.assertBlockPresent(Blocks.STONE, target);
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
+                        helper.fail("expected NO_ITEM with nothing that would earn the drops, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** The same routine, told to choose its own tool. */
+    private static Recording smartly(Recording recording) {
+        return recording.withSettings(0,
+                ActionSettings.DEFAULT.withTool(ActionSettings.ToolRule.SMART));
     }
 
     /**

@@ -15,11 +15,12 @@ import org.jspecify.annotations.NonNull;
  * <p>Every field starts at what the player did, so a routine nobody has edited behaves exactly as
  * the recording behaved. The editor is where a player opts into anything narrower.
  */
-public record ActionSettings(String name, SlotRule slot, boolean recordedSubject, TargetRule target,
-                            TransferRule transfer, List<StepSettings> steps) {
+public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean recordedSubject,
+                            TargetRule target, TransferRule transfer, List<StepSettings> steps) {
 
     public static final ActionSettings DEFAULT = new ActionSettings(
-            "", SlotRule.DEFAULT, true, TargetRule.DEFAULT, TransferRule.DEFAULT, List.of());
+            "", SlotRule.DEFAULT, ToolRule.EXACT, true, TargetRule.DEFAULT, TransferRule.DEFAULT,
+            List.of());
 
     public ActionSettings {
         steps = List.copyOf(steps);
@@ -31,11 +32,11 @@ public record ActionSettings(String name, SlotRule slot, boolean recordedSubject
     }
 
     public ActionSettings withName(String name) {
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withSlot(SlotRule slot) {
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
     }
 
     /**
@@ -46,15 +47,19 @@ public record ActionSettings(String name, SlotRule slot, boolean recordedSubject
      * the row names itself after the answer -- "Break Cobblestone" against "Break block".
      */
     public ActionSettings withRecordedSubject(boolean recordedSubject) {
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+    }
+
+    public ActionSettings withTool(ToolRule tool) {
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withTarget(TargetRule target) {
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
     }
 
     public ActionSettings withTransfer(TransferRule transfer) {
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
     }
 
     /**
@@ -77,7 +82,7 @@ public record ActionSettings(String name, SlotRule slot, boolean recordedSubject
             next.add(StepSettings.DEFAULT);
         }
         next.set(index, step);
-        return new ActionSettings(name, slot, recordedSubject, target, transfer, next);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, next);
     }
 
     /**
@@ -146,6 +151,41 @@ public record ActionSettings(String name, SlotRule slot, boolean recordedSubject
 
         public StepSettings withAmount(Optional<SessionStep.Amount> amount) {
             return new StepSettings(name, slot, items, enabled, amount);
+        }
+    }
+
+    /**
+     * How a break chooses what to swing.
+     *
+     * <p>An enum rather than a flag because the question has more than two honest answers: picking
+     * by tier, or by what the drops need rather than by speed, are both things somebody will want.
+     */
+    public enum ToolRule implements StringRepresentable {
+        /**
+         * Another of the very tool that was recorded.
+         *
+         * <p>By kind, not by object: a routine recorded with a stone pickaxe will swing any stone
+         * pickaxe in the anchor, and will not settle for an iron one.
+         */
+        EXACT("exact"),
+
+        /**
+         * Whatever in the clone's own squares breaks this block best, bare hands included.
+         *
+         * <p>Hands only where they would still drop something: a routine that pulverises stone into
+         * nothing is worse than one that stops and says it has no pickaxe.
+         */
+        SMART("smart");
+
+        private final String name;
+
+        ToolRule(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public @NonNull String getSerializedName() {
+            return name;
         }
     }
 

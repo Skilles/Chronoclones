@@ -167,6 +167,7 @@
   "gui.chronoclones.editor.slot.recorded_only": "Recorded only",
   "gui.chronoclones.editor.label.name": "Name",
   "gui.chronoclones.editor.label.slot": "Slot",
+  "gui.chronoclones.editor.label.tool": "Tool",
   "gui.chronoclones.editor.label.subject": "Block",
   "gui.chronoclones.editor.label.item": "Item",
   "gui.chronoclones.editor.label.finish": "Finish",
@@ -186,6 +187,8 @@
   "gui.chronoclones.editor.sticky.off": "Retarget nearest",
   "gui.chronoclones.editor.filter.any": "Anything",
   "gui.chronoclones.editor.subject.any": "Anything",
+  "gui.chronoclones.editor.tool.smart": "Best for the job",
+  "gui.chronoclones.editor.tool.hands": "Bare hands",
   "gui.chronoclones.editor.items.any": "Anything",
   "gui.chronoclones.editor.items.only": "%s recorded",
   "gui.chronoclones.editor.quantity.any": "All held",
@@ -211,5 +214,6 @@
   "gui.chronoclones.editor.help.slot.menu": "Which square inside the container to move out of. 'Recorded first' falls back to any other square holding the same item; 'Recorded only' refuses instead.",
   "gui.chronoclones.editor.help.subject": "Work only on the block that was recorded, or on whatever is standing there instead. Naming the block is what stops a routine chewing through something that grew back wrong.",
   "gui.chronoclones.editor.help.item": "Restrict this move to one kind of item, so a square refilled with something else is left alone.",
-  "gui.chronoclones.editor.help.quantity": "A ceiling on how much the session may carry in altogether, for a routine that should feed a furnace rather than empty itself into one."
+  "gui.chronoclones.editor.help.quantity": "A ceiling on how much the session may carry in altogether, for a routine that should feed a furnace rather than empty itself into one.",
+  "gui.chronoclones.editor.help.tool": "Which tool the clone swings. Naming one means another of exactly that kind, so a recorded stone pickaxe will use any stone pickaxe and will not settle for an iron one. 'Best for the job' lets the anchor pick whichever of its own items breaks the block fastest, bare hands included, and refuses only when nothing it has would leave any drops behind."
 }

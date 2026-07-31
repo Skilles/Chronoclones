@@ -85,7 +85,8 @@ public final class ActionExecutor {
      */
     public static @org.jspecify.annotations.Nullable Result canBreak(
             ServerLevel level, ChronoAction.BreakBlock action, Placement placement,
-            boolean recordedOnly, ResourceHandler<ItemResource> inventory, SlotRule slot) {
+            boolean recordedOnly, ResourceHandler<ItemResource> inventory, SlotRule slot,
+            ActionSettings.ToolRule toolRule) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
 
@@ -126,21 +127,75 @@ public final class ActionExecutor {
         // 6. The tool, which the clone has to actually own. Breaking was the one action that took
         //    what it needed from the recording rather than from the inventory, so a routine
         //    recorded with a netherite pickaxe mined with one whether or not the anchor had it.
-        if (toolFor(action, inventory, slot) == null) {
+        if (toolFor(action, inventory, slot, toolRule, state) == null) {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
         }
         return null;
     }
 
     /**
-     * The tool the clone would swing, or null if it has none.
+     * The tool the clone would swing, or null if it has none it may use.
      *
      * <p>Read rather than lent: a swing neither consumes the tool nor damages it, and a loan taken
      * and returned on every tick of a ten-second dig would be churn for its own sake.
      */
     private static @org.jspecify.annotations.Nullable ItemStack toolFor(
-            ChronoAction.BreakBlock action, ResourceHandler<ItemResource> inventory, SlotRule slot) {
-        return HeldItemLoan.peek(inventory, action.toolTemplate().getItem(), slot);
+            ChronoAction.BreakBlock action, ResourceHandler<ItemResource> inventory,
+            ActionSettings.SlotRule slot, ActionSettings.ToolRule rule, BlockState state) {
+
+        return switch (rule) {
+            case EXACT -> HeldItemLoan.peek(inventory, action.toolTemplate().getItem(), slot);
+            case SMART -> bestToolFor(inventory, state);
+        };
+    }
+
+    /**
+     * The fastest tool in the clone's own squares, or bare hands where those would still drop
+     * something.
+     *
+     * <p>The slot rule is not consulted: it answers which square to reach into, and the whole point
+     * of this one is that the anchor decides. A block that wants a tool and has none refuses rather
+     * than pulverising itself for nothing.
+     */
+    private static @org.jspecify.annotations.Nullable ItemStack bestToolFor(
+            ResourceHandler<ItemResource> inventory, BlockState state) {
+
+        // Bare hands are a candidate like any other, and the one every anchor always has.
+        ItemStack best = ItemStack.EMPTY;
+        boolean bestDrops = earnsDrops(ItemStack.EMPTY, state);
+        float bestSpeed = ItemStack.EMPTY.getDestroySpeed(state);
+
+        for (int slot = 0; slot < inventory.size(); slot++) {
+            ItemResource resource = inventory.getResource(slot);
+            if (resource.isEmpty() || inventory.getAmountAsInt(slot) <= 0) {
+                continue;
+            }
+            ItemStack candidate = resource.toStack(1);
+            boolean drops = earnsDrops(candidate, state);
+            float speed = candidate.getDestroySpeed(state);
+
+            // Anything that earns the drops beats anything that does not, however fast it is.
+            if ((drops && !bestDrops) || (drops == bestDrops && speed > bestSpeed)) {
+                best = candidate;
+                bestDrops = drops;
+                bestSpeed = speed;
+            }
+        }
+
+        // Nothing here, hands included, would leave anything behind. Breaking it would be
+        // destroying it for nothing, which is the one thing an anchor never does.
+        return bestDrops ? best : null;
+    }
+
+    /**
+     * Whether breaking {@code state} while holding this would drop anything.
+     *
+     * <p>Not {@link ItemStack#isCorrectToolForDrops}, which asks whether a thing is the right tool
+     * and so answers no for bare hands -- including on the dirt that bare hands harvest perfectly
+     * well. The question vanilla asks before rolling a loot table is this one.
+     */
+    private static boolean earnsDrops(ItemStack candidate, BlockState state) {
+        return !state.requiresCorrectToolForDrops() || candidate.isCorrectToolForDrops(state);
     }
 
     /**
@@ -148,11 +203,12 @@ public final class ActionExecutor {
      */
     public static float breakProgressPerTick(ServerLevel level, ChronoAction.BreakBlock action,
                                              Placement placement, Operator operator,
-                                             ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                             ResourceHandler<ItemResource> inventory, SlotRule slot,
+                                             ActionSettings.ToolRule toolRule) {
         BlockPos worldPos = placement.toWorld(action.localPos());
         // The clone's own tool, not the recording's: an Efficiency V pickaxe in the recording does
         // not make a plain one in the anchor dig any faster.
-        ItemStack tool = toolFor(action, inventory, slot);
+        ItemStack tool = toolFor(action, inventory, slot, toolRule, level.getBlockState(worldPos));
         FakePlayer owner = AnchorFakePlayer.acquire(level, operator, Vec3.atCenterOf(worldPos), 0.0f, 0.0f,
                 tool == null ? ItemStack.EMPTY : tool);
         try {
@@ -168,12 +224,13 @@ public final class ActionExecutor {
     public static Result finishBreak(ServerLevel level, ChronoAction.BreakBlock action,
                                      Placement placement,
                                      Operator operator,
-                                     ResourceHandler<ItemResource> inventory, SlotRule slot) {
+                                     ResourceHandler<ItemResource> inventory, SlotRule slot,
+                                     ActionSettings.ToolRule toolRule) {
 
         BlockPos worldPos = placement.toWorld(action.localPos());
         BlockState state = level.getBlockState(worldPos);
 
-        ItemStack tool = toolFor(action, inventory, slot);
+        ItemStack tool = toolFor(action, inventory, slot, toolRule, state);
         if (tool == null) {
             return Result.fail(FailureReason.NO_ITEM, action.localPos());
         }
