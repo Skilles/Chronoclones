@@ -3,6 +3,7 @@ package com.skilles.chronoclones.block;
 import java.util.List;
 
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
+import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.replay.CloneRuntime;
@@ -13,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
@@ -52,22 +54,24 @@ final class ClonePresentation {
         Vec3 pos = track.worldPositionAt(runtime.playhead(), placement.origin(), facing);
         float yaw = track.worldYawAt(runtime.playhead(), facing);
         clone.driveTo(pos, yaw, track.pitchAt(runtime.playhead()));
-        clone.setHeldItem(upcomingHeldItem(runtime, recording));
+        ChronoAction upcoming = upcomingAction(runtime, recording);
+        boolean offhand = upcoming != null && upcoming.heldHand() == InteractionHand.OFF_HAND;
+        ItemStack shown = upcoming == null ? ItemStack.EMPTY : upcoming.heldTemplate();
+        clone.setHeldItem(offhand ? ItemStack.EMPTY : shown);
+        clone.setOffhandItem(offhand ? shown : ItemStack.EMPTY);
     }
 
     /**
-     * The item for the action the clone is walking towards.
+     * The action the clone is walking towards, which is what it appears to be carrying for.
      */
-    private static ItemStack upcomingHeldItem(CloneRuntime runtime, @Nullable Recording recording) {
+    private static @Nullable ChronoAction upcomingAction(CloneRuntime runtime,
+                                                         @Nullable Recording recording) {
         if (recording == null) {
-            return ItemStack.EMPTY;
+            return null;
         }
         List<TimedAction> actions = recording.actions();
         int cursor = runtime.actionCursor();
-        if (cursor >= actions.size()) {
-            return ItemStack.EMPTY;
-        }
-        return actions.get(cursor).action().heldTemplate();
+        return cursor >= actions.size() ? null : actions.get(cursor).action();
     }
 
     /**

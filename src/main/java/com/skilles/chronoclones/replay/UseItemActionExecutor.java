@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.replay;
 
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
+import com.skilles.chronoclones.recording.ActionPose;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 import com.skilles.chronoclones.recording.ChronoAction;
 
@@ -56,7 +57,8 @@ public final class UseItemActionExecutor {
     private static Progress begin(ActionContext ctx, ChronoAction.UseItem action, CloneRuntime runtime) {
         ServerLevel level = ctx.level();
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), action.item().value(), ctx.slot());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(),
+                ItemMatch.of(action.itemTemplate(), ctx.settings().item()), ctx.slot());
         if (loan == null) {
             return Progress.done(ActionResult.fail(FailureReason.NO_ITEM, BlockPos.ZERO));
         }
@@ -65,14 +67,23 @@ public final class UseItemActionExecutor {
             return Progress.done(ActionResult.OK);
         }
 
-        FakePlayer owner = acquire(ctx, loan.stack());
+        FakePlayer owner = acquire(ctx, action, loan.stack());
+
+        // Still cooling down from the last time. Vanilla answers this with a bare PASS, which is
+        // the same answer it gives for "this item does nothing", and the two want different fixes.
+        if (owner.getCooldowns().isOnCooldown(loan.stack())) {
+            return giveUp(ctx, action, owner, loan, FailureReason.ON_COOLDOWN);
+        }
 
         // A bow with nothing to fire simply refuses to draw, and the ammunition it looks for is in
         // its own inventory rather than the anchor's -- so whatever it shoots is lent too.
         HeldItemLoan.Loan ammo = lendAmmunition(ctx, owner, loan.stack());
+        if (ammo == null && needsAmmunition(loan.stack())) {
+            return giveUp(ctx, action, owner, loan, FailureReason.NO_AMMO);
+        }
 
         InteractionResult result = owner.gameMode.useItem(owner, level,
-                owner.getMainHandItem(), action.hand());
+                owner.getItemInHand(action.hand()), action.hand());
 
         // Held items report their duration by starting a use rather than by finishing one. Both
         // halves have to agree: an action recorded as instant is finished here however the item
@@ -82,11 +93,26 @@ public final class UseItemActionExecutor {
             return Progress.HOLDING;
         }
 
-        // Nothing is being held, so nothing can be waited for -- including an item that used to
-        // have a duration and no longer does.
+        // Recorded as held, nothing started, and nothing happened either: the item has no
+        // duration here and did not act instead, so there is nothing this routine can ever do with
+        // it. Halting, because waiting will not give an item a duration it does not have.
+        //
+        // An item that did work instantly is left alone: it is doing the job, just faster than it
+        // was recorded doing it, and stopping the routine over that would help nobody.
+        if (action.isHeld() && !result.consumesAction()) {
+            owner.stopUsingItem();
+            takeAmmunitionBack(ctx, owner, ammo);
+            ActionResult unsupported = ActionResult.fail(FailureReason.UNSUPPORTED, BlockPos.ZERO);
+            HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), loan,
+                    owner.getItemInHand(action.hand()).copy());
+            ctx.release(owner);
+            return Progress.done(unsupported);
+        }
+
+        // Nothing is being held, so nothing can be waited for.
         owner.stopUsingItem();
         takeAmmunitionBack(ctx, owner, ammo);
-        ActionResult done = finish(ctx, owner, loan, result);
+        ActionResult done = finish(ctx, action, owner, loan, result);
         ctx.release(owner);
         return Progress.done(done);
     }
@@ -99,8 +125,8 @@ public final class UseItemActionExecutor {
         HeldItemLoan.Loan loan = runtime.usingLoan();
         FakePlayer owner = ctx.actor().current(ctx.cloneIndex());
 
-        // The player went away underneath us -- an anchor unloaded and reloaded mid-draw. There is
-        // nothing left holding anything, so give the item back and call it a failure.
+        // The player went away underneath us -- an anchor unloaded and reloaded mid-draw. The draw
+        // is lost rather than refused, which is what "unfinished" already means elsewhere.
         if (loan == null || owner == null || !owner.isUsingItem()) {
             if (loan != null && owner != null) {
                 takeAmmunitionBack(ctx, owner, runtime.ammoLoan());
@@ -108,7 +134,7 @@ public final class UseItemActionExecutor {
                         owner.getMainHandItem().copy());
             }
             runtime.clearUse();
-            return Progress.done(ActionResult.fail(FailureReason.NO_TARGET, BlockPos.ZERO));
+            return Progress.done(ActionResult.fail(FailureReason.UNFINISHED, BlockPos.ZERO));
         }
 
         runtime.tickUse();
@@ -121,7 +147,7 @@ public final class UseItemActionExecutor {
         if (owner.useItemRemaining <= 0) {
             // Ran its full duration: food is eaten, a potion drunk, the use completes itself.
             owner.completeUsingItem();
-            return Progress.done(release(ctx, runtime, owner, loan));
+            return Progress.done(release(ctx, action, runtime, owner, loan));
         }
 
         if (runtime.usingTicks() < action.holdTicks()) {
@@ -131,15 +157,16 @@ public final class UseItemActionExecutor {
         // As long as the player held it, so let go exactly as they did: this is what fires a bow
         // at the draw it was recorded at rather than at full or at none.
         owner.releaseUsingItem();
-        return Progress.done(release(ctx, runtime, owner, loan));
+        return Progress.done(release(ctx, action, runtime, owner, loan));
     }
 
     /** Hands the item and whatever is left of its ammunition back, and lets the clone move on. */
-    private static ActionResult release(ActionContext ctx, CloneRuntime runtime, FakePlayer owner,
+    private static ActionResult release(ActionContext ctx, ChronoAction.UseItem action,
+                                        CloneRuntime runtime, FakePlayer owner,
                                         HeldItemLoan.Loan loan) {
         takeAmmunitionBack(ctx, owner, runtime.ammoLoan());
         runtime.clearUse();
-        ActionResult result = finish(ctx, owner, loan, InteractionResult.CONSUME);
+        ActionResult result = finish(ctx, action, owner, loan, InteractionResult.CONSUME);
         ctx.release(owner);
         return result;
     }
@@ -190,14 +217,37 @@ public final class UseItemActionExecutor {
     /** A square of the player's own inventory, kept out of the way of the hand. */
     private static final int AMMUNITION_SLOT = 9;
 
-    /** Gives back what came home, and says whether the interaction did anything. */
-    private static ActionResult finish(ActionContext ctx, FakePlayer owner, HeldItemLoan.Loan loan,
-                                       InteractionResult result) {
-        return Interactions.finish(ctx, owner, loan, result, BlockPos.ZERO);
+    /** Hands everything back and reports why this use never got started. */
+    private static Progress giveUp(ActionContext ctx, ChronoAction.UseItem action, FakePlayer owner,
+                                   HeldItemLoan.Loan loan, FailureReason reason) {
+        HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), loan,
+                owner.getItemInHand(action.hand()).copy());
+        ctx.release(owner);
+        return Progress.done(ActionResult.fail(reason, BlockPos.ZERO));
     }
 
-    private static FakePlayer acquire(ActionContext ctx, ItemStack held) {
-        return ctx.acquire(Vec3.atCenterOf(ctx.anchorPos()).add(0.0, 1.0, 0.0),
-                ctx.placement().facing().toYRot(), 0.0f, held);
+    /** True for the weapons that will not do anything at all without something to fire. */
+    private static boolean needsAmmunition(ItemStack stack) {
+        return stack.getItem() instanceof ProjectileWeaponItem;
+    }
+
+    /** Gives back what came home, and says whether the interaction did anything. */
+    private static ActionResult finish(ActionContext ctx, ChronoAction.UseItem action,
+                                       FakePlayer owner, HeldItemLoan.Loan loan,
+                                       InteractionResult result) {
+        return Interactions.finish(ctx, owner, action.hand(), loan, result, BlockPos.ZERO);
+    }
+
+    /**
+     * The clone, standing and looking where the player was when they used this.
+     *
+     * <p>Not above the anchor facing along it, which is where every use used to happen: a snowball
+     * left the anchor rather than the clone, and left it flat however far up or down the player had
+     * been aiming.
+     */
+    private static FakePlayer acquire(ActionContext ctx, ChronoAction.UseItem action, ItemStack held) {
+        ActionPose pose = action.pose().orElse(ActionPose.OVER_THE_ANCHOR);
+        return ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),
+                pose.worldYaw(ctx.placement().facing()), pose.pitch(), action.hand(), held);
     }
 }

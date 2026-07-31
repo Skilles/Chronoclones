@@ -16,11 +16,53 @@ import org.jspecify.annotations.NonNull;
  * the recording behaved. The editor is where a player opts into anything narrower.
  */
 public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean recordedSubject,
-                            TargetRule target, TransferRule transfer, List<StepSettings> steps) {
+                            TargetRule target, TransferRule transfer, List<StepSettings> steps,
+                            ItemRule item) {
 
     public static final ActionSettings DEFAULT = new ActionSettings(
             "", SlotRule.DEFAULT, ToolRule.EXACT, true, TargetRule.DEFAULT, TransferRule.DEFAULT,
-            List.of());
+            List.of(), ItemRule.SAME_ITEM);
+
+    public ActionSettings(String name, SlotRule slot, ToolRule tool, boolean recordedSubject,
+                          TargetRule target, TransferRule transfer, List<StepSettings> steps) {
+        this(name, slot, tool, recordedSubject, target, transfer, steps, ItemRule.SAME_ITEM);
+    }
+
+    /**
+     * How closely the item an action reaches for has to match the one that was recorded.
+     *
+     * <p>A recording keeps the whole item now, components included, which is the only way to tell a
+     * healing potion from a harming one or a charged crossbow from an empty one. Insisting on all
+     * of it by default would be worse than useless, though: a recorded tool carries its damage, so
+     * a routine would stop the moment its pickaxe took a scratch.
+     */
+    public enum ItemRule implements StringRepresentable {
+        /** Anything of the same kind, which is how a routine has always matched. */
+        SAME_ITEM("same_item"),
+
+        /**
+         * The same kind carrying the same components.
+         *
+         * <p>For the routines where what is inside the item is the point: which potion, which
+         * firework, which of a modded item's modes.
+         */
+        EXACT("exact");
+
+        private final String name;
+
+        ItemRule(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public @NonNull String getSerializedName() {
+            return name;
+        }
+    }
+
+    public ActionSettings withItem(ItemRule item) {
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
+    }
 
     public ActionSettings {
         steps = List.copyOf(steps);
@@ -32,11 +74,11 @@ public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean 
     }
 
     public ActionSettings withName(String name) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     public ActionSettings withSlot(SlotRule slot) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     /**
@@ -47,19 +89,19 @@ public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean 
      * the row names itself after the answer -- "Break Cobblestone" against "Break block".
      */
     public ActionSettings withRecordedSubject(boolean recordedSubject) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     public ActionSettings withTool(ToolRule tool) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     public ActionSettings withTarget(TargetRule target) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     public ActionSettings withTransfer(TransferRule transfer) {
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, steps, item);
     }
 
     /**
@@ -82,7 +124,7 @@ public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean 
             next.add(StepSettings.DEFAULT);
         }
         next.set(index, step);
-        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, next);
+        return new ActionSettings(name, slot, tool, recordedSubject, target, transfer, next, item);
     }
 
     /**

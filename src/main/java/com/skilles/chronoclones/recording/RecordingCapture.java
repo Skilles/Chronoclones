@@ -61,6 +61,7 @@ public final class RecordingCapture {
             // Only once the recorder has left the inventory: it need not stay in hand.
             RecordingSessions.discard(player);
             ContainerWatch.forget(player);
+            InteractionWatch.forget(player);
             return;
         }
 
@@ -73,6 +74,9 @@ public final class RecordingCapture {
         if (stop != null) {
             ChronoRecorderItem.stopRecording(player, recorder, stop);
         }
+
+        // A click whose result never came back is a click nothing will ever settle.
+        InteractionWatch.expire(player);
     }
 
     // ------------------------------------------------------------------ actions
@@ -123,12 +127,29 @@ public final class RecordingCapture {
             return;
         }
 
+        // This is what the click did, so the click is not also recorded as an interaction.
+        ChronoAction clicked = InteractionWatch.armedAction(player);
+        InteractionWatch.claim(player);
+
+        // The click that caused this knows which face was struck, whereabouts on it, with which
+        // hand, and which way the player was looking -- every question vanilla asks while deciding
+        // what state to place. Without it a placement kept only where the block landed, so replay
+        // clicked the middle of the block's own square facing nowhere.
+        Optional<ChronoAction.PlaceContext> context = Optional.empty();
+        Direction face = session.toLocal(Direction.UP);
+        if (clicked instanceof ChronoAction.UseOnBlock use) {
+            context = Optional.of(new ChronoAction.PlaceContext(
+                    use.localPos(), use.localHitOffset(), use.inside(), use.hand(), poseOf(player, session)));
+            face = use.localFace();
+        }
+
         capture(player, session, new ChronoAction.PlaceBlock(
                         session.toLocal(pos),
                         // Facing is stored local so a rotated anchor places rotated blocks.
-                        session.toLocal(Direction.UP),
-                        BuiltInRegistries.ITEM.wrapAsHolder(held.getItem()),
-                        placed),
+                        face,
+                        RecordedItem.of(held),
+                        placed,
+                        context),
                 Vec3.atCenterOf(pos));
     }
 
@@ -175,32 +196,50 @@ public final class RecordingCapture {
 
         BlockPos pos = event.getPos();
         ItemStack stack = event.getItemStack();
-
-        // Armed above the item filters. Below them the recorder itself, still in hand when the
-        // first chest opens, filtered out the one click most likely to open a container.
-        int recordedIndex = -1;
-
-        if (!isControlInput(stack) && !(stack.getItem() instanceof BlockItem)) {
-            BlockHitResult hit = event.getHitVec();
-            // Relative to the block centre so it rotates with the anchor.
-            Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
-
-            recordedIndex = session.nextActionIndex();
-            capture(player, session, new ChronoAction.UseOnBlock(
-                            session.toLocal(pos),
-                            session.toLocal(hit.getDirection()),
-                            LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
-                            hit.isInside(),
-                            event.getHand(),
-                            BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem()),
-                            // What it was used on, so the routine can be told to insist on it.
-                            Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
-                                    player.level().getBlockState(pos).getBlock()))),
-                    Vec3.atCenterOf(pos));
+        if (isControlInput(stack)) {
+            return;
         }
 
-        // Always armed. -1, or an index past the end, retracts nothing.
-        ContainerWatch.noteInteraction(player, pos, recordedIndex, session);
+        BlockHitResult hit = event.getHitVec();
+        // Relative to the block centre so it rotates with the anchor.
+        Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+
+        // Armed, not recorded. Whether this click did anything is decided by the method that fired
+        // this event, several steps further on.
+        //
+        // Block items are armed too, rather than skipped outright: one that places a block has its
+        // placement claim this, and one that does something else -- a modded item with a
+        // right-click mode of its own -- is an interaction like any other, which is how every one
+        // of them used to go unrecorded.
+        InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseOnBlock(
+                        session.toLocal(pos),
+                        session.toLocal(hit.getDirection()),
+                        LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
+                        hit.isInside(),
+                        event.getHand(),
+                        // The whole item, components and all: a water bucket and a lava bucket are
+                        // one item id apart, but a tipped arrow and a healing potion are not.
+                        RecordedItem.of(stack),
+                        // What it was used on, so the routine can be told to insist on it.
+                        Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
+                                player.level().getBlockState(pos).getBlock()))),
+                Vec3.atCenterOf(pos));
+
+        ContainerWatch.noteInteraction(player, pos, session);
+    }
+
+    /**
+     * Where this player is standing and how they are looking, in the routine's own space.
+     *
+     * <p>Taken at the moment of the action rather than interpolated from the motion track
+     * afterwards: a click happens on one tick and the track is sampled every few, and the pitch a
+     * projectile leaves at is exactly the sort of thing that is wrong in between.
+     */
+    private static ActionPose poseOf(ServerPlayer player, RecordingSession session) {
+        return new ActionPose(
+                session.toLocal(player.position()),
+                LocalSpace.toLocalYaw(player.getYRot(), session.originFacing()),
+                player.getXRot());
     }
 
     /**
@@ -221,13 +260,15 @@ public final class RecordingCapture {
         }
 
         ItemStack stack = event.getItemStack();
-        if (stack.isEmpty() || isControlInput(stack) || stack.getItem() instanceof BlockItem) {
+        if (stack.isEmpty() || isControlInput(stack)) {
             return;
         }
 
-        capture(player, session, new ChronoAction.UseItem(
+        InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseItem(
                         event.getHand(),
-                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
+                        RecordedItem.of(stack),
+                        0,
+                        Optional.of(poseOf(player, session))),
                 player.position());
     }
 
@@ -247,17 +288,16 @@ public final class RecordingCapture {
         }
 
         Vec3 target = event.getTarget().position();
-        int recordedIndex = session.nextActionIndex();
-        capture(player, session, new ChronoAction.InteractEntity(
+        InteractionWatch.arm(player, event.getHand(), new ChronoAction.InteractEntity(
                         session.toLocal(target),
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
                         event.getHand(),
-                        BuiltInRegistries.ITEM.wrapAsHolder(stack.getItem())),
+                        RecordedItem.of(stack)),
                 target);
 
         // A villager's trades, a horse's saddlebags, a chest boat: if this opened a menu, the
-        // session replaces the interaction that opened it.
-        ContainerWatch.noteInteraction(player, event.getTarget(), recordedIndex, session);
+        // session is what happened here rather than the click that opened it.
+        ContainerWatch.noteInteraction(player, event.getTarget(), session);
     }
 
     // ------------------------------------------------------------- held-down items
@@ -354,6 +394,7 @@ public final class RecordingCapture {
         if (event.getEntity() instanceof ServerPlayer player) {
             RecordingSessions.discard(player);
             ContainerWatch.forget(player);
+            InteractionWatch.forget(player);
             USE_STARTED_AT.remove(player.getUUID());
         }
     }
@@ -380,6 +421,7 @@ public final class RecordingCapture {
     public static void onServerStopped(ServerStoppedEvent event) {
         RecordingSessions.clear();
         ContainerWatch.clear();
+        InteractionWatch.clear();
         USE_STARTED_AT.clear();
     }
 
@@ -407,6 +449,17 @@ public final class RecordingCapture {
      * {@link RecordingSession#record}: a whole container session is one action, however many times
      * it was clicked in, so the count that runs away is not one the session is counting.
      */
+    /**
+     * Writes down an interaction that turned out to have done something.
+     *
+     * <p>Called by {@link InteractionWatch} rather than straight from an event, because the events
+     * fire before anybody knows whether there is anything to write down.
+     */
+    static void commit(ServerPlayer player, RecordingSession session, ChronoAction action,
+                       Vec3 worldPos) {
+        capture(player, session, action, worldPos);
+    }
+
     static void stop(ServerPlayer player, RecordingSession session,
                      RecordingSession.StopReason reason) {
         ItemStack recorder = findSessionRecorder(player, session);
@@ -423,6 +476,7 @@ public final class RecordingCapture {
         }
         RecordingSessions.discard(player);
         ContainerWatch.forget(player);
+        InteractionWatch.forget(player);
 
         // Clear the stamp, or the item reports RECORDING for a session that no longer exists.
         ItemStack recorder = findSessionRecorder(player, session);

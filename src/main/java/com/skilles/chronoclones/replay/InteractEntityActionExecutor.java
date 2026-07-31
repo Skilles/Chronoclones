@@ -52,17 +52,18 @@ public final class InteractEntityActionExecutor {
             return ActionResult.fail(FailureReason.NO_TARGET, localBlock);
         }
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), action.item().value(), ctx.slot());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(),
+                ItemMatch.of(action.itemTemplate(), ctx.settings().item()), ctx.slot());
         if (loan == null) {
             return ActionResult.fail(FailureReason.NO_ITEM, localBlock);
         }
 
         FakePlayer owner = ctx.acquire(worldPos,
-                ctx.placement().facing().toYRot(), 0.0f, loan.stack());
+                ctx.placement().facing().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
             InteractionResult result = owner.interactOn(target, action.hand(),
                     worldPos.subtract(target.position()));
-            return Interactions.finish(ctx, owner, loan, result, localBlock);
+            return Interactions.finish(ctx, owner, action.hand(), loan, result, localBlock);
         } finally {
             ctx.release(owner);
         }

@@ -59,7 +59,8 @@ public final class AnchorFakePlayer {
      * The player acting for {@code operator}, reset, positioned, equipped and funded for one action.
      */
     public FakePlayer acquire(ServerLevel level, Operator operator, int clone,
-                              Vec3 position, float yaw, float pitch, ItemStack held) {
+                              Vec3 position, float yaw, float pitch, InteractionHand hand,
+                              ItemStack held) {
         FakePlayer actor = playerIn(level, operator, clone);
         resetForAction(actor);
 
@@ -78,8 +79,10 @@ public final class AnchorFakePlayer {
         // player teleported to a block is always technically falling.
         actor.setOnGround(true);
 
-        // The recorded template is a copy; the fake player must never consume or damage it.
-        hold(actor, held.copy());
+        // The hand the player used, not always the main one. Downstream code asks for
+        // getItemInHand(hand), so an off-hand interaction replayed from the main hand looks at an
+        // empty hand and does nothing.
+        hold(actor, hand, held.copy());
 
         // Lent, not given: whatever it earns or spends comes back on release.
         setExperience(actor, operator.experience());
@@ -141,15 +144,17 @@ public final class AnchorFakePlayer {
         players.clear();
     }
 
-    /** Puts a loaned item on the ground rather than losing it with the player holding it. */
+    /** Puts loaned items on the ground rather than losing them with the player holding them. */
     private void spillHeld(FakePlayer actor) {
-        ItemStack held = actor.getMainHandItem();
-        if (held.isEmpty()) {
-            return;
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack held = actor.getItemInHand(hand);
+            if (held.isEmpty()) {
+                continue;
+            }
+            actor.setItemInHand(hand, ItemStack.EMPTY);
+            Containers.dropItemStack(actor.level(), anchorPos.getX() + 0.5,
+                    anchorPos.getY() + 1.0, anchorPos.getZ() + 0.5, held);
         }
-        actor.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-        Containers.dropItemStack(actor.level(), anchorPos.getX() + 0.5,
-                anchorPos.getY() + 1.0, anchorPos.getZ() + 0.5, held);
     }
 
     /**
@@ -176,14 +181,16 @@ public final class AnchorFakePlayer {
 
     /** The same, on the way out, so nothing is left set while the player sits between actions. */
     private void resetAfterAction(FakePlayer actor) {
-        ItemStack lastHeld = actor.getMainHandItem();
-        if (!lastHeld.isEmpty()) {
-            // The cooldown this action just started. ItemCooldowns expires entries against a tick
-            // counter that only advances while a player ticks, and this one never does, so a
-            // cooldown set here would otherwise last until the anchor unloaded.
-            actor.getCooldowns().removeCooldown(actor.getCooldowns().getCooldownGroup(lastHeld));
+        for (InteractionHand hand : InteractionHand.values()) {
+            ItemStack lastHeld = actor.getItemInHand(hand);
+            if (!lastHeld.isEmpty()) {
+                // The cooldown this action just started. ItemCooldowns expires entries against a
+                // tick counter that only advances while a player ticks, and this one never does,
+                // so a cooldown set here would otherwise last until the anchor unloaded.
+                actor.getCooldowns().removeCooldown(actor.getCooldowns().getCooldownGroup(lastHeld));
+            }
+            hold(actor, hand, ItemStack.EMPTY);
         }
-        hold(actor, ItemStack.EMPTY);
         setExperience(actor, 0);
         clearTransientState(actor);
         spillLeftovers(actor);
@@ -275,10 +282,14 @@ public final class AnchorFakePlayer {
      * <p>Vanilla applies these while ticking equipment changes, which a fake player never does, so
      * without this a clone swinging a netherite sword hits for a bare hand's damage.
      */
-    private static void hold(FakePlayer actor, ItemStack stack) {
-        ItemStack previous = actor.getMainHandItem();
+    private static void hold(FakePlayer actor, InteractionHand hand, ItemStack stack) {
+        EquipmentSlot slot = hand == InteractionHand.MAIN_HAND
+                ? EquipmentSlot.MAINHAND
+                : EquipmentSlot.OFFHAND;
+
+        ItemStack previous = actor.getItemInHand(hand);
         if (!previous.isEmpty()) {
-            previous.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            previous.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
                     instance.removeModifier(modifier.id());
@@ -286,10 +297,10 @@ public final class AnchorFakePlayer {
             });
         }
 
-        actor.setItemInHand(InteractionHand.MAIN_HAND, stack);
+        actor.setItemInHand(hand, stack);
 
         if (!stack.isEmpty()) {
-            stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
+            stack.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
                     instance.removeModifier(modifier.id());

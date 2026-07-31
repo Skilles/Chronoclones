@@ -39,6 +39,15 @@ public class ChronoCloneEntity extends Entity {
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
 
     /**
+     * What the clone is holding in its other hand.
+     *
+     * <p>A routine can record an off-hand interaction, and replay performs it with the off hand,
+     * so a clone that showed everything in its right hand was describing work it was not doing.
+     */
+    private static final EntityDataAccessor<ItemStack> OFFHAND_ITEM =
+            SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
+
+    /**
      * Drives the walk cycle.
      */
     private final WalkAnimationState walkAnimation = new WalkAnimationState();
@@ -95,6 +104,16 @@ public class ChronoCloneEntity extends Entity {
     /**
      * Sets the visibly held item, skipping the write when nothing changed.
      */
+    public void setOffhandItem(ItemStack stack) {
+        if (!ItemStack.matches(this.entityData.get(OFFHAND_ITEM), stack)) {
+            this.entityData.set(OFFHAND_ITEM, stack.copy());
+        }
+    }
+
+    public ItemStack offhandItem() {
+        return this.entityData.get(OFFHAND_ITEM);
+    }
+
     public void setHeldItem(ItemStack stack) {
         if (!ItemStack.matches(this.entityData.get(HELD_ITEM), stack)) {
             this.entityData.set(HELD_ITEM, stack.copy());
@@ -162,6 +181,7 @@ public class ChronoCloneEntity extends Entity {
         builder.define(AUTHOR_ID, "");
         builder.define(AUTHOR_NAME, "");
         builder.define(HELD_ITEM, ItemStack.EMPTY);
+        builder.define(OFFHAND_ITEM, ItemStack.EMPTY);
     }
 
     @Override

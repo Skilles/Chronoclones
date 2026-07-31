@@ -37,18 +37,25 @@ public final class HeldItemLoan {
      * @return the loan, or null if the anchor has none of {@code item} where it may look
      */
     public static Loan take(ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
-        if (item == net.minecraft.world.item.Items.AIR) {
+        return take(inventory, ItemMatch.sameItem(item), rule);
+    }
+
+    /**
+     * The same, matching however closely the routine asked to.
+     */
+    public static Loan take(ResourceHandler<ItemResource> inventory, ItemMatch match, SlotRule rule) {
+        if (match.isEmptyHanded()) {
             return EMPTY_HANDED;
         }
 
-        Loan preferred = takeFrom(inventory, item, rule.preferred());
+        Loan preferred = takeFrom(inventory, match, rule.preferred());
         if (preferred != null || rule.strict()) {
             return preferred;
         }
 
         // Stock rarely lands where the recording left it, so the slot is a preference by default.
         for (int slot = 0; slot < inventory.size(); slot++) {
-            Loan loan = takeFrom(inventory, item, slot);
+            Loan loan = takeFrom(inventory, match, slot);
             if (loan != null) {
                 return loan;
             }
@@ -68,16 +75,21 @@ public final class HeldItemLoan {
      */
     public static @org.jspecify.annotations.Nullable ItemStack peek(
             ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
-        if (item == net.minecraft.world.item.Items.AIR) {
+        return peek(inventory, ItemMatch.sameItem(item), rule);
+    }
+
+    public static @org.jspecify.annotations.Nullable ItemStack peek(
+            ResourceHandler<ItemResource> inventory, ItemMatch match, SlotRule rule) {
+        if (match.isEmptyHanded()) {
             return ItemStack.EMPTY;
         }
 
-        ItemStack preferred = peekAt(inventory, item, rule.preferred());
+        ItemStack preferred = peekAt(inventory, match, rule.preferred());
         if (preferred != null || rule.strict()) {
             return preferred;
         }
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemStack found = peekAt(inventory, item, slot);
+            ItemStack found = peekAt(inventory, match, slot);
             if (found != null) {
                 return found;
             }
@@ -86,25 +98,25 @@ public final class HeldItemLoan {
     }
 
     private static @org.jspecify.annotations.Nullable ItemStack peekAt(
-            ResourceHandler<ItemResource> inventory, Item item, int slot) {
+            ResourceHandler<ItemResource> inventory, ItemMatch match, int slot) {
         if (slot < 0 || slot >= inventory.size()) {
             return null;
         }
         ItemResource resource = inventory.getResource(slot);
         int amount = inventory.getAmountAsInt(slot);
-        if (resource.isEmpty() || resource.getItem() != item || amount <= 0) {
+        if (resource.isEmpty() || !match.accepts(resource) || amount <= 0) {
             return null;
         }
         return resource.toStack(amount);
     }
 
     private static @org.jspecify.annotations.Nullable Loan takeFrom(
-            ResourceHandler<ItemResource> inventory, Item item, int slot) {
+            ResourceHandler<ItemResource> inventory, ItemMatch match, int slot) {
         if (slot < 0 || slot >= inventory.size()) {
             return null;
         }
         ItemResource resource = inventory.getResource(slot);
-        if (resource.isEmpty() || resource.getItem() != item) {
+        if (resource.isEmpty() || !match.accepts(resource)) {
             return null;
         }
         int amount = inventory.getAmountAsInt(slot);

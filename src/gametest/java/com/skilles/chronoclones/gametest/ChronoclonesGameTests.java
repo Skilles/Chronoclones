@@ -80,6 +80,8 @@ public final class ChronoclonesGameTests {
         RunStateGameTest.register();
         FakePlayerGameTest.register();
         HeldUseGameTest.register();
+        ItemMatchGameTest.register();
+        PlacementGameTest.register();
     }
 
     /** Declares a test. The name becomes both the function id and the instance id. */

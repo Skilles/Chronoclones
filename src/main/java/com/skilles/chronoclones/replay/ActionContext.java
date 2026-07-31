@@ -7,6 +7,7 @@ import com.skilles.chronoclones.recording.ActionSettings.ToolRule;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -30,9 +31,15 @@ public record ActionContext(ServerLevel level, Placement placement, Operator ope
                             ItemStacksResourceHandler inventory, ActionSettings settings,
                             AnchorFakePlayer actor, int cloneIndex) {
 
-    /** This clone's player, positioned and equipped for one action. */
+    /** This clone's player, positioned and equipped in its main hand for one action. */
     public FakePlayer acquire(Vec3 position, float yaw, float pitch, ItemStack held) {
-        return actor.acquire(level, operator, cloneIndex, position, yaw, pitch, held);
+        return acquire(position, yaw, pitch, InteractionHand.MAIN_HAND, held);
+    }
+
+    /** The same, holding it in the hand the recording named. */
+    public FakePlayer acquire(Vec3 position, float yaw, float pitch, InteractionHand hand,
+                              ItemStack held) {
+        return actor.acquire(level, operator, cloneIndex, position, yaw, pitch, hand, held);
     }
 
     /** Hands it back, banking whatever experience the action left it holding. */

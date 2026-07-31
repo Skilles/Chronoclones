@@ -74,6 +74,12 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         state.rightArmPose = held.isEmpty() ? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
         this.itemModelResolver.updateForNonLiving(state.rightHandItemState, held,
                 ItemDisplayContext.THIRD_PERSON_RIGHT_HAND, entity);
+
+        ItemStack offhand = entity.offhandItem();
+        state.leftHandItemStack = offhand;
+        state.leftArmPose = offhand.isEmpty() ? HumanoidModel.ArmPose.EMPTY : HumanoidModel.ArmPose.ITEM;
+        this.itemModelResolver.updateForNonLiving(state.leftHandItemState, offhand,
+                ItemDisplayContext.THIRD_PERSON_LEFT_HAND, entity);
     }
 
     @Override
@@ -91,27 +97,39 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
 
         collector.submitModel(model, state, poseStack, renderType,
                 state.lightCoords, OverlayTexture.NO_OVERLAY, TINT, null, state.outlineColor, null);
-        submitHeldItem(state, model, poseStack, collector);
+        submitHeldItems(state, model, poseStack, collector);
         poseStack.popPose();
 
         super.submit(state, poseStack, collector, camera);
     }
 
     /**
-     * The held item, posed off the model's right hand.
+     * Whatever the clone is holding, posed off the hand it is holding it in.
      */
-    private void submitHeldItem(ChronoCloneRenderState state, HumanoidModel<ChronoCloneRenderState> model,
-                                PoseStack poseStack, SubmitNodeCollector collector) {
-        if (state.rightHandItemState.isEmpty()) {
+    private void submitHeldItems(ChronoCloneRenderState state,
+                                 HumanoidModel<ChronoCloneRenderState> model,
+                                 PoseStack poseStack, SubmitNodeCollector collector) {
+        submitHeldItem(state, model, poseStack, collector, HumanoidArm.RIGHT);
+        submitHeldItem(state, model, poseStack, collector, HumanoidArm.LEFT);
+    }
+
+    private void submitHeldItem(ChronoCloneRenderState state,
+                                HumanoidModel<ChronoCloneRenderState> model,
+                                PoseStack poseStack, SubmitNodeCollector collector,
+                                HumanoidArm arm) {
+        var item = arm == HumanoidArm.RIGHT ? state.rightHandItemState : state.leftHandItemState;
+        if (item.isEmpty()) {
             return;
         }
         poseStack.pushPose();
-        model.translateToHand(state, HumanoidArm.RIGHT, poseStack);
+        model.translateToHand(state, arm, poseStack);
         poseStack.mulPose(Axis.XP.rotationDegrees(-90.0f));
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0f));
-        poseStack.translate(1.0f / 16.0f, 2.0f / 16.0f, -10.0f / 16.0f);
+        // Mirrored across the body: the same offset off the left hand puts it inside the arm.
+        poseStack.translate(arm == HumanoidArm.RIGHT ? 1.0f / 16.0f : -1.0f / 16.0f,
+                2.0f / 16.0f, -10.0f / 16.0f);
 
-        state.rightHandItemState.submit(poseStack, collector, state.lightCoords,
+        item.submit(poseStack, collector, state.lightCoords,
                 OverlayTexture.NO_OVERLAY, state.outlineColor);
         poseStack.popPose();
     }

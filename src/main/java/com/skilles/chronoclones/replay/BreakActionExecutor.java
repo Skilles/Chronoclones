@@ -91,7 +91,8 @@ public final class BreakActionExecutor {
             ActionSettings.SlotRule slot, ActionSettings.ToolRule rule, BlockState state) {
 
         return switch (rule) {
-            case EXACT -> HeldItemLoan.peek(inventory, action.toolTemplate().getItem(), slot);
+            case EXACT -> HeldItemLoan.peek(inventory, ItemMatch.sameItem(
+                    action.toolTemplate().getItem()), slot);
             case SMART -> bestToolFor(inventory, state);
         };
     }

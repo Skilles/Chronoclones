@@ -66,11 +66,47 @@ public final class RecordingCodecs {
             ItemStack.OPTIONAL_CODEC.fieldOf("tool").forGetter(ChronoAction.BreakBlock::toolTemplate)
     ).apply(i, ChronoAction.BreakBlock::new));
 
+    /** Where the player stood and how they were looking, in the routine's own space. */
+    public static final Codec<ActionPose> ACTION_POSE = RecordCodecBuilder.create(i -> i.group(
+            Vec3.CODEC.fieldOf("pos").forGetter(ActionPose::localPos),
+            Codec.FLOAT.fieldOf("yaw").forGetter(ActionPose::localYaw),
+            Codec.FLOAT.fieldOf("pitch").forGetter(ActionPose::pitch)
+    ).apply(i, ActionPose::new));
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, ActionPose> ACTION_POSE_STREAM =
+            StreamCodec.composite(
+                    Vec3.STREAM_CODEC.cast(), ActionPose::localPos,
+                    ByteBufCodecs.FLOAT, ActionPose::localYaw,
+                    ByteBufCodecs.FLOAT, ActionPose::pitch,
+                    ActionPose::new);
+
+    static final Codec<ChronoAction.PlaceContext> PLACE_CONTEXT = RecordCodecBuilder.create(i -> i.group(
+            BlockPos.CODEC.fieldOf("clicked").forGetter(ChronoAction.PlaceContext::localClicked),
+            Vec3.CODEC.fieldOf("hit").forGetter(ChronoAction.PlaceContext::localHitOffset),
+            Codec.BOOL.fieldOf("inside").forGetter(ChronoAction.PlaceContext::inside),
+            HAND.fieldOf("hand").forGetter(ChronoAction.PlaceContext::hand),
+            ACTION_POSE.fieldOf("pose").forGetter(ChronoAction.PlaceContext::pose)
+    ).apply(i, ChronoAction.PlaceContext::new));
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.PlaceContext> PLACE_CONTEXT_STREAM =
+            StreamCodec.composite(
+                    BlockPos.STREAM_CODEC.cast(), ChronoAction.PlaceContext::localClicked,
+                    Vec3.STREAM_CODEC.cast(), ChronoAction.PlaceContext::localHitOffset,
+                    ByteBufCodecs.BOOL, ChronoAction.PlaceContext::inside,
+                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.PlaceContext::hand,
+                    ACTION_POSE_STREAM, ChronoAction.PlaceContext::pose,
+                    ChronoAction.PlaceContext::new);
+
+    /**
+     * The {@code click} field is optional: a routine recorded before placements remembered how they
+     * were clicked has none, and replays exactly as it always did.
+     */
     static final MapCodec<ChronoAction.PlaceBlock> PLACE_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.PlaceBlock::localPos),
             Direction.CODEC.fieldOf("face").forGetter(ChronoAction.PlaceBlock::localFace),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.PlaceBlock::item),
-            BlockState.CODEC.fieldOf("result").forGetter(ChronoAction.PlaceBlock::expectedResult)
+            RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.PlaceBlock::itemTemplate),
+            BlockState.CODEC.fieldOf("result").forGetter(ChronoAction.PlaceBlock::expectedResult),
+            PLACE_CONTEXT.optionalFieldOf("click").forGetter(ChronoAction.PlaceBlock::context)
     ).apply(i, ChronoAction.PlaceBlock::new));
 
     static final MapCodec<ChronoAction.AttackEntity> ATTACK_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -85,7 +121,7 @@ public final class RecordingCodecs {
             Vec3.CODEC.fieldOf("hit").forGetter(ChronoAction.UseOnBlock::localHitOffset),
             Codec.BOOL.fieldOf("inside").forGetter(ChronoAction.UseOnBlock::inside),
             HAND.fieldOf("hand").forGetter(ChronoAction.UseOnBlock::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseOnBlock::item),
+            RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.UseOnBlock::itemTemplate),
             // Optional: a routine saved before the block was recorded has none to insist on, and
             // goes on striking whatever is there rather than refusing everything.
             BuiltInRegistries.BLOCK.holderByNameCodec().optionalFieldOf("expected")
@@ -98,8 +134,9 @@ public final class RecordingCodecs {
      */
     static final MapCodec<ChronoAction.UseItem> USE_ITEM = RecordCodecBuilder.mapCodec(i -> i.group(
             HAND.fieldOf("hand").forGetter(ChronoAction.UseItem::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseItem::item),
-            Codec.INT.optionalFieldOf("hold", 0).forGetter(ChronoAction.UseItem::holdTicks)
+            RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.UseItem::itemTemplate),
+            Codec.INT.optionalFieldOf("hold", 0).forGetter(ChronoAction.UseItem::holdTicks),
+            ACTION_POSE.optionalFieldOf("pose").forGetter(ChronoAction.UseItem::pose)
     ).apply(i, ChronoAction.UseItem::new));
 
     static final MapCodec<ChronoAction.InteractEntity> INTERACT_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -107,7 +144,7 @@ public final class RecordingCodecs {
             BuiltInRegistries.ENTITY_TYPE.holderByNameCodec().fieldOf("expected")
                     .forGetter(ChronoAction.InteractEntity::expectedType),
             HAND.fieldOf("hand").forGetter(ChronoAction.InteractEntity::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.InteractEntity::item)
+            RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.InteractEntity::itemTemplate)
     ).apply(i, ChronoAction.InteractEntity::new));
 
     /** ContainerInput ships a StreamCodec but no Codec, so build one by name. */
@@ -267,10 +304,11 @@ public final class RecordingCodecs {
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC.cast(), ChronoAction.PlaceBlock::localPos,
                     Direction.STREAM_CODEC.cast(), ChronoAction.PlaceBlock::localFace,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.PlaceBlock::item,
+                    RecordedItem.STREAM_CODEC, ChronoAction.PlaceBlock::itemTemplate,
                     ByteBufCodecs.<BlockState>idMapper(
                             Block.BLOCK_STATE_REGISTRY::byId, Block.BLOCK_STATE_REGISTRY::getId).cast(),
                     ChronoAction.PlaceBlock::expectedResult,
+                    ByteBufCodecs.optional(PLACE_CONTEXT_STREAM), ChronoAction.PlaceBlock::context,
                     ChronoAction.PlaceBlock::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.AttackEntity> ATTACK_ENTITY_STREAM =
@@ -287,7 +325,7 @@ public final class RecordingCodecs {
                     Vec3.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localHitOffset,
                     ByteBufCodecs.BOOL.cast(), ChronoAction.UseOnBlock::inside,
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::hand,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseOnBlock::item,
+                    RecordedItem.STREAM_CODEC, ChronoAction.UseOnBlock::itemTemplate,
                     ByteBufCodecs.optional(ByteBufCodecs.holderRegistry(Registries.BLOCK)),
                     ChronoAction.UseOnBlock::expectedBlock,
                     ChronoAction.UseOnBlock::new);
@@ -295,8 +333,9 @@ public final class RecordingCodecs {
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseItem> USE_ITEM_STREAM =
             StreamCodec.composite(
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseItem::hand,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseItem::item,
+                    RecordedItem.STREAM_CODEC, ChronoAction.UseItem::itemTemplate,
                     ByteBufCodecs.VAR_INT, ChronoAction.UseItem::holdTicks,
+                    ByteBufCodecs.optional(ACTION_POSE_STREAM), ChronoAction.UseItem::pose,
                     ChronoAction.UseItem::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.InteractEntity> INTERACT_ENTITY_STREAM =
@@ -304,7 +343,7 @@ public final class RecordingCodecs {
                     Vec3.STREAM_CODEC.cast(), ChronoAction.InteractEntity::localPos,
                     ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), ChronoAction.InteractEntity::expectedType,
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.InteractEntity::hand,
-                    ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.InteractEntity::item,
+                    RecordedItem.STREAM_CODEC, ChronoAction.InteractEntity::itemTemplate,
                     ChronoAction.InteractEntity::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Move> MOVE_STREAM =
@@ -449,6 +488,13 @@ public final class RecordingCodecs {
                     .forGetter(ActionSettings.StepSettings::amount)
     ).apply(i, ActionSettings.StepSettings::new));
 
+    static final Codec<ActionSettings.ItemRule> ITEM_RULE =
+            StringRepresentable.fromEnum(ActionSettings.ItemRule::values);
+
+    static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.ItemRule> ITEM_RULE_STREAM =
+            ByteBufCodecs.<ActionSettings.ItemRule>idMapper(
+                    id -> ActionSettings.ItemRule.values()[id], Enum::ordinal).cast();
+
     public static final Codec<ActionSettings> ACTION_SETTINGS = RecordCodecBuilder.create(i -> i.group(
             Codec.STRING.optionalFieldOf("name", "").forGetter(ActionSettings::name),
             SLOT_RULE.optionalFieldOf("slot", ActionSettings.SlotRule.DEFAULT)
@@ -465,7 +511,9 @@ public final class RecordingCodecs {
             TRANSFER_RULE.optionalFieldOf("transfer", ActionSettings.TransferRule.DEFAULT)
                     .forGetter(ActionSettings::transfer),
             STEP_SETTINGS.listOf().optionalFieldOf("steps", List.of())
-                    .forGetter(ActionSettings::steps)
+                    .forGetter(ActionSettings::steps),
+            ITEM_RULE.optionalFieldOf("item_rule", ActionSettings.ItemRule.SAME_ITEM)
+                    .forGetter(ActionSettings::item)
     ).apply(i, ActionSettings::new));
 
     static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings.SlotRule> SLOT_RULE_STREAM =
@@ -527,6 +575,7 @@ public final class RecordingCodecs {
                     TRANSFER_RULE_STREAM, ActionSettings::transfer,
                     STEP_SETTINGS_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
                     ActionSettings::steps,
+                    ITEM_RULE_STREAM, ActionSettings::item,
                     ActionSettings::new);
 
     // ------------------------------------------------------------------ timed action

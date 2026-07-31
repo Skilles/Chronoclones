@@ -17,6 +17,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.level.GameType;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.world.item.ItemStack;
@@ -39,6 +40,130 @@ final class CaptureGameTest {
                 CaptureGameTest::recordedSessionRemembersWhatItOpened);
         ChronoclonesGameTests.add("tilling_records_one_action_and_the_block_it_worked",
                 CaptureGameTest::tillingRecordsOneAction);
+        ChronoclonesGameTests.add("a_refused_interaction_records_nothing",
+                CaptureGameTest::refusedInteractionRecordsNothing);
+        ChronoclonesGameTests.add("a_refused_item_use_records_nothing",
+                CaptureGameTest::refusedItemUseRecordsNothing);
+        ChronoclonesGameTests.add("a_passing_main_hand_does_not_shadow_the_off_hand",
+                CaptureGameTest::passingMainHandDoesNotShadowTheOffHand);
+    }
+
+    /**
+     * A click the block ignored is not a thing the routine should spend forever repeating.
+     *
+     * <p>The interaction events fire before any of the work, so this used to record a stick being
+     * used on stone as faithfully as it recorded a hoe tilling dirt.
+     */
+    private static void refusedInteractionRecordsNothing(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.STONE);
+
+        BlockPos absolute = helper.absolutePos(target);
+        ServerPlayer player = recordingPlayerAt(helper, absolute);
+        RecordingSession session = RecordingSessions.start(player);
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
+            player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(),
+                    InteractionHand.MAIN_HAND,
+                    new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false));
+
+            List<TimedAction> recorded = session.finish().actions();
+            if (!recorded.isEmpty()) {
+                helper.fail("poking stone with a stick recorded " + recorded.size()
+                        + " action(s): " + recorded.stream()
+                                .map(a -> a.action().type().toString()).toList());
+                return;
+            }
+            helper.succeed();
+        } finally {
+            RecordingSessions.discard(player);
+        }
+    }
+
+    /**
+     * Eating on a full stomach is a refusal, and a refusal is not an action.
+     */
+    private static void refusedItemUseRecordsNothing(GameTestHelper helper) {
+        BlockPos absolute = helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR));
+        ServerPlayer player = recordingPlayerAt(helper, absolute);
+        RecordingSession session = RecordingSessions.start(player);
+        try {
+            // A mock player is created invulnerable, and an invulnerable player can always eat
+            // however full it is, so the refusal this test is about would never happen.
+            player.setGameMode(GameType.SURVIVAL);
+            player.getFoodData().setFoodLevel(20);
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.APPLE));
+            player.gameMode.useItem(player, helper.getLevel(), player.getMainHandItem(),
+                    InteractionHand.MAIN_HAND);
+
+            List<TimedAction> recorded = session.finish().actions();
+            if (!recorded.isEmpty()) {
+                helper.fail("eating on a full stomach recorded " + recorded.size() + " action(s)");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            RecordingSessions.discard(player);
+        }
+    }
+
+    /**
+     * Two hands are two calls, and only the one that did something is written down.
+     *
+     * <p>Vanilla tries the main hand and then the off hand. A main hand that passed used to record
+     * a phantom action beside the real one, so the routine replayed a thing that had never happened.
+     */
+    private static void passingMainHandDoesNotShadowTheOffHand(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.DIRT);
+        helper.setBlock(target.above(), Blocks.AIR);
+
+        BlockPos absolute = helper.absolutePos(target);
+        ServerPlayer player = recordingPlayerAt(helper, absolute);
+        RecordingSession session = RecordingSessions.start(player);
+        try {
+            BlockHitResult hit =
+                    new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false);
+
+            // The main hand has nothing dirt cares about; the off hand has a hoe.
+            player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
+            player.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.DIAMOND_HOE));
+
+            player.gameMode.useItemOn(player, helper.getLevel(),
+                    player.getItemInHand(InteractionHand.MAIN_HAND), InteractionHand.MAIN_HAND, hit);
+            player.gameMode.useItemOn(player, helper.getLevel(),
+                    player.getItemInHand(InteractionHand.OFF_HAND), InteractionHand.OFF_HAND, hit);
+
+            helper.assertBlockPresent(Blocks.FARMLAND, target);
+
+            List<TimedAction> recorded = session.finish().actions();
+            if (recorded.size() != 1) {
+                helper.fail("a passing main hand and a working off hand recorded "
+                        + recorded.size() + " actions, expected only the off hand's");
+                return;
+            }
+            if (!(recorded.getFirst().action() instanceof ChronoAction.UseOnBlock use)
+                    || use.hand() != InteractionHand.OFF_HAND) {
+                helper.fail("the recorded action was not the off hand's: " + recorded.getFirst().action());
+                return;
+            }
+            helper.succeed();
+        } finally {
+            RecordingSessions.discard(player);
+        }
+    }
+
+    /**
+     * A mock player standing where the action is.
+     *
+     * <p>A session takes its origin from wherever the player is when it starts, and a mock player
+     * is created at the world spawn -- millions of blocks away, where everything in this plot is
+     * out of range and dropped without a word.
+     */
+    private static ServerPlayer recordingPlayerAt(GameTestHelper helper, BlockPos absolute) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        player.snapTo(absolute.getX() + 0.5, absolute.getY() + 1.0, absolute.getZ() + 0.5);
+        return player;
     }
 
     /**
@@ -105,7 +230,7 @@ final class CaptureGameTest {
         RecordingSession session = RecordingSessions.start(player);
         try {
             BlockPos absolute = helper.absolutePos(target);
-            ContainerWatch.noteInteraction(player, absolute, -1, session);
+            ContainerWatch.noteInteraction(player, absolute, session);
 
             // Opening the chest for real, so the watch sees the menu the player is looking at.
             helper.useBlock(target, player);

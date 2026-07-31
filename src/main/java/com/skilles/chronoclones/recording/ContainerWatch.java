@@ -49,9 +49,15 @@ public final class ContainerWatch {
     /**
      * Something right-clicked this tick, held only until we learn whether it opened a menu.
      *
-     * @param pos where it is in the world, for the highlight and for the capture position
+     * <p>The tick is the whole of what makes "this tick" true. Without it a click on something that
+     * never opened anything simply sat in the map, and the next menu the player opened -- a minute
+     * later, across the room, on something else entirely -- was recorded as having been opened by
+     * it. A menu is attributed to a click made on the same tick or not at all.
+     *
+     * @param pos  where it is in the world, for the highlight and for the capture position
+     * @param tick the server tick the click arrived on
      */
-    private record Pending(MenuTarget target, BlockPos pos, int actionIndex) {}
+    private record Pending(MenuTarget target, BlockPos pos, long tick) {}
 
     /**
      * What the menu looked like as a click arrived, which is gone by the time it returns.
@@ -65,8 +71,14 @@ public final class ContainerWatch {
     private static final Map<UUID, Pending> PENDING = new ConcurrentHashMap<>();
     private static final Map<UUID, Before> MID_CLICK = new ConcurrentHashMap<>();
 
-    /** The action index lets {@link #onContainerOpened} retract the click if a menu opens. */
-    public static void noteInteraction(ServerPlayer player, BlockPos pos, int actionIndex,
+    /**
+     * Notes a click that might turn out to have opened a menu.
+     *
+     * <p>Nothing has been recorded for it yet: the click is armed in {@link InteractionWatch} and
+     * this simply competes for it. Whichever of the two settles first describes what happened --
+     * a session if a menu opened, an interaction if one did not.
+     */
+    public static void noteInteraction(ServerPlayer player, BlockPos pos,
                                        RecordingSession session) {
         // An anchor's own slots are machinery; replay refuses to reach into one anyway.
         if (player.level().getBlockState(pos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
@@ -75,16 +87,16 @@ public final class ContainerWatch {
         PENDING.put(player.getUUID(), new Pending(
                 new MenuTarget.Block(session.toLocal(pos), Optional.of(
                         player.level().getBlockState(pos).typeHolder())),
-                pos, actionIndex));
+                pos, now(player)));
     }
 
     /** The same, for an entity: a villager's trades, a horse's saddlebags, a chest boat. */
-    public static void noteInteraction(ServerPlayer player, Entity target, int actionIndex,
+    public static void noteInteraction(ServerPlayer player, Entity target,
                                        RecordingSession session) {
         PENDING.put(player.getUUID(), new Pending(
                 new MenuTarget.Entity(session.toLocal(target.position()),
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(target.getType())),
-                target.blockPosition(), actionIndex));
+                target.blockPosition(), now(player)));
     }
 
     /**
@@ -95,6 +107,11 @@ public final class ContainerWatch {
         if (pending == null) {
             return;
         }
+        // A menu opens on the tick the click that opened it arrived. Anything older belonged to a
+        // click that opened nothing, and this menu was opened by something else.
+        if (pending.tick() != now(player)) {
+            return;
+        }
         // A block menu has to be one replay can open again; an entity's is opened through the
         // entity, which the target rule finds for itself.
         if (pending.target() instanceof MenuTarget.Block
@@ -103,7 +120,8 @@ public final class ContainerWatch {
             return;
         }
 
-        session.dropActionAt(pending.actionIndex());
+        // The click that opened this is the session, not an interaction beside it.
+        InteractionWatch.claim(player);
         Watch watch = new Watch(pending.target(), pending.pos(), new ArrayList<>(),
                 player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>());
         OPEN.put(player.getUUID(), watch);
@@ -215,6 +233,11 @@ public final class ContainerWatch {
         if (session != null) {
             RecordingCapture.stop(player, session, RecordingSession.StopReason.STEP_CAP);
         }
+    }
+
+    /** The server tick this player's level is on. */
+    private static long now(ServerPlayer player) {
+        return player.level().getGameTime();
     }
 
     private static boolean watching(ServerPlayer player) {

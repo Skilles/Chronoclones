@@ -43,7 +43,8 @@ public final class UseBlockActionExecutor {
             return ActionResult.fail(FailureReason.WRONG_BLOCK, action.localPos());
         }
 
-        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), action.item().value(), ctx.slot());
+        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(),
+                ItemMatch.of(action.itemTemplate(), ctx.settings().item()), ctx.slot());
         if (loan == null) {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
         }
@@ -56,13 +57,13 @@ public final class UseBlockActionExecutor {
                         LocalSpace.stepsFromNorth(ctx.placement().facing())));
 
         FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
-                face.getOpposite().toYRot(), 0.0f, loan.stack());
+                face.getOpposite().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
             InteractionResult result = owner.gameMode.useItemOn(owner, level,
-                    owner.getMainHandItem(), action.hand(),
+                    owner.getItemInHand(action.hand()), action.hand(),
                     new BlockHitResult(hit, face, worldPos, action.inside()));
 
-            return Interactions.finish(ctx, owner, loan, result, action.localPos());
+            return Interactions.finish(ctx, owner, action.hand(), loan, result, action.localPos());
         } finally {
             ctx.release(owner);
         }

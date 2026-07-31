@@ -1,7 +1,11 @@
 package com.skilles.chronoclones.replay;
 
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
+import java.util.Optional;
+
+import com.skilles.chronoclones.recording.ActionPose;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
+import com.skilles.chronoclones.recording.LocalSpace;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.registry.ModTags;
 
@@ -50,7 +54,8 @@ public final class PlaceActionExecutor {
         // Widened to anything, the square decides what goes there rather than the recording: the
         // routine becomes "build with whatever you are given" instead of "build in cobblestone".
         int found = ctx.recordedSubject()
-                ? findSlotWith(inventory, action.item().value(), ctx.slot())
+                ? findSlotWith(inventory, ItemMatch.of(action.itemTemplate(), ctx.settings().item()),
+                        ctx.slot())
                 : findAnyBlock(inventory, ctx.slot());
         if (found < 0) {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
@@ -61,16 +66,38 @@ public final class PlaceActionExecutor {
             return ActionResult.fail(FailureReason.NOT_PLACEABLE, action.localPos());
         }
 
-        ItemStack toPlace = new ItemStack(item);
-        Direction face = ctx.placement().toWorld(action.localFace());
+        // The item as the clone actually holds it, components and all, rather than a fresh
+        // default one: a shulker box with something in it is not the same block as an empty one.
+        ItemStack toPlace = inventory.getResource(found).toStack(1);
 
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
-                0.0f, 0.0f, toPlace);
+        // Where it was clicked, if the recording remembers. A routine recorded before placements
+        // kept their click falls back to the middle of the block's own square, which is what it
+        // has always done.
+        Optional<ChronoAction.PlaceContext> recorded = action.context();
+        // The face that was clicked when the recording knows it, and the upward face it always
+        // assumed when it does not: capture writes the real one into localFace either way.
+        Direction face = ctx.placement().toWorld(action.localFace());
+        BlockPos clickedPos = recorded
+                .map(c -> ctx.placement().toWorld(c.localClicked()))
+                .orElse(worldPos);
+        Vec3 hitVec = Vec3.atCenterOf(clickedPos).add(recorded
+                .map(c -> LocalSpace.rotateY(c.localHitOffset(),
+                        LocalSpace.stepsFromNorth(ctx.placement().facing())))
+                .orElse(Vec3.ZERO));
+        boolean inside = recorded.map(ChronoAction.PlaceContext::inside).orElse(false);
+        InteractionHand hand = recorded.map(ChronoAction.PlaceContext::hand)
+                .orElse(InteractionHand.MAIN_HAND);
+
+        // Standing and looking where the player was. Vanilla reads both off the placing player to
+        // decide which way stairs face, which half a slab fills, and where a door hangs.
+        ActionPose pose = recorded.map(ChronoAction.PlaceContext::pose)
+                .orElse(ActionPose.OVER_THE_ANCHOR);
+        FakePlayer owner = ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),
+                pose.worldYaw(ctx.placement().facing()), pose.pitch(), hand, toPlace);
         try {
-            BlockHitResult hit = new BlockHitResult(
-                    Vec3.atCenterOf(worldPos), face, worldPos, false);
+            BlockHitResult hit = new BlockHitResult(hitVec, face, clickedPos, inside);
             BlockPlaceContext context = new BlockPlaceContext(
-                    level, owner, InteractionHand.MAIN_HAND, owner.getMainHandItem(), hit);
+                    level, owner, hand, owner.getItemInHand(hand), hit);
 
             if (!existing.canBeReplaced(context)) {
                 return ActionResult.fail(FailureReason.OBSTRUCTED, action.localPos());
@@ -125,26 +152,27 @@ public final class PlaceActionExecutor {
     }
 
     /** The recorded slot if it still holds the item, otherwise as much of a search as allowed. */
-    private static int findSlotWith(ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
-        if (holds(inventory, rule.preferred(), item)) {
+    private static int findSlotWith(ResourceHandler<ItemResource> inventory, ItemMatch match,
+                                    SlotRule rule) {
+        if (holds(inventory, rule.preferred(), match)) {
             return rule.preferred();
         }
         if (rule.strict()) {
             return -1;
         }
         for (int slot = 0; slot < inventory.size(); slot++) {
-            if (holds(inventory, slot, item)) {
+            if (holds(inventory, slot, match)) {
                 return slot;
             }
         }
         return -1;
     }
 
-    private static boolean holds(ResourceHandler<ItemResource> inventory, int slot, Item item) {
+    private static boolean holds(ResourceHandler<ItemResource> inventory, int slot, ItemMatch match) {
         if (slot < 0 || slot >= inventory.size()) {
             return false;
         }
         ItemResource resource = inventory.getResource(slot);
-        return !resource.isEmpty() && resource.getItem() == item && inventory.getAmountAsInt(slot) > 0;
+        return !resource.isEmpty() && match.accepts(resource) && inventory.getAmountAsInt(slot) > 0;
     }
 }

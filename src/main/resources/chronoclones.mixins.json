@@ -6,7 +6,9 @@
   "mixins": [
     "AbstractContainerMenuMixin",
     "ContainerButtonMixin",
-    "ServerMenuPacketMixin"
+    "InteractOnMixin",
+    "ServerMenuPacketMixin",
+    "UseItemOnMixin"
   ],
   "injectors": {
     "defaultRequire": 1

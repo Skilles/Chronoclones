@@ -233,6 +233,15 @@ public class RoutineEditorScreen extends Screen {
             addControl(row++, "slot", slotHelp(), slotLabel(settings().slot()),
                     () -> apply(settings().withSlot(cycled(settings().slot()))));
         }
+        if (carriesComponents()) {
+            // Only where the recorded item has something on it worth insisting on. A plain
+            // cobblestone has no components, so the control would be two names for one behaviour.
+            addControl(row++, "components", "components", componentsLabel(),
+                    () -> apply(settings().withItem(
+                            settings().item() == ActionSettings.ItemRule.EXACT
+                                    ? ActionSettings.ItemRule.SAME_ITEM
+                                    : ActionSettings.ItemRule.EXACT)));
+        }
         if (hasASubject()) {
             // The block half of the target filter: work only on what was recorded, or on whatever
             // is there. The row renames itself either way, which is most of the point of it.
@@ -333,6 +342,25 @@ public class RoutineEditorScreen extends Screen {
     private boolean swingsSomething() {
         return action() instanceof ChronoAction.BreakBlock
                 || action() instanceof ChronoAction.AttackEntity;
+    }
+
+    /**
+     * Whether the recorded item has anything on it that "the same item" would throw away.
+     */
+    private boolean carriesComponents() {
+        return switch (action()) {
+            case ChronoAction.UseOnBlock a -> !a.itemTemplate().components().isEmpty();
+            case ChronoAction.UseItem a -> !a.itemTemplate().components().isEmpty();
+            case ChronoAction.InteractEntity a -> !a.itemTemplate().components().isEmpty();
+            case ChronoAction.PlaceBlock a -> !a.itemTemplate().components().isEmpty();
+            default -> false;
+        };
+    }
+
+    private Component componentsLabel() {
+        return Component.translatable(settings().item() == ActionSettings.ItemRule.EXACT
+                ? "gui.chronoclones.editor.components.exact"
+                : "gui.chronoclones.editor.components.same_item");
     }
 
     /** Cycles the tool modes, of which there will be more than two. */

@@ -80,7 +80,34 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
         NO_ITEM("no_item", false),
         /** Target position is occupied by something that cannot be replaced. */
         OBSTRUCTED("obstructed", false),
-        NO_TARGET("no_target", false);
+
+        /**
+         * There was nothing where the routine reached.
+         *
+         * <p>Only that. Every interaction that declined used to report this, which told a player
+         * whose furnace was lit and whose crossbow was empty exactly the same thing: that a routine
+         * aimed at nothing, which was true of neither.
+         */
+        NO_TARGET("no_target", false),
+
+        /** The thing is there and it said no: an interaction that returned PASS or FAIL. */
+        REFUSED("refused", false),
+
+        /** The item is still cooling down from the last time it was used. */
+        ON_COOLDOWN("on_cooldown", false),
+
+        /** A weapon with nothing to fire, or an item with nothing left to consume. */
+        NO_AMMO("no_ammo", false),
+
+        /**
+         * The item cannot be replayed at all, rather than having declined this once.
+         *
+         * <p>Not halting, though it is tempting: a halt has to be something the anchor can notice
+         * resolving, and nothing about an item without a duration ever resolves. Halting on it
+         * would be a trap with no way out, so the routine says so on each pass and carries on with
+         * the rest of its work.
+         */
+        UNSUPPORTED("unsupported", false);
 
         public static final Codec<FailureReason> CODEC = StringRepresentable.fromEnum(FailureReason::values);
 
