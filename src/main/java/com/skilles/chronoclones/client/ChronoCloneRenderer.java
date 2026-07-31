@@ -1,14 +1,11 @@
 package com.skilles.chronoclones.client;
 
 import java.util.UUID;
-import java.util.function.Supplier;
 
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
-import com.mojang.authlib.GameProfile;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.SubmitNodeCollector;
@@ -135,20 +132,14 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
     }
 
     /**
-     * The author's skin, defaulting to the UUID-derived silhouette until the fetch lands.
+     * The author's skin, defaulting to the UUID-derived silhouette until the answer lands.
+     *
+     * <p>This used to build a profile out of the author's id and name and hand it to the skin
+     * manager, which reads textures off a profile's properties -- and a profile assembled from an
+     * id and a name has none, so every clone wore the default silhouette forever.
      */
     private static PlayerSkin skinOf(ChronoCloneEntity entity) {
         UUID author = entity.authorId();
-        if (author == null) {
-            return DefaultPlayerSkin.getDefaultSkin();
-        }
-
-        Supplier<PlayerSkin> lookup = entity.skinLookup(author);
-        if (lookup == null) {
-            lookup = Minecraft.getInstance().getSkinManager()
-                    .createLookup(new GameProfile(author, entity.authorName()), false);
-            entity.setSkinLookup(author, lookup);
-        }
-        return lookup.get();
+        return author == null ? DefaultPlayerSkin.getDefaultSkin() : AuthorSkins.of(author);
     }
 }

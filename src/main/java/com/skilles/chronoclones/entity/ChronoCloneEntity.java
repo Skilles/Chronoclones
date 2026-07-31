@@ -1,7 +1,6 @@
 package com.skilles.chronoclones.entity;
 
 import java.util.UUID;
-import java.util.function.Supplier;
 
 import com.skilles.chronoclones.registry.ModEntities;
 
@@ -14,7 +13,6 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.WalkAnimationState;
-import net.minecraft.world.entity.player.PlayerSkin;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
@@ -51,12 +49,6 @@ public class ChronoCloneEntity extends Entity {
      * Drives the walk cycle.
      */
     private final WalkAnimationState walkAnimation = new WalkAnimationState();
-
-    /**
-     * Client-side skin lookup, resolved lazily by the renderer and cached for the entity's life.
-     */
-    private @Nullable Supplier<PlayerSkin> skinLookup;
-    private @Nullable UUID skinLookupFor;
 
     public ChronoCloneEntity(EntityType<? extends ChronoCloneEntity> type, Level level) {
         super(type, level);
@@ -128,15 +120,8 @@ public class ChronoCloneEntity extends Entity {
         return this.walkAnimation;
     }
 
-    /** The cached lookup, or null if none has been made for {@code author} yet. */
-    public @Nullable Supplier<PlayerSkin> skinLookup(UUID author) {
-        return author.equals(this.skinLookupFor) ? this.skinLookup : null;
-    }
-
-    public void setSkinLookup(UUID author, Supplier<PlayerSkin> lookup) {
-        this.skinLookupFor = author;
-        this.skinLookup = lookup;
-    }
+    // Skins are cached per author on the client, not per clone: four clones of one anchor and
+    // every anchor in a base are very often the same person's, and each kept its own copy.
 
     @Override
     public void tick() {

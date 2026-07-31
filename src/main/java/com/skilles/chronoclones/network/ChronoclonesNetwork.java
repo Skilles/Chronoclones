@@ -32,6 +32,9 @@ public final class ChronoclonesNetwork {
     /** And for a routine arriving to be edited. */
     public static volatile Consumer<RoutinePayloads.Open> clientRoutineHandler = open -> { };
 
+    /** And for the face of whoever wrote a routine running nearby. */
+    public static volatile Consumer<SkinPayloads.Reply> clientSkinHandler = reply -> { };
+
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
@@ -83,5 +86,13 @@ public final class ChronoclonesNetwork {
         registrar.playToClient(RoutinePayloads.Open.TYPE,
                 RoutinePayloads.Open.STREAM_CODEC,
                 (payload, context) -> clientRoutineHandler.accept(payload));
+
+        registrar.playToServer(SkinPayloads.Request.TYPE,
+                SkinPayloads.Request.STREAM_CODEC,
+                SkinPayloads::handleRequest);
+
+        registrar.playToClient(SkinPayloads.Reply.TYPE,
+                SkinPayloads.Reply.STREAM_CODEC,
+                (payload, context) -> clientSkinHandler.accept(payload));
     }
 }

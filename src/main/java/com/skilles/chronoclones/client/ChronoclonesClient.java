@@ -36,6 +36,7 @@ public class ChronoclonesClient {
         ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
         ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
         ChronoclonesNetwork.clientRoutineHandler = ChronoclonesClient::openRoutineEditor;
+        ChronoclonesNetwork.clientSkinHandler = AuthorSkins::accept;
         // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask.
         RecordingTooltips.detailRequested = () -> {
             var window = Minecraft.getInstance().getWindow();
@@ -68,5 +69,6 @@ public class ChronoclonesClient {
         PreviewCache.forget();
         GoggleCache.forget();
         RecordingHighlights.forget();
+        AuthorSkins.forget();
     }
 }

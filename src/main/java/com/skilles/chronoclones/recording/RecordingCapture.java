@@ -440,6 +440,7 @@ public final class RecordingCapture {
         ContainerWatch.clear();
         InteractionWatch.clear();
         USE_STARTED_AT.clear();
+        com.skilles.chronoclones.network.SkinPayloads.clear();
     }
 
     // ------------------------------------------------------------------ helpers
