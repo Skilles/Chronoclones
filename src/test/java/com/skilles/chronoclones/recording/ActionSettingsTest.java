@@ -27,6 +27,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ActionSettingsTest {
 
     @Test
+    @DisplayName("finishing a target off keeps that target, whatever the lock flag says")
+    void untilDeadLocksItsTarget() {
+        TargetRule wandering = TargetRule.DEFAULT
+                .withCompletion(TargetRule.Completion.UNTIL_DEAD)
+                .withSticky(false);
+
+        // The editor cannot build this any more, but a hand-edited or traded recording can, and
+        // "keep swinging until the target dies" means nothing while the target keeps changing.
+        assertTrue(wandering.locksTarget(),
+                "an until-dead attack that re-picks each swing leaves a pen of half-hurt animals");
+    }
+
+    @Test
+    @DisplayName("a single swing only keeps its target when it was asked to")
+    void onceLocksOnlyWhenAsked() {
+        TargetRule once = TargetRule.DEFAULT.withCompletion(TargetRule.Completion.ONCE);
+
+        assertFalse(once.locksTarget());
+        assertTrue(once.withSticky(true).locksTarget());
+    }
+
+    @Test
     @DisplayName("an unedited action prefers its recorded square and searches on from there")
     void defaultsAreWhatThePlayerDid() {
         SlotRule rule = SlotRule.prefer(4);

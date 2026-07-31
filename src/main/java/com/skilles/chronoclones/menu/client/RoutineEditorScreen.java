@@ -243,9 +243,9 @@ public class RoutineEditorScreen extends Screen {
                                     : ActionSettings.ItemRule.EXACT)));
         }
         if (hasASubject()) {
-            // The block half of the target filter: work only on what was recorded, or on whatever
-            // is there. The row renames itself either way, which is most of the point of it.
-            addControl(row++, "subject", "subject", subjectLabel(),
+            // Named for what it decides, which differs by action: a break and a use pick what they
+            // act on, a placement picks what it builds from, and a swing picks what it swings at.
+            addControl(row++, subjectOption(), subjectOption(), subjectValue(),
                     () -> apply(settings().withRecordedSubject(!settings().recordedSubject())));
         }
         if (action() instanceof ChronoAction.AttackEntity) {
@@ -261,18 +261,11 @@ public class RoutineEditorScreen extends Screen {
         if (action() instanceof ChronoAction.UseContainer session) {
             row = addCarrierControls(session, row);
         }
-        if (looksForATarget()) {
+        if (locksItsTarget()) {
             addCheckbox(row++, "gui.chronoclones.editor.label.sticky", settings().target().sticky(),
                     on -> apply(settings().withTarget(settings().target().withSticky(on))));
-            // Only once the action has been widened off the recorded creature. While it insists on
-            // that one, a filter cannot narrow it further and must not look as though it could.
-            if (!settings().recordedSubject()) {
-                addControl(row++, "target", "target", targetLabel(), () -> {
-                    TargetRule rule = settings().target();
-                    apply(settings().withTarget(rule.withFilter(
-                            rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
-                });
-            }
+        }
+        if (looksForATarget()) {
             addSlider(row++, "radius", "radius", new RadiusSlider(font, controlX(), controlRowY(row - 1),
                     CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
                     radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
@@ -296,7 +289,7 @@ public class RoutineEditorScreen extends Screen {
         });
         // Labelled "Amount" like a move's, but a different question: a ceiling on what the session
         // may carry in, not how much of one square a click takes.
-        addSlider(firstRow + 1, "amount", "quantity", new QuantitySlider(font, controlX(),
+        addSlider(firstRow + 1, "quantity", "quantity", new QuantitySlider(font, controlX(),
                 controlRowY(firstRow + 1), CONTROL_WIDTH, CONTROL_HEIGHT,
                 settings().transfer().quantity(),
                 cap -> apply(settings().withTransfer(
@@ -370,6 +363,27 @@ public class RoutineEditorScreen extends Screen {
     }
 
     /**
+     * A square of a clone's storage, named the way the inventory screen is laid out.
+     *
+     * <p>A clone holds a player's thirty-six squares: nine on the hotbar and three rows of nine
+     * above them. The raw index is an implementation detail nobody has to see.
+     */
+    private static Component slotName(int slot) {
+        if (slot < 0) {
+            return Component.translatable("gui.chronoclones.editor.slot.unrecorded");
+        }
+        if (slot < HOTBAR_SIZE) {
+            return Component.translatable("gui.chronoclones.editor.slot.hotbar", slot + 1);
+        }
+        int stored = slot - HOTBAR_SIZE;
+        return Component.translatable("gui.chronoclones.editor.slot.stored",
+                stored / HOTBAR_SIZE + 1, stored % HOTBAR_SIZE + 1);
+    }
+
+    /** A row of the inventory, which is also the whole of the hotbar. */
+    private static final int HOTBAR_SIZE = 9;
+
+    /**
      * Which sentence explains the slot control here.
      *
      * <p>Every one of these is a square of the clone's own inventory; what comes out of it is what
@@ -398,6 +412,18 @@ public class RoutineEditorScreen extends Screen {
     }
 
     /** True for the actions that have to find something again rather than reach a square. */
+    /**
+     * Whether the target lock is worth offering here.
+     *
+     * <p>Only a swing reads it, so only a swing shows it -- and not even then while the action is
+     * set to finish its target off, because that already implies staying on the one it chose and a
+     * control that cannot be turned off is not a control.
+     */
+    private boolean locksItsTarget() {
+        return action() instanceof ChronoAction.AttackEntity
+                && settings().target().completion() == TargetRule.Completion.ONCE;
+    }
+
     private boolean looksForATarget() {
         return action() instanceof ChronoAction.AttackEntity
                 || action() instanceof ChronoAction.InteractEntity
@@ -424,9 +450,9 @@ public class RoutineEditorScreen extends Screen {
                 on -> applyStep(stepSettings().withEnabled(on)));
 
         if (!(selectedStep() instanceof SessionStep.Move move)) {
-            if (selectedStep() instanceof SessionStep.RawClick) {
-                return;
-            }
+            // Raw clicks included. They are the steps a reader can make least sense of -- a slot
+            // number and a button -- so they are the ones a name helps most, and they were the only
+            // kind that could not be given one.
             addName(step.name(), this::renameStep);
             return;
         }
@@ -563,16 +589,14 @@ public class RoutineEditorScreen extends Screen {
         }, true));
     }
 
-    /** Reordering is not built yet; the greyed buttons hold its place so the layout is honest. */
+    /**
+     * The bar that acts on the selected action.
+     *
+     * <p>It used to carry greyed +, ^ and v buttons holding a place for reordering. Reordering is
+     * still not built, and three permanently dead controls read as a broken screen rather than as a
+     * promise, so they are gone until there is something behind them.
+     */
     private void addBottomBar() {
-        String[] placeholders = {"+", "^", "v"};
-        for (int i = 0; i < placeholders.length; i++) {
-            FlatButton button = new FlatButton(font, left + MARGIN + i * 21, top + BAR_Y,
-                    18, BAR_HEIGHT, Component.literal(placeholders[i]), () -> { });
-            button.active = false;
-            addRenderableWidget(button);
-        }
-
         FlatButton delete = new FlatButton(font, left + WIDTH - MARGIN - 110, top + BAR_Y,
                 110, BAR_HEIGHT, Component.translatable("gui.chronoclones.editor.delete"), () -> {
             flushName();
@@ -585,7 +609,9 @@ public class RoutineEditorScreen extends Screen {
             rebuildControls();
         });
         // Nothing to delete, and nothing to select either.
-        delete.active = !actions().isEmpty();
+        // Greyed rather than hidden while a step is selected: it only ever removes whole actions,
+        // and a button that vanishes as the selection moves is harder to trust than one that dims.
+        delete.active = !actions().isEmpty() && !selectedRow().isStep();
         addRenderableWidget(delete);
     }
 
@@ -611,21 +637,6 @@ public class RoutineEditorScreen extends Screen {
         return settings().step(selectedRow().step());
     }
 
-    /** True for the action families that choose something to act on rather than a square. */
-    private boolean isTargeted() {
-        return action() instanceof ChronoAction.AttackEntity
-                || action() instanceof ChronoAction.InteractEntity;
-    }
-
-    private Holder<net.minecraft.world.entity.EntityType<?>> recordedType() {
-        return switch (action()) {
-            case ChronoAction.AttackEntity a -> a.expectedType();
-            case ChronoAction.InteractEntity a -> a.expectedType();
-            case ChronoAction.UseContainer a when a.target() instanceof MenuTarget.Entity entity ->
-                    entity.expectedType();
-            default -> throw new IllegalStateException("not a targeted action");
-        };
-    }
 
     /**
      * Applies a change locally and tells the server, which re-checks it rather than trusting us.
@@ -676,7 +687,12 @@ public class RoutineEditorScreen extends Screen {
         g.fill(left, top, left + WIDTH, top + HEIGHT, AnchorPanels.WINDOW);
 
         g.text(font, title, left + MARGIN, top + TITLE_Y, AnchorPanels.TEXT);
-        String count = Component.translatable("gui.chronoclones.editor.count",
+        // Singular and plural, as the step counts already are: "1 actions" is the sort of thing
+        // that makes a screen look unfinished.
+        String count = Component.translatable(
+                actions().size() == 1
+                        ? "gui.chronoclones.editor.count.one"
+                        : "gui.chronoclones.editor.count",
                 actions().size()).getString();
         g.text(font, count, left + WIDTH - MARGIN - DISCARD_WIDTH - 6 - font.width(count),
                 top + TITLE_Y, AnchorPanels.MUTED);
@@ -700,8 +716,13 @@ public class RoutineEditorScreen extends Screen {
         g.setComponentTooltipForNextFrame(font, List.of(
                 Component.literal(rowTitle(timed)),
                 Component.literal(summaryOf(timed)),
-                Component.translatable("gui.chronoclones.editor.at", timed.tick() / 20.0f)),
+                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick()))),
                 mouseX, mouseY);
+    }
+
+    /** A tick count as seconds, to one decimal, which is how every other surface reads it. */
+    private static String seconds(int ticks) {
+        return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0f);
     }
 
     /** How near the pointer has to be to a mark to be asking about it. */
@@ -852,7 +873,9 @@ public class RoutineEditorScreen extends Screen {
         g.fill(x + 3, top, x + width - 3, bottom, AnchorPanels.wash(colour, current ? 42 : 26));
         g.fill(x + 3, top, x + 3 + CARD_STRIP, bottom, AnchorPanels.wash(colour, 90));
 
-        String at = timed.tick() / 20 + "s";
+        // The same reading as the timeline tooltip and the item detail. A card that said 1s
+        // beside a tooltip saying 1.9s looked like two different actions.
+        String at = seconds(timed.tick()) + "s";
         g.text(font, at, x + 3 + (CARD_STRIP - font.width(at)) / 2, y + 7, AnchorPanels.TEXT);
 
         int iconX = x + 3 + CARD_STRIP + 4;
@@ -1065,7 +1088,7 @@ public class RoutineEditorScreen extends Screen {
         }
         return Component.translatable(rule.mode() == SlotRule.Mode.EXACT
                 ? "gui.chronoclones.editor.slot.exact"
-                : "gui.chronoclones.editor.slot.prefer", rule.slot());
+                : "gui.chronoclones.editor.slot.prefer", slotName(rule.slot()));
     }
 
     /**
@@ -1087,10 +1110,44 @@ public class RoutineEditorScreen extends Screen {
     }
 
     /** The recorded block, or the word for having stopped caring which block it is. */
-    private Component subjectLabel() {
-        if (!settings().recordedSubject()) {
-            return Component.translatable("gui.chronoclones.editor.subject.any");
+    /**
+     * Which question this row's subject control is asking.
+     *
+     * <p>One setting, three questions. A break and a use-on choose what to act on; a placement
+     * chooses what to build out of, which is the opposite direction entirely and was described with
+     * the same sentence as the other two; a swing chooses what to swing at.
+     */
+    private String subjectOption() {
+        return switch (action()) {
+            case ChronoAction.PlaceBlock ignored -> "material";
+            case ChronoAction.AttackEntity ignored -> "target_type";
+            case ChronoAction.InteractEntity ignored -> "target_type";
+            case ChronoAction.UseContainer ignored -> "target_type";
+            default -> "target_block";
+        };
+    }
+
+    /**
+     * What this row will act on, or build from, said the way replay actually behaves.
+     *
+     * <p>A widened creature action is not indifferent: it still prefers the kind that was recorded
+     * and only settles for something else when none is about. "Prefer Cow" says that; "Anything"
+     * said the recorded kind counted for nothing.
+     */
+    private Component subjectValue() {
+        Component recorded = recordedSubjectName();
+        if (settings().recordedSubject()) {
+            return picksACreature()
+                    ? Component.translatable("gui.chronoclones.editor.subject.only", recorded)
+                    : recorded;
         }
+        return picksACreature()
+                ? Component.translatable("gui.chronoclones.editor.subject.prefer", recorded)
+                : Component.translatable("gui.chronoclones.editor.subject.any_block");
+    }
+
+    /** The thing this action was recorded against, by name. */
+    private Component recordedSubjectName() {
         return switch (action()) {
             case ChronoAction.BreakBlock a -> a.expectedBlock().value().getName();
             case ChronoAction.PlaceBlock a -> Component.translatable(
@@ -1101,25 +1158,20 @@ public class RoutineEditorScreen extends Screen {
             case ChronoAction.InteractEntity a -> a.expectedType().value().getDescription();
             case ChronoAction.UseContainer a when a.target() instanceof MenuTarget.Entity entity ->
                     entity.expectedType().value().getDescription();
-            default -> Component.translatable("gui.chronoclones.editor.subject.any");
+            default -> Component.translatable("gui.chronoclones.editor.subject.any_block");
         };
+    }
+
+    /** True for the actions whose subject is a creature rather than a block. */
+    private boolean picksACreature() {
+        return action() instanceof ChronoAction.AttackEntity
+                || action() instanceof ChronoAction.InteractEntity
+                || action() instanceof ChronoAction.UseContainer;
     }
 
     private Component completionLabel() {
         return Component.translatable("gui.chronoclones.editor.completion."
                 + settings().target().completion().getSerializedName());
-    }
-
-    private Component stickyLabel() {
-        return Component.translatable(settings().target().sticky()
-                ? "gui.chronoclones.editor.sticky.on"
-                : "gui.chronoclones.editor.sticky.off");
-    }
-
-    private Component targetLabel() {
-        return settings().target().filter().isEmpty()
-                ? Component.translatable("gui.chronoclones.editor.filter.any")
-                : recordedType().value().getDescription();
     }
 
     private Component itemsLabel() {

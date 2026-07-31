@@ -323,6 +323,21 @@ public record ActionSettings(String name, SlotRule slot, ToolRule tool, boolean 
             return false;
         }
 
+        /**
+         * Whether this action stays on the creature it chose.
+         *
+         * <p>Finishing something off means finishing <em>that</em> one. Picking afresh every swing
+         * with an until-dead action was a contradiction the editor let you build: the wording
+         * promised to keep going until the target was dead while the selection wandered between
+         * whatever was nearest, so a pen of cows all ended up half-hurt and none of them died.
+         *
+         * <p>Asked here rather than checked at each call site, so a recording that arrives from
+         * somewhere else cannot express the contradiction either.
+         */
+        public boolean locksTarget() {
+            return sticky || completion == Completion.UNTIL_DEAD;
+        }
+
         /** A setting may narrow the anchor's reach but never extend it. */
         public double radiusWithin(int maxRadius) {
             return Math.clamp(radius, 0.0, maxRadius);

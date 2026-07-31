@@ -8,21 +8,28 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
 
 /**
- * A ceiling on what a container session may carry, in items.
+ * A ceiling on what a container session may carry in, in items.
  *
- * <p>Zero is the bottom of the scale and means no ceiling at all, because "as much as the clone is
- * holding" is the default and a slider needs somewhere to put it.
+ * <p>Snapped to a ladder rather than free-running. The old slider ran from nothing to sixty-four on
+ * the assumption that a stack was as good as no limit -- but a session lends from every square the
+ * clone owns, not from one, so a cap of sixty-four and no cap at all are genuinely different
+ * settings and there was no way to ask for anything in between them and unlimited.
  */
 final class QuantitySlider extends FlatSlider {
 
-    /** A stack's worth: past this a cap is the same as no cap. */
-    private static final int MAX = 64;
+    /**
+     * The choices, from no ceiling upwards.
+     *
+     * <p>Zero is the bottom of the scale and means no ceiling at all, because that is the default
+     * and a slider needs somewhere to put it.
+     */
+    private static final int[] STOPS = {0, 1, 8, 16, 32, 64, 128, 256};
 
     private final IntConsumer onChange;
 
     QuantitySlider(Font font, int x, int y, int width, int height, QuantityRule rule,
                    IntConsumer onChange) {
-        super(font, x, y, width, height, Math.clamp(capOf(rule) / (double) MAX, 0.0, 1.0));
+        super(font, x, y, width, height, positionOf(capOf(rule)));
         this.onChange = onChange;
         updateMessage();
     }
@@ -31,8 +38,20 @@ final class QuantitySlider extends FlatSlider {
         return rule.mode() == QuantityRule.Mode.ANY ? 0 : rule.count();
     }
 
+    /** Where on the bar a cap sits: the nearest stop at or below it, so a saved value keeps. */
+    private static double positionOf(int cap) {
+        int index = 0;
+        for (int stop = 0; stop < STOPS.length; stop++) {
+            if (STOPS[stop] <= cap) {
+                index = stop;
+            }
+        }
+        return index / (double) (STOPS.length - 1);
+    }
+
     private int cap() {
-        return (int) Math.round(value * MAX);
+        int index = (int) Math.round(value * (STOPS.length - 1));
+        return STOPS[Math.clamp(index, 0, STOPS.length - 1)];
     }
 
     @Override

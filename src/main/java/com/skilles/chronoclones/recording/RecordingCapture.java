@@ -229,6 +229,23 @@ public final class RecordingCapture {
     }
 
     /**
+     * The square the player took this action's item out of.
+     *
+     * <p>Every action used to be stamped with the selected hotbar slot, including the ones recorded
+     * off-hand -- so an off-hand interaction claimed to prefer a main-hand square that had nothing
+     * to do with it, and the editor offered that square as a setting.
+     *
+     * <p>An off-hand action names no square at all. A clone's storage is a player's thirty-six
+     * squares and has no off-hand among them, so there is no honest index to record: the routine
+     * takes its item from wherever it can find one, which is what it was already doing.
+     */
+    private static int reachedInto(ServerPlayer player, ChronoAction action) {
+        return action.heldHand() == InteractionHand.OFF_HAND
+                ? ActionSettings.SlotRule.NONE
+                : player.getInventory().getSelectedSlot();
+    }
+
+    /**
      * Where this player is standing and how they are looking, in the routine's own space.
      *
      * <p>Taken at the moment of the action rather than interpolated from the motion track
@@ -436,7 +453,7 @@ public final class RecordingCapture {
                                 ChronoAction action, Vec3 worldPos, @Nullable UUID target) {
         // The slot, not just the item: a clone reaches into the square the player reached into.
         RecordingSession.StopReason stop = session.record(
-                action, worldPos, player.getInventory().getSelectedSlot(), target);
+                action, worldPos, reachedInto(player, action), target);
         if (stop != null) {
             stop(player, session, stop);
         }

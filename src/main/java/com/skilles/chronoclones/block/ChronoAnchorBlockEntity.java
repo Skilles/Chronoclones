@@ -442,7 +442,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                                   ChronoAction.AttackEntity action, ActionSettings settings,
                                   Placement placement, Direction facing, int cost) {
         ActionSettings.TargetRule rule = settings.target();
-        LivingEntity sticky = rule.sticky() ? runtime.target(serverLevel) : null;
+        LivingEntity sticky = rule.locksTarget() ? runtime.target(serverLevel) : null;
 
         ActionContext ctx = contextFor(serverLevel, runtime, placement, settings);
         AttackOutcome attack = AttackActionExecutor.execute(ctx, action, sticky);
