@@ -91,7 +91,29 @@ public sealed interface ChronoAction {
     }
 
     /** Right-clicking with nothing targeted: throwing, eating, firing a bow. */
-    record UseItem(InteractionHand hand, Holder<Item> item) implements ChronoAction {
+    /**
+     * Right-clicking with nothing targeted.
+     *
+     * @param holdTicks how long the player held it down, or 0 for a use that finished the instant
+     *                  it started. A bow, a crossbow, a trident, food and a shield all have a
+     *                  duration, and replaying one as an instant click could never fire, eat or
+     *                  block anything -- so the time is part of what was recorded.
+     */
+    record UseItem(InteractionHand hand, Holder<Item> item, int holdTicks) implements ChronoAction {
+
+        public UseItem(InteractionHand hand, Holder<Item> item) {
+            this(hand, item, 0);
+        }
+
+        /** True for the items that have to be held rather than clicked. */
+        public boolean isHeld() {
+            return holdTicks > 0;
+        }
+
+        public UseItem heldFor(int ticks) {
+            return new UseItem(hand, item, Math.max(0, ticks));
+        }
+
         @Override
         public ChronoActionType type() {
             return ChronoActionType.USE_ITEM;

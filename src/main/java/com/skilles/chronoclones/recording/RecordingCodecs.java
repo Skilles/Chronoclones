@@ -92,9 +92,14 @@ public final class RecordingCodecs {
                     .forGetter(ChronoAction.UseOnBlock::expectedBlock)
     ).apply(i, ChronoAction.UseOnBlock::new));
 
+    /**
+     * The {@code hold} field is optional: routines recorded before a use had a duration read as
+     * instant, which is exactly how they behaved.
+     */
     static final MapCodec<ChronoAction.UseItem> USE_ITEM = RecordCodecBuilder.mapCodec(i -> i.group(
             HAND.fieldOf("hand").forGetter(ChronoAction.UseItem::hand),
-            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseItem::item)
+            BuiltInRegistries.ITEM.holderByNameCodec().fieldOf("item").forGetter(ChronoAction.UseItem::item),
+            Codec.INT.optionalFieldOf("hold", 0).forGetter(ChronoAction.UseItem::holdTicks)
     ).apply(i, ChronoAction.UseItem::new));
 
     static final MapCodec<ChronoAction.InteractEntity> INTERACT_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -291,6 +296,7 @@ public final class RecordingCodecs {
             StreamCodec.composite(
                     InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseItem::hand,
                     ByteBufCodecs.holderRegistry(Registries.ITEM), ChronoAction.UseItem::item,
+                    ByteBufCodecs.VAR_INT, ChronoAction.UseItem::holdTicks,
                     ChronoAction.UseItem::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.InteractEntity> INTERACT_ENTITY_STREAM =
@@ -547,14 +553,29 @@ public final class RecordingCodecs {
 
     // ------------------------------------------------------------------ recording
 
-    public static final Codec<Recording> RECORDING = RecordCodecBuilder.create(i -> i.group(
+    /**
+     * The structural half of {@link RecordingLimits}, enforced on the way in and the way out.
+     *
+     * <p>Only the counts: measuring the encoded size needs the registries, which a codec is not
+     * handed. What this catches is the shape that grows without bound -- a container session with
+     * more clicks in it than a session may hold -- so an edited save or a hand-built item cannot
+     * put one where the caps at the doors never looked.
+     */
+    public static final Codec<Recording> RECORDING = RecordCodecBuilder.<Recording>create(i -> i.group(
             MOTION_SAMPLE.listOf().fieldOf("motion").forGetter(Recording::motion),
             TIMED_ACTION.listOf().fieldOf("actions").forGetter(Recording::actions),
             Codec.INT.fieldOf("length").forGetter(Recording::lengthTicks),
             Codec.STRING.fieldOf("author_name").forGetter(Recording::authorName),
             UUIDUtil.CODEC.fieldOf("author_id").forGetter(Recording::authorId),
             Codec.BOOL.optionalFieldOf("creative", false).forGetter(Recording::creative)
-    ).apply(i, Recording::new));
+    ).apply(i, Recording::new)).validate(RecordingCodecs::withinStructuralLimits);
+
+    private static DataResult<Recording> withinStructuralLimits(Recording recording) {
+        RecordingLimits.Refusal refusal = RecordingLimits.refuse(recording, null);
+        return refusal == null
+                ? DataResult.success(recording)
+                : DataResult.error(() -> "recording refused: " + refusal.name());
+    }
 
     public static final StreamCodec<RegistryFriendlyByteBuf, Recording> RECORDING_STREAM =
             StreamCodec.composite(

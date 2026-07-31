@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.skilles.chronoclones.ChronoclonesConfig;
 import com.skilles.chronoclones.network.RecordingHighlightPayload;
 import com.skilles.chronoclones.registry.ModTags;
 
@@ -195,6 +196,25 @@ public final class ContainerWatch {
             }
         }
         publish(player, watch);
+        stopIfOverfull(player, watch);
+    }
+
+    /**
+     * Ends the recording once one session has collected more clicks than a session may hold.
+     *
+     * <p>The action cap counts actions, and a whole container session is one of them however long
+     * somebody stands in an open chest clicking. Without this, that one action grows until it is
+     * too large to send or to save -- so this is the cap that actually bounds it, and it stops the
+     * recording rather than quietly truncating what the player is in the middle of doing.
+     */
+    private static void stopIfOverfull(ServerPlayer player, Watch watch) {
+        if (watch.clicks().size() < ChronoclonesConfig.maxContainerSteps()) {
+            return;
+        }
+        RecordingSession session = RecordingSessions.get(player);
+        if (session != null) {
+            RecordingCapture.stop(player, session, RecordingSession.StopReason.STEP_CAP);
+        }
     }
 
     private static boolean watching(ServerPlayer player) {
@@ -236,6 +256,7 @@ public final class ContainerWatch {
         Watch watch = OPEN.get(player.getUUID());
         if (watch != null) {
             watch.clicks().add(new SessionSteps.Event.Did(step));
+            stopIfOverfull(player, watch);
         }
     }
 

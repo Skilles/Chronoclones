@@ -21,6 +21,7 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.transfer.item.ItemResource;
 
 /**
  * Attacks that pursue an outcome rather than repeating a count of swings.
@@ -38,6 +39,16 @@ final class AttackIntentGameTest {
                 AttackIntentGameTest::untilDeadFinishesTheKill);
         ChronoclonesGameTests.add("attack_until_dead_gives_up_eventually",
                 AttackIntentGameTest::untilDeadGivesUpEventually);
+        ChronoclonesGameTests.add("attack_needs_a_weapon_it_owns",
+                AttackIntentGameTest::needsAWeaponItOwns);
+        ChronoclonesGameTests.add("attack_returns_the_weapon_it_borrowed",
+                AttackIntentGameTest::returnsTheWeaponItBorrowed);
+        ChronoclonesGameTests.add("attack_smart_picks_the_hardest_hitter",
+                AttackIntentGameTest::smartPicksTheHardestHitter);
+        ChronoclonesGameTests.add("attack_spares_a_creature_it_did_not_record",
+                AttackIntentGameTest::sparesACreatureItDidNotRecord);
+        ChronoclonesGameTests.add("attack_widened_takes_whatever_is_there",
+                AttackIntentGameTest::widenedTakesWhateverIsThere);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
@@ -177,6 +188,138 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
+    /**
+     * A swing takes its weapon out of the anchor, so an anchor without one does not swing.
+     *
+     * <p>This is the whole of why attacks stopped reading the recording: the weapon template is a
+     * copy of whatever the player happened to be holding, and an anchor that could swing it without
+     * owning it turned one enchanted sword into an unlimited supply of them.
+     */
+    private static void needsAWeaponItOwns(GameTestHelper helper) {
+        Mob cow = spawn(helper, ANCHOR.north());
+        ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
+        // After imprinting, which stocks the weapon: the point is an anchor that has none.
+        takeEverythingBack(anchor);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (cow.getHealth() < cow.getMaxHealth()) {
+                        helper.fail("an anchor holding no sword swung one anyway, for "
+                                + (cow.getMaxHealth() - cow.getHealth()) + " damage");
+                    }
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
+                        helper.fail("expected the swing to report having no weapon, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Lent, not spent: the sword comes home, and it comes home worn. */
+    private static void returnsTheWeaponItBorrowed(GameTestHelper helper) {
+        spawn(helper, ANCHOR.north());
+        ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    ItemStack sword = AnchorTestFixture.findStack(anchor.getInventory(),
+                            Items.NETHERITE_SWORD);
+                    if (sword == null) {
+                        helper.fail("the anchor swung its sword and never got it back");
+                    }
+                    if (sword.getDamageValue() == 0) {
+                        helper.fail("the sword came back untouched, so the swing skipped durability");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * Told to choose, the anchor swings the better of what it holds rather than what was recorded.
+     */
+    private static void smartPicksTheHardestHitter(GameTestHelper helper) {
+        Mob cow = spawn(helper, ANCHOR.north());
+        ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
+                TargetRule.DEFAULT, 20, ActionSettings.ToolRule.SMART);
+        takeEverythingBack(anchor);
+        // Neither of these is the recorded netherite sword, and one of them hurts far more.
+        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.WOODEN_SHOVEL)), 1);
+        anchor.getCloneInventory(0).set(1, ItemResource.of(new ItemStack(Items.DIAMOND_AXE)), 1);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    ItemStack axe = AnchorTestFixture.findStack(anchor.getInventory(),
+                            Items.DIAMOND_AXE);
+                    if (axe == null || axe.getDamageValue() == 0) {
+                        helper.fail("a smart swing left the axe alone and reached for something else");
+                    }
+                    if (cow.getHealth() >= cow.getMaxHealth()) {
+                        helper.fail("a smart swing with an axe in the anchor did nothing at all");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /**
+     * A routine taught on a cow leaves the pig alone.
+     *
+     * <p>The default used to be the other way about: an empty filter admitted every kind of
+     * creature and the recorded one was only a preference, so a routine that killed one cow in a
+     * pen would happily start on whatever wandered in after the cows ran out.
+     */
+    private static void sparesACreatureItDidNotRecord(GameTestHelper helper) {
+        Mob pig = spawnPig(helper, ANCHOR.north());
+        ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (pig.getHealth() < pig.getMaxHealth()) {
+                        helper.fail("a routine recorded against a cow attacked a pig, for "
+                                + (pig.getMaxHealth() - pig.getHealth()) + " damage");
+                    }
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_TARGET) {
+                        helper.fail("expected the swing to report no cow, got "
+                                + anchor.getLastFailure().reason());
+                    }
+                })
+                .thenSucceed();
+    }
+
+    /** Widened off the recorded creature, it goes back to taking the nearest thing. */
+    private static void widenedTakesWhateverIsThere(GameTestHelper helper) {
+        Mob pig = spawnPig(helper, ANCHOR.north());
+        attackingAnchor(helper, TargetRule.DEFAULT, 20, ActionSettings.ToolRule.EXACT, false);
+
+        helper.startSequence()
+                .thenExecuteAfter(20, () -> {
+                    if (pig.getHealth() >= pig.getMaxHealth()) {
+                        helper.fail("an attack widened to any creature still refused the pig");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static Mob spawnPig(GameTestHelper helper, BlockPos relative) {
+        Mob pig = EntityTypes.PIG.spawn(helper.getLevel(), helper.absolutePos(relative),
+                EntitySpawnReason.TRIGGERED);
+        if (pig == null) {
+            helper.fail("could not spawn the pig this test is about");
+            throw new IllegalStateException("unreachable");
+        }
+        pig.setNoAi(true);
+        return pig;
+    }
+
+    /** Empties every clone, including whatever the fixture handed out. */
+    private static void takeEverythingBack(ChronoAnchorBlockEntity anchor) {
+        for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
+            var inventory = anchor.getCloneInventory(clone);
+            for (int slot = 0; slot < inventory.size(); slot++) {
+                inventory.set(slot, ItemResource.EMPTY, 0);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------- helpers
 
     /**
@@ -208,12 +351,27 @@ final class AttackIntentGameTest {
         return attackingAnchor(helper, rule, 20);
     }
 
-    /**
-     * @param length how long the routine runs before looping, which is what separates an action
-     *               that held the timeline from one the next loop simply repeated
-     */
     private static ChronoAnchorBlockEntity attackingAnchor(GameTestHelper helper, TargetRule rule,
                                                            int length) {
+        return attackingAnchor(helper, rule, length, ActionSettings.ToolRule.EXACT);
+    }
+
+    private static ChronoAnchorBlockEntity attackingAnchor(GameTestHelper helper, TargetRule rule,
+                                                           int length,
+                                                           ActionSettings.ToolRule weapon) {
+        return attackingAnchor(helper, rule, length, weapon, true);
+    }
+
+    /**
+     * @param length   how long the routine runs before looping, which is what separates an action
+     *                 that held the timeline from one the next loop simply repeated
+     * @param weapon   whether the swing insists on the recorded weapon or picks for itself
+     * @param recorded whether it insists on the recorded creature or takes whatever is nearest
+     */
+    private static ChronoAnchorBlockEntity attackingAnchor(GameTestHelper helper, TargetRule rule,
+                                                           int length,
+                                                           ActionSettings.ToolRule weapon,
+                                                           boolean recorded) {
         ChronoAction.AttackEntity swing = new ChronoAction.AttackEntity(
                 Vec3.atCenterOf(RECORDED),
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
@@ -221,7 +379,8 @@ final class AttackIntentGameTest {
 
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR, new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
-                List.of(new TimedAction(1, swing, ActionSettings.DEFAULT.withTarget(rule))),
+                List.of(new TimedAction(1, swing, ActionSettings.DEFAULT
+                        .withTarget(rule).withTool(weapon).withRecordedSubject(recorded))),
                 length, AnchorTestFixture.AUTHOR_NAME, AnchorTestFixture.AUTHOR_ID));
     }
 }

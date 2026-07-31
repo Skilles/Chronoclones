@@ -1,0 +1,70 @@
+package com.skilles.chronoclones.replay;
+
+import java.util.List;
+
+import com.skilles.chronoclones.ChronoclonesConfig;
+import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
+import com.skilles.chronoclones.entity.ChronoCloneEntity;
+import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
+import com.skilles.chronoclones.recording.ChronoAction;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.common.util.FakePlayer;
+
+/**
+ * Right-clicking an entity: shearing, milking, feeding, or a mod's own interaction.
+ */
+public final class InteractEntityActionExecutor {
+
+    private InteractEntityActionExecutor() {}
+
+    public static ActionResult execute(ActionContext ctx, ChronoAction.InteractEntity action) {
+        ServerLevel level = ctx.level();
+        Vec3 worldPos = ctx.placement().toWorld(action.localPos());
+        BlockPos localBlock = BlockPos.containing(action.localPos());
+
+        if (!ctx.placement().withinRadius(worldPos)) {
+            return ActionResult.fail(FailureReason.OUT_OF_RANGE, localBlock);
+        }
+        if (!level.isLoaded(BlockPos.containing(worldPos))) {
+            return ActionResult.fail(FailureReason.UNLOADED, localBlock);
+        }
+
+        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        TargetRule rule = ctx.target();
+        AABB box = Targeting.boxAround(worldPos, rule);
+        List<Entity> candidates = level.getEntitiesOfClass(Entity.class, box, entity ->
+                entity.isAlive()
+                        && !(entity instanceof ChronoCloneEntity)
+                        && !entity.getUUID().equals(ctx.operator().id())
+                        && (allowPvp || !(entity instanceof Player))
+                        && rule.accepts(entity.getType()));
+
+        Entity target = Targeting.choose(candidates, worldPos, action.expectedType().value(),
+                ctx.recordedSubject());
+        if (target == null) {
+            return ActionResult.fail(FailureReason.NO_TARGET, localBlock);
+        }
+
+        HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), action.item().value(), ctx.slot());
+        if (loan == null) {
+            return ActionResult.fail(FailureReason.NO_ITEM, localBlock);
+        }
+
+        FakePlayer owner = ctx.acquire(worldPos,
+                ctx.placement().facing().toYRot(), 0.0f, loan.stack());
+        try {
+            InteractionResult result = owner.interactOn(target, action.hand(),
+                    worldPos.subtract(target.position()));
+            return Interactions.finish(ctx, owner, loan, result, localBlock);
+        } finally {
+            ctx.release(owner);
+        }
+    }
+}

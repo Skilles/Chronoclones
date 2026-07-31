@@ -95,6 +95,54 @@ public final class CloneRuntime {
         miningPos = null;
     }
 
+    // ------------------------------------------------------------------ held items
+
+    /**
+     * The item this clone is currently holding down, and how long it has been holding it.
+     *
+     * <p>Unlike everything else here, this outlives the tick: an item with a duration is one action
+     * spread over many, and the loan taken to start it has to survive until it is let go. Nothing
+     * else in the routine may run while this is set.
+     */
+    private HeldItemLoan.@Nullable Loan usingLoan;
+
+    /** Ammunition lent alongside it, for the weapons that need something to fire. */
+    private HeldItemLoan.@Nullable Loan ammoLoan;
+    private int usingTicks;
+
+    public HeldItemLoan.@Nullable Loan usingLoan() {
+        return usingLoan;
+    }
+
+    public HeldItemLoan.@Nullable Loan ammoLoan() {
+        return ammoLoan;
+    }
+
+    public boolean isUsing() {
+        return usingLoan != null;
+    }
+
+    /** How many ticks the clone has been holding it down. */
+    public int usingTicks() {
+        return usingTicks;
+    }
+
+    public void beginUse(HeldItemLoan.Loan loan, HeldItemLoan.@Nullable Loan ammo) {
+        usingLoan = loan;
+        ammoLoan = ammo;
+        usingTicks = 0;
+    }
+
+    public void tickUse() {
+        usingTicks++;
+    }
+
+    public void clearUse() {
+        usingLoan = null;
+        ammoLoan = null;
+        usingTicks = 0;
+    }
+
     // ------------------------------------------------------------------ targets
 
     /**

@@ -8,6 +8,7 @@ import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.recording.RecordingLimits;
 import com.skilles.chronoclones.recording.RecordingCodecs;
 import com.skilles.chronoclones.registry.ModDataComponents;
 
@@ -161,7 +162,9 @@ public final class RoutinePayloads {
             return;
         }
         Recording routine = read(player, request.source());
-        if (routine != null) {
+        // Opening the editor sends the whole routine down one packet, which is the one place an
+        // oversized recording that got in some other way would become everybody's problem.
+        if (routine != null && RecordingLimits.accepts(routine, player.registryAccess())) {
             context.reply(new Open(request.source(), routine));
         }
     }
@@ -251,6 +254,12 @@ public final class RoutinePayloads {
     }
 
     private static void write(ServerPlayer player, Source source, Recording routine) {
+        // An edit arrives from a client, so the thing being written back is as untrusted as
+        // anything else off the wire: a screen that sent one enormous routine would be storing it
+        // in item data and handing it straight back out again.
+        if (!RecordingLimits.accepts(routine, player.registryAccess())) {
+            return;
+        }
         if (source.anchor().isEmpty()) {
             ItemStack held = player.getItemInHand(source.hand());
             if (held.has(ModDataComponents.RECORDING.get())) {

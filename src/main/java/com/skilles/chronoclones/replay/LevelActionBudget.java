@@ -6,18 +6,21 @@ import java.util.WeakHashMap;
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.ChronoclonesConfig;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 
 /**
- * Caps how many clone actions the whole level may execute per tick.
+ * Caps how many clone actions the whole level may execute per tick, fairly.
+ *
+ * @see ActionBudget for how one tick's worth is shared out
  */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class LevelActionBudget {
 
-    private static final Map<Level, int[]> REMAINING = new WeakHashMap<>();
+    private static final Map<Level, ActionBudget> BUDGETS = new WeakHashMap<>();
 
     private LevelActionBudget() {}
 
@@ -27,21 +30,21 @@ public final class LevelActionBudget {
         if (level.isClientSide()) {
             return;
         }
-        REMAINING.computeIfAbsent(level, l -> new int[1])[0] =
-                ChronoclonesConfig.MAX_ACTIONS_PER_TICK.getAsInt();
+        budgetFor(level).reset(ChronoclonesConfig.MAX_ACTIONS_PER_TICK.getAsInt());
     }
 
-    /** Claims one action for this tick, or false if the level's budget is spent. */
-    public static boolean tryClaim(Level level) {
-        int[] remaining = REMAINING.get(level);
-        if (remaining == null) {
-            // No tick has run yet for this level; allow rather than deadlock.
-            return true;
-        }
-        if (remaining[0] <= 0) {
-            return false;
-        }
-        remaining[0]--;
-        return true;
+    /**
+     * Claims one action for the anchor at {@code anchorPos}, or false if its share is spent.
+     *
+     * <p>Throttling is deliberately silent: an anchor that has used its share this tick is not
+     * failing at anything, it is waiting, and the action simply runs on the next one.
+     */
+    public static boolean tryClaim(Level level, BlockPos anchorPos) {
+        return budgetFor(level).claim(anchorPos.asLong());
+    }
+
+    private static ActionBudget budgetFor(Level level) {
+        return BUDGETS.computeIfAbsent(level,
+                l -> new ActionBudget(ChronoclonesConfig.MAX_ACTIONS_PER_TICK.getAsInt()));
     }
 }

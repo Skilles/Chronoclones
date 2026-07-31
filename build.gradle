@@ -49,7 +49,7 @@ repositories {
 neoForge {
     version = project.neo_version
 
-    // accessTransformers.publish(project.file('src/main/resources/META-INF/accesstransformer.cfg'))
+    accessTransformers.publish(project.file('src/main/resources/META-INF/accesstransformer.cfg'))
 
     addModdingDependenciesTo sourceSets.gametest
 

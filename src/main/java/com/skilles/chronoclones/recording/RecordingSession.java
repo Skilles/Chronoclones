@@ -24,6 +24,8 @@ public final class RecordingSession {
         MANUAL,
         LENGTH_CAP,
         ACTION_CAP,
+        /** One container session collected more clicks than a session may hold. */
+        STEP_CAP,
         ABANDONED
     }
 
@@ -132,6 +134,30 @@ public final class RecordingSession {
             return StopReason.ACTION_CAP;
         }
         return null;
+    }
+
+    /**
+     * Gives the most recent use the time the player actually held it down.
+     *
+     * <p>A use is recorded when the click arrives, which is before anybody knows how long it will
+     * last: drawing a bow, eating, and throwing a snowball are the same event, and only letting go
+     * tells them apart. So the action is written instantly and its duration filled in afterwards.
+     *
+     * @return true if there was a use to amend
+     */
+    public boolean noteHeldFor(int ticks) {
+        for (int index = actions.size() - 1; index >= 0; index--) {
+            AttackIntent.Swing swing = actions.get(index);
+            TimedAction timed = swing.timed();
+            if (!(timed.action() instanceof ChronoAction.UseItem use)) {
+                continue;
+            }
+            actions.set(index, new AttackIntent.Swing(
+                    new TimedAction(timed.tick(), use.heldFor(ticks), timed.settings()),
+                    swing.target()));
+            return true;
+        }
+        return false;
     }
 
     /** Index the next recorded action will land at, for {@link #dropActionAt}. */

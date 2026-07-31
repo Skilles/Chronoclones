@@ -16,7 +16,12 @@ public final class RecordingSessions {
 
     private RecordingSessions() {}
 
+    /**
+     * A new session starts from nothing watched: whatever a previous one left open belonged to a
+     * recording that is over, and its clicks must not be inherited by this one.
+     */
     public static RecordingSession start(ServerPlayer player) {
+        ContainerWatch.forget(player);
         RecordingSession session = new RecordingSession(player);
         ACTIVE.put(player.getUUID(), session);
         return session;

@@ -126,25 +126,31 @@ final class AnchorTestFixture {
     }
 
     /**
-     * Stocks every clone with the tool each break in {@code recording} was recorded swinging.
+     * Stocks every clone with the tool or weapon each action in {@code recording} was recorded
+     * swinging.
      *
-     * <p>A clone digs with a tool it owns, the same as it places with a block it owns, so a test
-     * about anything else has to be given one or it is really a test about an empty inventory.
-     * Alongside the creative charge cell, and for the same reason.
+     * <p>A clone digs with a tool it owns and swings a weapon it owns, the same as it places with a
+     * block it owns, so a test about anything else has to be given one or it is really a test about
+     * an empty inventory. Alongside the creative charge cell, and for the same reason.
      *
-     * <p>Only break tools: what a placement holds is the thing it consumes, and handing that out
-     * would feed the tests whose whole point is an anchor with nothing to build from.
+     * <p>Only what an action swings: what a placement or an interaction holds is the thing it
+     * consumes, and handing that out would feed the tests whose whole point is an anchor with
+     * nothing to build from.
      */
     static void giveRecordedTools(ChronoAnchorBlockEntity anchor, Recording recording) {
         for (TimedAction timed : recording.actions()) {
-            if (!(timed.action() instanceof ChronoAction.BreakBlock breaking)
-                    || breaking.toolTemplate().isEmpty()) {
+            ItemStack swung = switch (timed.action()) {
+                case ChronoAction.BreakBlock breaking -> breaking.toolTemplate();
+                case ChronoAction.AttackEntity attacking -> attacking.weaponTemplate();
+                default -> ItemStack.EMPTY;
+            };
+            if (swung.isEmpty()) {
                 continue;
             }
-            ItemResource tool = ItemResource.of(breaking.toolTemplate());
+            ItemResource tool = ItemResource.of(swung);
             for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
                 ItemStacksResourceHandler inventory = anchor.getCloneInventory(clone);
-                if (countIn(inventory, breaking.toolTemplate().getItem()) == 0) {
+                if (countIn(inventory, swung.getItem()) == 0) {
                     // The last square, so a test filling the inventory from the front has to
                     // reach the tool deliberately rather than by accident.
                     inventory.set(inventory.size() - 1, tool, 1);

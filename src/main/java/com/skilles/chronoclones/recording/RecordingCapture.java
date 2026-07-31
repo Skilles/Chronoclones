@@ -25,6 +25,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraft.world.phys.BlockHitResult;
+import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
@@ -59,6 +60,7 @@ public final class RecordingCapture {
         if (recorder == null) {
             // Only once the recorder has left the inventory: it need not stay in hand.
             RecordingSessions.discard(player);
+            ContainerWatch.forget(player);
             return;
         }
 
@@ -258,6 +260,56 @@ public final class RecordingCapture {
         ContainerWatch.noteInteraction(player, event.getTarget(), recordedIndex, session);
     }
 
+    // ------------------------------------------------------------- held-down items
+
+    /**
+     * How long each recording player has been holding an item down, keyed by player.
+     *
+     * <p>The duration a use starts with, kept so the time actually held can be worked out as the
+     * difference when they let go: the events report what is left, not what has passed.
+     */
+    private static final java.util.Map<UUID, Integer> USE_STARTED_AT = new java.util.HashMap<>();
+
+    @SubscribeEvent
+    public static void onUseStart(LivingEntityUseItemEvent.Start event) {
+        if (event.getEntity() instanceof ServerPlayer player
+                && RecordingSessions.get(player) != null) {
+            USE_STARTED_AT.put(player.getUUID(), event.getDuration());
+        }
+    }
+
+    /** Let go early: a bow loosed at half draw, a shield lowered. */
+    @SubscribeEvent
+    public static void onUseStop(LivingEntityUseItemEvent.Stop event) {
+        noteHeld(event);
+    }
+
+    /** Held to the end: food eaten, a potion drunk, a spyglass put away at full duration. */
+    @SubscribeEvent
+    public static void onUseFinish(LivingEntityUseItemEvent.Finish event) {
+        noteHeld(event);
+    }
+
+    /**
+     * Writes the time held onto the use that was recorded when the click arrived.
+     */
+    private static void noteHeld(LivingEntityUseItemEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        Integer startedAt = USE_STARTED_AT.remove(player.getUUID());
+        RecordingSession session = RecordingSessions.get(player);
+        if (startedAt == null || session == null) {
+            return;
+        }
+        // What is left, subtracted from what there was: a bow drawn for twenty ticks reports
+        // 72000 at the start and 71980 at release.
+        int held = startedAt - event.getDuration();
+        if (held > 0) {
+            session.noteHeldFor(held);
+        }
+    }
+
     // ------------------------------------------------------------------ containers
 
     /** {@link ContainerWatch} turns the collected clicks into one action on close. */
@@ -292,10 +344,17 @@ public final class RecordingCapture {
 
     // ------------------------------------------------------------------ lifecycle
 
+    /**
+     * Both maps, not just the session: a watch is dropped by the container-close event, and nothing
+     * promises that event runs before this one. A player who logs out with a chest open would
+     * otherwise leave their clicks in {@link ContainerWatch} until the server stopped.
+     */
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             RecordingSessions.discard(player);
+            ContainerWatch.forget(player);
+            USE_STARTED_AT.remove(player.getUUID());
         }
     }
 
@@ -321,6 +380,7 @@ public final class RecordingCapture {
     public static void onServerStopped(ServerStoppedEvent event) {
         RecordingSessions.clear();
         ContainerWatch.clear();
+        USE_STARTED_AT.clear();
     }
 
     // ------------------------------------------------------------------ helpers
@@ -336,10 +396,22 @@ public final class RecordingCapture {
         RecordingSession.StopReason stop = session.record(
                 action, worldPos, player.getInventory().getSelectedSlot(), target);
         if (stop != null) {
-            ItemStack recorder = findSessionRecorder(player, session);
-            if (recorder != null) {
-                ChronoRecorderItem.stopRecording(player, recorder, stop);
-            }
+            stop(player, session, stop);
+        }
+    }
+
+    /**
+     * Ends a session that has reached a cap, telling the player which one.
+     *
+     * <p>Package-private because {@link ContainerWatch} reaches its own cap without ever calling
+     * {@link RecordingSession#record}: a whole container session is one action, however many times
+     * it was clicked in, so the count that runs away is not one the session is counting.
+     */
+    static void stop(ServerPlayer player, RecordingSession session,
+                     RecordingSession.StopReason reason) {
+        ItemStack recorder = findSessionRecorder(player, session);
+        if (recorder != null) {
+            ChronoRecorderItem.stopRecording(player, recorder, reason);
         }
     }
 

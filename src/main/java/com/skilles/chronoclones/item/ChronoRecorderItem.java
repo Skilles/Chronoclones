@@ -218,6 +218,7 @@ public class ChronoRecorderItem extends Item {
             case MANUAL -> "message.chronoclones.recorder.stopped";
             case LENGTH_CAP -> "message.chronoclones.recorder.stopped_length";
             case ACTION_CAP -> "message.chronoclones.recorder.stopped_actions";
+            case STEP_CAP -> "message.chronoclones.recorder.stopped_steps";
             case ABANDONED -> "message.chronoclones.recorder.discarded";
         };
 

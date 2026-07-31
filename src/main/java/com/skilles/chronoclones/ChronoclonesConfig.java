@@ -9,6 +9,8 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue MAX_RADIUS;
     public static final ModConfigSpec.IntValue MAX_RECORDING_TICKS;
     public static final ModConfigSpec.IntValue MAX_ACTIONS;
+    public static final ModConfigSpec.IntValue MAX_CONTAINER_STEPS;
+    public static final ModConfigSpec.IntValue MAX_RECORDING_BYTES;
     public static final ModConfigSpec.IntValue MAX_ACTIONS_PER_TICK;
     public static final ModConfigSpec.IntValue MAX_ACTION_TICKS;
     public static final ModConfigSpec.BooleanValue ALLOW_PVP;
@@ -28,6 +30,18 @@ public final class ChronoclonesConfig {
                 .defineInRange("maxRecordingTicks", 600, 20, 12000);
         MAX_ACTIONS = b.comment("Base cap on recorded actions per recording.")
                 .defineInRange("maxActions", 128, 1, 4096);
+        MAX_CONTAINER_STEPS = b.comment(
+                        "Cap on clicks recorded inside one container session.",
+                        "maxActions counts a whole session as one action, so without this a player",
+                        "clicking in one open chest could grow a single action without limit.")
+                .defineInRange("maxContainerSteps", 256, 8, 4096);
+        MAX_RECORDING_BYTES = b.comment(
+                        "Cap on the encoded size of one recording, in bytes.",
+                        "The count limits bound how many things a routine does; this bounds how big",
+                        "they are, because an item stack carries components of no fixed size. A",
+                        "recording is stored in item data and sent whole to open the editor, so an",
+                        "oversized one is a network and save-file problem rather than a slow routine.")
+                .defineInRange("maxRecordingBytes", 131_072, 4_096, 8_388_608);
         MAX_ACTIONS_PER_TICK = b.comment("Global per-level budget of clone actions executed per tick.")
                 .defineInRange("maxActionsPerTick", 64, 1, 1024);
         MAX_ACTION_TICKS = b.comment(
@@ -50,6 +64,29 @@ public final class ChronoclonesConfig {
         b.pop();
 
         SPEC = b.build();
+    }
+
+    /** What {@code maxContainerSteps} is set to, or its default where no config has been loaded. */
+    public static int maxContainerSteps() {
+        return orDefault(MAX_CONTAINER_STEPS, 256);
+    }
+
+    /** What {@code maxRecordingBytes} is set to, or its default where no config has been loaded. */
+    public static int maxRecordingBytes() {
+        return orDefault(MAX_RECORDING_BYTES, 131_072);
+    }
+
+    /**
+     * A limit that can be asked for before any config exists.
+     *
+     * <p>Most of these are read while a routine runs, which only happens on a server with its config
+     * loaded. The size caps are not: they are read from the recording codec, and item data decodes
+     * on clients, during early loading, and inside unit tests, where reaching into an unloaded spec
+     * throws. Refusing to decode somebody's routine because the config was not ready yet would be a
+     * far worse failure than measuring it against the shipped default.
+     */
+    private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
+        return SPEC.isLoaded() ? value.getAsInt() : fallback;
     }
 
     private ChronoclonesConfig() {}

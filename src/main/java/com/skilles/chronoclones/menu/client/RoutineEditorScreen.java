@@ -223,7 +223,7 @@ public class RoutineEditorScreen extends Screen {
         addName(settings().name(), this::renameAction);
 
         int row = 1;
-        if (action() instanceof ChronoAction.BreakBlock) {
+        if (swingsSomething()) {
             // Above the slot, which it can take away: the tool is the question and the square is
             // only where to look for the answer.
             addControl(row++, "tool", "tool", toolLabel(),
@@ -255,11 +255,15 @@ public class RoutineEditorScreen extends Screen {
         if (looksForATarget()) {
             addCheckbox(row++, "gui.chronoclones.editor.label.sticky", settings().target().sticky(),
                     on -> apply(settings().withTarget(settings().target().withSticky(on))));
-            addControl(row++, "target", "target", targetLabel(), () -> {
-                TargetRule rule = settings().target();
-                apply(settings().withTarget(rule.withFilter(
-                        rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
-            });
+            // Only once the action has been widened off the recorded creature. While it insists on
+            // that one, a filter cannot narrow it further and must not look as though it could.
+            if (!settings().recordedSubject()) {
+                addControl(row++, "target", "target", targetLabel(), () -> {
+                    TargetRule rule = settings().target();
+                    apply(settings().withTarget(rule.withFilter(
+                            rule.filter().isEmpty() ? List.of(recordedType()) : List.of())));
+                });
+            }
             addSlider(row++, "radius", "radius", new RadiusSlider(font, controlX(), controlRowY(row - 1),
                     CONTROL_WIDTH, CONTROL_HEIGHT, settings().target(),
                     radius -> apply(settings().withTarget(settings().target().withRadius(radius)))));
@@ -301,7 +305,12 @@ public class RoutineEditorScreen extends Screen {
         return action() instanceof ChronoAction.BreakBlock
                 || action() instanceof ChronoAction.PlaceBlock
                 || action() instanceof ChronoAction.UseOnBlock use
-                        && use.expectedBlock().isPresent();
+                        && use.expectedBlock().isPresent()
+                // The creatures, which ask the same question of a mob that a break asks of a block.
+                || action() instanceof ChronoAction.AttackEntity
+                || action() instanceof ChronoAction.InteractEntity
+                || action() instanceof ChronoAction.UseContainer session
+                        && session.target() instanceof MenuTarget.Entity;
     }
 
     /**
@@ -311,8 +320,19 @@ public class RoutineEditorScreen extends Screen {
      * square it was told about still waiting.
      */
     private boolean choosesItsOwnSquare() {
-        return !(action() instanceof ChronoAction.BreakBlock)
-                || settings().tool() == ActionSettings.ToolRule.EXACT;
+        return !swingsSomething() || settings().tool() == ActionSettings.ToolRule.EXACT;
+    }
+
+    /**
+     * True for the actions that reach for something and hit with it, which is the pair that get to
+     * be told to pick for themselves.
+     *
+     * <p>A swing is a tool question exactly as a dig is: one asks what breaks the block fastest and
+     * the other what hits hardest, and both are answered out of the clone's own squares.
+     */
+    private boolean swingsSomething() {
+        return action() instanceof ChronoAction.BreakBlock
+                || action() instanceof ChronoAction.AttackEntity;
     }
 
     /** Cycles the tool modes, of which there will be more than two. */
@@ -1028,9 +1048,11 @@ public class RoutineEditorScreen extends Screen {
             return Component.translatable(
                     "gui.chronoclones.editor.tool." + settings().tool().getSerializedName());
         }
-        ItemStack recorded = action() instanceof ChronoAction.BreakBlock breaking
-                ? breaking.toolTemplate()
-                : ItemStack.EMPTY;
+        ItemStack recorded = switch (action()) {
+            case ChronoAction.BreakBlock breaking -> breaking.toolTemplate();
+            case ChronoAction.AttackEntity swinging -> swinging.weaponTemplate();
+            default -> ItemStack.EMPTY;
+        };
         return recorded.isEmpty()
                 ? Component.translatable("gui.chronoclones.editor.tool.hands")
                 : recorded.getHoverName();
@@ -1047,6 +1069,10 @@ public class RoutineEditorScreen extends Screen {
                     a.item().value().getDescriptionId());
             case ChronoAction.UseOnBlock a when a.expectedBlock().isPresent() ->
                     a.expectedBlock().get().value().getName();
+            case ChronoAction.AttackEntity a -> a.expectedType().value().getDescription();
+            case ChronoAction.InteractEntity a -> a.expectedType().value().getDescription();
+            case ChronoAction.UseContainer a when a.target() instanceof MenuTarget.Entity entity ->
+                    entity.expectedType().value().getDescription();
             default -> Component.translatable("gui.chronoclones.editor.subject.any");
         };
     }

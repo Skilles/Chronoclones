@@ -4,6 +4,7 @@ import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import com.skilles.chronoclones.item.ChronoShardItem;
 import com.skilles.chronoclones.recording.Recording;
+import com.skilles.chronoclones.recording.RecordingLimits;
 import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.registry.ModItems;
@@ -151,6 +152,15 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             return inscribeShard(anchor, stack, serverPlayer, level, pos);
         }
 
+        // A recording is untrusted the moment it can be traded: this one arrived on an item, and
+        // items travel between worlds, between servers, and through whatever edited the save.
+        RecordingLimits.Refusal refusal = RecordingLimits.refuse(carried, level.registryAccess());
+        if (refusal != null) {
+            serverPlayer.sendOverlayMessage(Component.translatable(refusal.translationKey())
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+
         anchor.imprint(carried, serverPlayer);
         // A recorder hands its recording over; a shard keeps it, so one shard can seed many anchors.
         if (isRecorder) {
@@ -214,6 +224,14 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         if (recording == null) {
             player.sendOverlayMessage(Component
                     .translatable("message.chronoclones.shard.nothing_to_copy")
+                    .withStyle(ChatFormatting.RED));
+            return InteractionResult.SUCCESS;
+        }
+        // A copy is a new item carrying the whole routine, so an anchor holding something oversized
+        // must not be able to hand out more of them.
+        RecordingLimits.Refusal refusal = RecordingLimits.refuse(recording, level.registryAccess());
+        if (refusal != null) {
+            player.sendOverlayMessage(Component.translatable(refusal.translationKey())
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
