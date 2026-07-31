@@ -9,9 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Turning an arrow key into a step in an anchor's local space.
- */
 class NudgeDirectionTest {
 
     private static BlockPos step(NudgeDirection.Key key, Direction player, Direction anchor) {
@@ -21,7 +18,6 @@ class NudgeDirectionTest {
     @Test
     @DisplayName("on a north-facing anchor, forward is away from the player")
     void forwardIsAwayFromThePlayer() {
-        // A north-facing anchor means local space is world space.
         assertEquals(new BlockPos(0, 0, -1), step(NudgeDirection.Key.FORWARD, Direction.NORTH, Direction.NORTH));
         assertEquals(new BlockPos(0, 0, 1), step(NudgeDirection.Key.FORWARD, Direction.SOUTH, Direction.NORTH));
         assertEquals(new BlockPos(1, 0, 0), step(NudgeDirection.Key.FORWARD, Direction.EAST, Direction.NORTH));
@@ -58,9 +54,6 @@ class NudgeDirectionTest {
         }
     }
 
-    /**
-     * The property that matters, and the only one asserted for the rotated cases.
-     */
     @Test
     @DisplayName("a step moves the origin the way the player is pointing, whatever the anchor faces")
     void stepMovesTheOriginTheWayThePlayerPoints() {
@@ -96,7 +89,6 @@ class NudgeDirectionTest {
     @Test
     @DisplayName("vertical is the same everywhere")
     void verticalIsRotationInvariant() {
-        // Rotation about Y leaves Y alone, so up is up regardless of who is facing where.
         for (Direction player : Direction.Plane.HORIZONTAL) {
             for (Direction anchor : Direction.Plane.HORIZONTAL) {
                 assertEquals(new BlockPos(0, 1, 0), step(NudgeDirection.Key.UP, player, anchor));

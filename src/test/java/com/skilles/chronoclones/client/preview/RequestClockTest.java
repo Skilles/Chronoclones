@@ -6,9 +6,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The throttle in front of the preview and goggle requests.
- */
 class RequestClockTest {
 
     private static final long INTERVAL = 40;
@@ -16,7 +13,6 @@ class RequestClockTest {
     @Test
     @DisplayName("the very first request is allowed, at any world time")
     void firstRequestIsAllowed() {
-        // A brand new world starts at tick zero, which is exactly where the overflow bit hardest.
         assertTrue(new RequestClock().claim(0, INTERVAL),
                 "a fresh clock refused its first request: the feature would do nothing, silently");
         assertTrue(new RequestClock().claim(1, INTERVAL));
@@ -51,7 +47,6 @@ class RequestClockTest {
         clock.claim(100, INTERVAL);
         assertFalse(clock.claim(101, INTERVAL));
 
-        // Taking the goggles off and putting them back on should not mean waiting out the interval.
         clock.reset();
         assertTrue(clock.claim(101, INTERVAL));
     }

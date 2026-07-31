@@ -11,16 +11,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Captures container clicks while a recording is running.
- *
- * <p>Slot clicks have no event, and the button cannot be recovered from the result. "Cursor gained
- * 32, slot lost 32" is equally a right-click taking half of 64 and a left-click taking all of 32,
- * which replay differently.
- *
- * <p>Both ends of the call, because naming a click needs the menu before it and after it.
- */
 @Mixin(AbstractContainerMenu.class)
+/**
+ * Captures container clicks: slot clicks have no event, and the button cannot be inferred
+ * from what changed.
+ */
 public abstract class AbstractContainerMenuMixin {
 
     @Inject(method = "clicked", at = @At("HEAD"))

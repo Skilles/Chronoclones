@@ -19,12 +19,8 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The detailed listing behind shift.
- */
 class RecordingDetailTest {
 
-    /** Translation keys rather than rendered text: the test should not depend on the lang file. */
     private static String keysOf(List<Component> lines) {
         StringBuilder all = new StringBuilder();
         for (Component line : lines) {
@@ -51,7 +47,6 @@ class RecordingDetailTest {
         String text = keysOf(lines);
         assertTrue(text.contains("tooltip.chronoclones.detail.break"), text);
         assertTrue(text.contains("tooltip.chronoclones.detail.place"), text);
-        // The position is the point: "14 breaks" without one tells a reader nothing.
         assertTrue(text.contains("3, -1, 2"), text);
         assertTrue(text.contains("-2, 0, 5"), text);
     }
@@ -59,8 +54,6 @@ class RecordingDetailTest {
     @Test
     @DisplayName("a container session lists which button each click uses")
     void containerSessionIsExpanded() {
-        // No carrier entries: a carrier line renders through getHoverName, which reads default
-        // components, unbound without a loaded datapack.
         List<Component> lines = RecordingDetail.describe(List.of(
                 new TimedAction(20, new ChronoAction.UseContainer(
                                 new MenuTarget.Block(new BlockPos(0, 0, -1)), 63,
@@ -71,8 +64,6 @@ class RecordingDetailTest {
 
         String text = keysOf(lines);
         assertTrue(text.contains("tooltip.chronoclones.detail.container"), text);
-        // Take-half versus take-all is the distinction the whole click model exists to preserve, so
-        // it had better be the distinction a reader can see.
         assertTrue(text.contains("tooltip.chronoclones.detail.click.pickup_half"), text);
         assertTrue(text.contains("tooltip.chronoclones.detail.click.quick_move"), text);
     }

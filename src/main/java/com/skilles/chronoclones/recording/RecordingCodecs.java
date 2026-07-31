@@ -25,14 +25,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * All serialization for the recording model, in one place.
- */
 public final class RecordingCodecs {
 
     private RecordingCodecs() {}
-
-    // ------------------------------------------------------------------ motion
 
     public static final Codec<MotionSample> MOTION_SAMPLE = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(MotionSample::tick),
@@ -49,9 +44,7 @@ public final class RecordingCodecs {
                     ByteBufCodecs.FLOAT, MotionSample::pitch,
                     MotionSample::new);
 
-    // ------------------------------------------------------------------ actions
-
-    /** InteractionHand ships a StreamCodec but no Codec, so build one by name. */
+    /** InteractionHand ships a StreamCodec but no Codec. */
     static final Codec<InteractionHand> HAND = Codec.STRING.flatXmap(
             s -> switch (s) {
                 case "main_hand" -> DataResult.success(InteractionHand.MAIN_HAND);
@@ -66,7 +59,6 @@ public final class RecordingCodecs {
             ItemStack.OPTIONAL_CODEC.fieldOf("tool").forGetter(ChronoAction.BreakBlock::toolTemplate)
     ).apply(i, ChronoAction.BreakBlock::new));
 
-    /** Where the player stood and how they were looking, in the routine's own space. */
     public static final Codec<ActionPose> ACTION_POSE = RecordCodecBuilder.create(i -> i.group(
             Vec3.CODEC.fieldOf("pos").forGetter(ActionPose::localPos),
             Codec.FLOAT.fieldOf("yaw").forGetter(ActionPose::localYaw),
@@ -97,10 +89,6 @@ public final class RecordingCodecs {
                     ACTION_POSE_STREAM, ChronoAction.PlaceContext::pose,
                     ChronoAction.PlaceContext::new);
 
-    /**
-     * The {@code click} field is optional: a routine recorded before placements remembered how they
-     * were clicked has none, and replays exactly as it always did.
-     */
     static final MapCodec<ChronoAction.PlaceBlock> PLACE_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.PlaceBlock::localPos),
             Direction.CODEC.fieldOf("face").forGetter(ChronoAction.PlaceBlock::localFace),
@@ -122,16 +110,10 @@ public final class RecordingCodecs {
             Codec.BOOL.fieldOf("inside").forGetter(ChronoAction.UseOnBlock::inside),
             HAND.fieldOf("hand").forGetter(ChronoAction.UseOnBlock::hand),
             RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.UseOnBlock::itemTemplate),
-            // Optional: a routine saved before the block was recorded has none to insist on, and
-            // goes on striking whatever is there rather than refusing everything.
             BuiltInRegistries.BLOCK.holderByNameCodec().optionalFieldOf("expected")
                     .forGetter(ChronoAction.UseOnBlock::expectedBlock)
     ).apply(i, ChronoAction.UseOnBlock::new));
 
-    /**
-     * The {@code hold} field is optional: routines recorded before a use had a duration read as
-     * instant, which is exactly how they behaved.
-     */
     static final MapCodec<ChronoAction.UseItem> USE_ITEM = RecordCodecBuilder.mapCodec(i -> i.group(
             HAND.fieldOf("hand").forGetter(ChronoAction.UseItem::hand),
             RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.UseItem::itemTemplate),
@@ -147,7 +129,6 @@ public final class RecordingCodecs {
             RecordedItem.CODEC.fieldOf("item").forGetter(ChronoAction.InteractEntity::itemTemplate)
     ).apply(i, ChronoAction.InteractEntity::new));
 
-    /** ContainerInput ships a StreamCodec but no Codec, so build one by name. */
     static final Codec<ContainerInput> CONTAINER_INPUT =
             Codec.STRING.flatXmap(
                     name -> {
@@ -201,7 +182,6 @@ public final class RecordingCodecs {
             case BLOCK -> MENU_BLOCK_STREAM;
             case ENTITY -> MENU_ENTITY_STREAM;
         };
-        // Safe: dispatch only ever hands us the codec matching the value's own kind().
         return (StreamCodec<RegistryFriendlyByteBuf, MenuTarget>) codec;
     }
 
@@ -253,15 +233,9 @@ public final class RecordingCodecs {
 
     static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
-            // The whole stack: an item id cannot answer isSameItemSameComponents.
             ItemStack.CODEC.fieldOf("stack").forGetter(ChronoAction.UseContainer.CarrierSlot::stack)
     ).apply(i, ChronoAction.UseContainer.CarrierSlot::new));
 
-    /**
-     * The {@code clicks} and {@code pos} fields are only ever read: sessions saved before steps and
-     * entity menus existed carry a block position and a list of clicks, which read as a block target
-     * and raw steps, exactly how they already behaved.
-     */
     static final MapCodec<ChronoAction.UseContainer> USE_CONTAINER_CODEC = RecordCodecBuilder.mapCodec(i -> i.group(
             MENU_TARGET.optionalFieldOf("target").forGetter(a -> Optional.of(a.target())),
             BlockPos.CODEC.optionalFieldOf("pos").forGetter(a -> Optional.<BlockPos>empty()),
@@ -290,8 +264,6 @@ public final class RecordingCodecs {
 
     public static final Codec<ChronoAction> ACTION =
             ChronoActionType.CODEC.dispatch("type", ChronoAction::type, RecordingCodecs::mapCodecFor);
-
-    // ------------------------------------------------------------------ action streams
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.BreakBlock> BREAK_BLOCK_STREAM =
             StreamCodec.composite(
@@ -349,8 +321,6 @@ public final class RecordingCodecs {
     static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Move> MOVE_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.INT, SessionStep.Move::from,
-                    // Not VAR_INT: a shift-click's destination is -1, which unsigned varints
-                    // encode in five bytes.
                     ByteBufCodecs.INT, SessionStep.Move::to,
                     ByteBufCodecs.holderRegistry(Registries.ITEM), SessionStep.Move::item,
                     ByteBufCodecs.idMapper(id -> SessionStep.Amount.values()[id], Enum::ordinal),
@@ -359,7 +329,6 @@ public final class RecordingCodecs {
 
     static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.RawClick> RAW_CLICK_STREAM =
             StreamCodec.composite(
-                    // Clicking outside a menu is slot -999, for the same reason.
                     ByteBufCodecs.INT, SessionStep.RawClick::slot,
                     ByteBufCodecs.INT, SessionStep.RawClick::button,
                     ContainerInput.STREAM_CODEC.cast(), SessionStep.RawClick::input,
@@ -391,7 +360,6 @@ public final class RecordingCodecs {
             case TRADE -> TRADE_STREAM;
             case RENAME -> RENAME_STREAM;
         };
-        // Safe: dispatch only ever hands us the codec matching the value's own kind().
         return (StreamCodec<RegistryFriendlyByteBuf, SessionStep>) codec;
     }
 
@@ -431,16 +399,11 @@ public final class RecordingCodecs {
             case USE_ITEM -> USE_ITEM_STREAM;
             case INTERACT_ENTITY -> INTERACT_ENTITY_STREAM;
         };
-        // Safe: dispatch only ever hands us the codec matching the value's own type().
         return (StreamCodec<RegistryFriendlyByteBuf, ChronoAction>) codec;
     }
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction> ACTION_STREAM =
             ACTION_TYPE_STREAM.dispatch(ChronoAction::type, RecordingCodecs::streamCodecFor);
-
-    // ------------------------------------------------------------------ timed action
-
-    // ------------------------------------------------------------------ settings
 
     static final Codec<ActionSettings.SlotRule> SLOT_RULE = RecordCodecBuilder.create(i -> i.group(
             StringRepresentable.fromEnum(ActionSettings.SlotRule.Mode::values)
@@ -502,8 +465,6 @@ public final class RecordingCodecs {
             StringRepresentable.fromEnum(ActionSettings.ToolRule::values)
                     .optionalFieldOf("tool", ActionSettings.ToolRule.EXACT)
                     .forGetter(ActionSettings::tool),
-            // Absent means the recorded thing, so a routine saved before this existed goes on
-            // naming itself after what it saw rather than silently widening to anything.
             Codec.BOOL.optionalFieldOf("recorded_subject", true)
                     .forGetter(ActionSettings::recordedSubject),
             TARGET_RULE.optionalFieldOf("target", ActionSettings.TargetRule.DEFAULT)
@@ -578,12 +539,6 @@ public final class RecordingCodecs {
                     ITEM_RULE_STREAM, ActionSettings::item,
                     ActionSettings::new);
 
-    // ------------------------------------------------------------------ timed action
-
-    /**
-     * The {@code held_slot} field is only ever read: routines saved before settings existed carry
-     * their square there, and it becomes the slot rule's preference.
-     */
     public static final Codec<TimedAction> TIMED_ACTION = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(TimedAction::tick),
             ACTION.fieldOf("action").forGetter(TimedAction::action),
@@ -600,16 +555,6 @@ public final class RecordingCodecs {
                     ACTION_SETTINGS_STREAM, TimedAction::settings,
                     TimedAction::new);
 
-    // ------------------------------------------------------------------ recording
-
-    /**
-     * The structural half of {@link RecordingLimits}, enforced on the way in and the way out.
-     *
-     * <p>Only the counts: measuring the encoded size needs the registries, which a codec is not
-     * handed. What this catches is the shape that grows without bound -- a container session with
-     * more clicks in it than a session may hold -- so an edited save or a hand-built item cannot
-     * put one where the caps at the doors never looked.
-     */
     public static final Codec<Recording> RECORDING = RecordCodecBuilder.<Recording>create(i -> i.group(
             MOTION_SAMPLE.listOf().fieldOf("motion").forGetter(Recording::motion),
             TIMED_ACTION.listOf().fieldOf("actions").forGetter(Recording::actions),

@@ -10,6 +10,7 @@ import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModBlocks {
+
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(Chronoclones.MODID);
 
     public static final DeferredBlock<ChronoAnchorBlock> CHRONO_ANCHOR = BLOCKS.registerBlock(

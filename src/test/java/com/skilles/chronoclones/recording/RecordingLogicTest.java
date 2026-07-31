@@ -16,9 +16,6 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The parts of the recording model that can be asserted without a bootstrapped registry.
- */
 class RecordingLogicTest {
 
     private static <T> T unwrap(DataResult<T> result) {
@@ -67,7 +64,6 @@ class RecordingLogicTest {
         Recording r = new Recording(
                 List.of(
                         new MotionSample(0, new Vec3(0.0, 0.0, 0.0), 0f, 0f),
-                        // Tall but close: must not count as reach.
                         new MotionSample(2, new Vec3(1.0, 40.0, 0.0), 0f, 0f),
                         new MotionSample(4, new Vec3(-7.0, 2.0, 4.0), 0f, 0f)),
                 List.of(), 100, "Skilles", UUID.randomUUID());
@@ -104,10 +100,6 @@ class RecordingLogicTest {
         assertEquals(author, r.authorId());
         assertEquals("Author", r.authorName());
 
-        // Ownership lives on the block entity. If a setter or field for it ever appears
-        // on Recording, the author/owner split has been collapsed and attribution is a griefing bug.
-        // Naming the components rather than counting them says what the guard is actually for: a
-        // count shows something changed, this shows whether what changed was ownership.
         assertEquals(List.of("motion", "actions", "lengthTicks", "authorName", "authorId", "creative"),
                 java.util.Arrays.stream(Recording.class.getRecordComponents())
                         .map(java.lang.reflect.RecordComponent::getName).toList(),

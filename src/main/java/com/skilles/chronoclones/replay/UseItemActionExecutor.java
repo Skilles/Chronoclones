@@ -17,24 +17,11 @@ import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Right-clicking with nothing targeted: a snowball thrown, a bow drawn and loosed, a meal eaten.
- *
- * <p>Two shapes, told apart by what the recording captured. A use the player finished the instant
- * they clicked runs and is done. A use they held -- every bow, crossbow, trident, shield, spyglass
- * and mouthful of food -- is one action spread over as many ticks as they held it, and the clone
- * has to hold it for the same length of time or the thing never happens at all.
- */
 public final class UseItemActionExecutor {
 
     private UseItemActionExecutor() {}
 
-    /**
-     * One tick of a use.
-     *
-     * @param result   what to report, meaningful only once {@code finished}
-     * @param finished false while the clone is still holding the item down
-     */
+    /** One tick of a use. The result means nothing until {@code finished}. */
     public record Progress(ActionResult result, boolean finished) {
 
         static final Progress HOLDING = new Progress(ActionResult.OK, false);
@@ -44,16 +31,10 @@ public final class UseItemActionExecutor {
         }
     }
 
-    /**
-     * Advances this use by one tick, starting it if it has not started.
-     */
     public static Progress tick(ActionContext ctx, ChronoAction.UseItem action, CloneRuntime runtime) {
         return runtime.isUsing() ? keepHolding(ctx, action, runtime) : begin(ctx, action, runtime);
     }
 
-    /**
-     * Clicks the item, and either finishes there or settles in to hold it.
-     */
     private static Progress begin(ActionContext ctx, ChronoAction.UseItem action, CloneRuntime runtime) {
         ServerLevel level = ctx.level();
 
@@ -63,20 +44,15 @@ public final class UseItemActionExecutor {
             return Progress.done(ActionResult.fail(FailureReason.NO_ITEM, BlockPos.ZERO));
         }
         if (loan.stack().isEmpty()) {
-            // Right-clicking air with an empty hand does nothing.
             return Progress.done(ActionResult.OK);
         }
 
         FakePlayer owner = acquire(ctx, action, loan.stack());
 
-        // Still cooling down from the last time. Vanilla answers this with a bare PASS, which is
-        // the same answer it gives for "this item does nothing", and the two want different fixes.
         if (owner.getCooldowns().isOnCooldown(loan.stack())) {
             return giveUp(ctx, action, owner, loan, FailureReason.ON_COOLDOWN);
         }
 
-        // A bow with nothing to fire simply refuses to draw, and the ammunition it looks for is in
-        // its own inventory rather than the anchor's -- so whatever it shoots is lent too.
         HeldItemLoan.Loan ammo = lendAmmunition(ctx, owner, loan.stack());
         if (ammo == null && needsAmmunition(loan.stack())) {
             return giveUp(ctx, action, owner, loan, FailureReason.NO_AMMO);
@@ -85,20 +61,15 @@ public final class UseItemActionExecutor {
         InteractionResult result = owner.gameMode.useItem(owner, level,
                 owner.getItemInHand(action.hand()), action.hand());
 
-        // Held items report their duration by starting a use rather than by finishing one. Both
-        // halves have to agree: an action recorded as instant is finished here however the item
+        // Both halves have to agree: an action recorded as instant finishes here however the item
         // behaves now, and one recorded as held only waits if the item actually started.
         if (action.isHeld() && owner.isUsingItem()) {
             runtime.beginUse(loan, ammo);
             return Progress.HOLDING;
         }
 
-        // Recorded as held, nothing started, and nothing happened either: the item has no
-        // duration here and did not act instead, so there is nothing this routine can ever do with
-        // it. Halting, because waiting will not give an item a duration it does not have.
-        //
-        // An item that did work instantly is left alone: it is doing the job, just faster than it
-        // was recorded doing it, and stopping the routine over that would help nobody.
+        // Recorded as held, nothing started, and nothing happened instead: the item has no duration
+        // here and never will, so waiting cannot help.
         if (action.isHeld() && !result.consumesAction()) {
             owner.stopUsingItem();
             takeAmmunitionBack(ctx, owner, ammo);
@@ -109,7 +80,6 @@ public final class UseItemActionExecutor {
             return Progress.done(unsupported);
         }
 
-        // Nothing is being held, so nothing can be waited for.
         owner.stopUsingItem();
         takeAmmunitionBack(ctx, owner, ammo);
         ActionResult done = finish(ctx, action, owner, loan, result);
@@ -117,16 +87,11 @@ public final class UseItemActionExecutor {
         return Progress.done(done);
     }
 
-    /**
-     * Counts down a use already in progress, and lets go when the recording says the player did.
-     */
     private static Progress keepHolding(ActionContext ctx, ChronoAction.UseItem action,
                                         CloneRuntime runtime) {
         HeldItemLoan.Loan loan = runtime.usingLoan();
         FakePlayer owner = ctx.actor().current(ctx.cloneIndex());
 
-        // The player went away underneath us -- an anchor unloaded and reloaded mid-draw. The draw
-        // is lost rather than refused, which is what "unfinished" already means elsewhere.
         if (loan == null || owner == null || !owner.isUsingItem()) {
             if (loan != null && owner != null) {
                 takeAmmunitionBack(ctx, owner, runtime.ammoLoan());
@@ -139,13 +104,12 @@ public final class UseItemActionExecutor {
 
         runtime.tickUse();
 
-        // Vanilla's own countdown, which lives in a private method on a player that never ticks.
-        // A bow reads its draw straight off what is left here, so skipping this looses at nothing.
+        // Vanilla counts this down in the private updatingUsingItem, and a bow reads its draw
+        // straight off what is left.
         if (owner.useItemRemaining > 0) {
             owner.useItemRemaining--;
         }
         if (owner.useItemRemaining <= 0) {
-            // Ran its full duration: food is eaten, a potion drunk, the use completes itself.
             owner.completeUsingItem();
             return Progress.done(release(ctx, action, runtime, owner, loan));
         }
@@ -154,13 +118,10 @@ public final class UseItemActionExecutor {
             return Progress.HOLDING;
         }
 
-        // As long as the player held it, so let go exactly as they did: this is what fires a bow
-        // at the draw it was recorded at rather than at full or at none.
         owner.releaseUsingItem();
         return Progress.done(release(ctx, action, runtime, owner, loan));
     }
 
-    /** Hands the item and whatever is left of its ammunition back, and lets the clone move on. */
     private static ActionResult release(ActionContext ctx, ChronoAction.UseItem action,
                                         CloneRuntime runtime, FakePlayer owner,
                                         HeldItemLoan.Loan loan) {
@@ -171,15 +132,7 @@ public final class UseItemActionExecutor {
         return result;
     }
 
-    /**
-     * Puts what this weapon fires into the player's own squares, so it has something to fire.
-     *
-     * <p>Vanilla looks for ammunition in the shooter's inventory, not in whatever happens to be
-     * nearby, so a clone drawing a bow out of an anchor stocked with arrows would find none and
-     * quietly decline to draw at all.
-     *
-     * @return the loan to give back afterwards, or null if nothing was lent
-     */
+    /** Vanilla looks for ammunition in the shooter's own inventory, not in the anchor. */
     private static HeldItemLoan.@Nullable Loan lendAmmunition(ActionContext ctx, FakePlayer owner,
                                                               ItemStack weapon) {
         if (!(weapon.getItem() instanceof ProjectileWeaponItem projectile)) {
@@ -203,7 +156,7 @@ public final class UseItemActionExecutor {
         return null;
     }
 
-    /** Takes back whatever was not fired. */
+    /** Whatever was not fired. */
     private static void takeAmmunitionBack(ActionContext ctx, FakePlayer owner,
                                            HeldItemLoan.@Nullable Loan ammo) {
         if (ammo == null) {
@@ -214,10 +167,8 @@ public final class UseItemActionExecutor {
         HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), ammo, left);
     }
 
-    /** A square of the player's own inventory, kept out of the way of the hand. */
     private static final int AMMUNITION_SLOT = 9;
 
-    /** Hands everything back and reports why this use never got started. */
     private static Progress giveUp(ActionContext ctx, ChronoAction.UseItem action, FakePlayer owner,
                                    HeldItemLoan.Loan loan, FailureReason reason) {
         HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), loan,
@@ -226,25 +177,16 @@ public final class UseItemActionExecutor {
         return Progress.done(ActionResult.fail(reason, BlockPos.ZERO));
     }
 
-    /** True for the weapons that will not do anything at all without something to fire. */
     private static boolean needsAmmunition(ItemStack stack) {
         return stack.getItem() instanceof ProjectileWeaponItem;
     }
 
-    /** Gives back what came home, and says whether the interaction did anything. */
     private static ActionResult finish(ActionContext ctx, ChronoAction.UseItem action,
                                        FakePlayer owner, HeldItemLoan.Loan loan,
                                        InteractionResult result) {
         return Interactions.finish(ctx, owner, action.hand(), loan, result, BlockPos.ZERO);
     }
 
-    /**
-     * The clone, standing and looking where the player was when they used this.
-     *
-     * <p>Not above the anchor facing along it, which is where every use used to happen: a snowball
-     * left the anchor rather than the clone, and left it flat however far up or down the player had
-     * been aiming.
-     */
     private static FakePlayer acquire(ActionContext ctx, ChronoAction.UseItem action, ItemStack held) {
         ActionPose pose = action.pose().orElse(ActionPose.OVER_THE_ANCHOR);
         return ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),

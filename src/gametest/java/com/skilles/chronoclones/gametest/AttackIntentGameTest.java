@@ -23,9 +23,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * Attacks that pursue an outcome rather than repeating a count of swings.
- */
 final class AttackIntentGameTest {
 
     private AttackIntentGameTest() {}
@@ -53,12 +50,8 @@ final class AttackIntentGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** The point the routine swings at, one step north of the anchor. */
     private static final BlockPos RECORDED = new BlockPos(0, 0, -1);
 
-    /**
-     * A mob two blocks from where it was swung at is still within a player's reach.
-     */
     private static void findsATargetThatMoved(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north().north().north());
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
@@ -75,7 +68,6 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /** The radius is what stops a clone being a turret, so it has to actually bound the search. */
     private static void missesBeyondItsRadius(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north().north().north());
         attackingAnchor(helper, TargetRule.DEFAULT.withRadius(1.0));
@@ -89,27 +81,17 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The whole point: the player killed it, so the clone kills it, however many swings that takes.
-     */
     private static void untilDeadFinishesTheKill(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north());
-        // A routine longer than the test window, so nothing but holding can land a second swing.
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
                 untilDead(), 400);
 
-        // Sampled every tick, printed on none of them: this test used to fail about one run in ten
-        // and the printouts that would have explained it moved the timing enough to hide it.
         CowTrace trace = new CowTrace();
 
         helper.startSequence()
-                // Wide margin: tests share one world, and a busy tick can slow the swing cadence.
-                // The 400-tick routine still cannot loop in here, so only holding lands a second hit.
                 .thenExecuteFor(WINDOW, () -> trace.sample(helper.getLevel(), cow))
                 .thenExecute(() -> {
                     if (cow.isAlive()) {
-                        // The reason matters: giving up is a different failure from never swinging,
-                        // and one of them is the hold cap being too near this window.
                         helper.fail("the cow survived an attack told to finish it, at "
                                 + cow.getHealth() + " health, reporting "
                                 + anchor.getLastFailure().reason() + "\n" + trace.report());
@@ -120,15 +102,6 @@ final class AttackIntentGameTest {
 
     private static final int WINDOW = 160;
 
-    /**
-     * What one cow looked like on every tick of the window, kept in arrays and read only on failure.
-     *
-     * <p>Between them these say which of the ways this could go wrong actually happened: a tick
-     * count that stops rising means the mob is not being ticked, invulnerability pinned at full
-     * means something keeps re-hitting it, and a sawtooth over unchanged health means swings are
-     * landing and doing nothing. It was the first of those, which is why the chunk's ticking state
-     * is sampled beside them.
-     */
     private static final class CowTrace {
 
         private final int[] tickCount = new int[WINDOW];
@@ -150,7 +123,6 @@ final class AttackIntentGameTest {
             samples++;
         }
 
-        /** One line per tick that differs from the one before it, so a stall shows as a gap. */
         String report() {
             StringBuilder out = new StringBuilder("tick/health/invulnerable/hurt/chunk-ticks:");
             for (int i = 0; i < samples; i++) {
@@ -170,7 +142,6 @@ final class AttackIntentGameTest {
         }
     }
 
-    /** A target that cannot die must not hold the routine forever. */
     private static void untilDeadGivesUpEventually(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north());
         cow.setInvulnerable(true);
@@ -178,7 +149,6 @@ final class AttackIntentGameTest {
                 untilDead(), 400);
 
         helper.startSequence()
-                // The cap is 100 ticks; this is comfortably past it.
                 .thenExecuteAfter(130, () -> {
                     if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.UNFINISHED) {
                         helper.fail("expected the attack to give up and say so, got "
@@ -188,17 +158,9 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A swing takes its weapon out of the anchor, so an anchor without one does not swing.
-     *
-     * <p>This is the whole of why attacks stopped reading the recording: the weapon template is a
-     * copy of whatever the player happened to be holding, and an anchor that could swing it without
-     * owning it turned one enchanted sword into an unlimited supply of them.
-     */
     private static void needsAWeaponItOwns(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north());
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
-        // After imprinting, which stocks the weapon: the point is an anchor that has none.
         takeEverythingBack(anchor);
 
         helper.startSequence()
@@ -215,7 +177,6 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /** Lent, not spent: the sword comes home, and it comes home worn. */
     private static void returnsTheWeaponItBorrowed(GameTestHelper helper) {
         spawn(helper, ANCHOR.north());
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
@@ -234,15 +195,11 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Told to choose, the anchor swings the better of what it holds rather than what was recorded.
-     */
     private static void smartPicksTheHardestHitter(GameTestHelper helper) {
         Mob cow = spawn(helper, ANCHOR.north());
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
                 TargetRule.DEFAULT, 20, ActionSettings.ToolRule.SMART);
         takeEverythingBack(anchor);
-        // Neither of these is the recorded netherite sword, and one of them hurts far more.
         anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.WOODEN_SHOVEL)), 1);
         anchor.getCloneInventory(0).set(1, ItemResource.of(new ItemStack(Items.DIAMOND_AXE)), 1);
 
@@ -260,13 +217,6 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A routine taught on a cow leaves the pig alone.
-     *
-     * <p>The default used to be the other way about: an empty filter admitted every kind of
-     * creature and the recorded one was only a preference, so a routine that killed one cow in a
-     * pen would happily start on whatever wandered in after the cows ran out.
-     */
     private static void sparesACreatureItDidNotRecord(GameTestHelper helper) {
         Mob pig = spawnPig(helper, ANCHOR.north());
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper, TargetRule.DEFAULT);
@@ -285,7 +235,6 @@ final class AttackIntentGameTest {
                 .thenSucceed();
     }
 
-    /** Widened off the recorded creature, it goes back to taking the nearest thing. */
     private static void widenedTakesWhateverIsThere(GameTestHelper helper) {
         Mob pig = spawnPig(helper, ANCHOR.north());
         attackingAnchor(helper, TargetRule.DEFAULT, 20, ActionSettings.ToolRule.EXACT, false);
@@ -310,7 +259,6 @@ final class AttackIntentGameTest {
         return pig;
     }
 
-    /** Empties every clone, including whatever the fixture handed out. */
     private static void takeEverythingBack(ChronoAnchorBlockEntity anchor) {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
@@ -320,17 +268,6 @@ final class AttackIntentGameTest {
         }
     }
 
-    // ---------------------------------------------------------------------- helpers
-
-    /**
-     * Until-dead, at the reach a routine actually has.
-     *
-     * <p>This used to narrow the reach to a block and a half, because the two until-dead tests each
-     * hold a clone swinging for a hundred ticks and the plots were laid out six blocks apart: one
-     * of them would sooner or later spend that hundred ticks swinging at the other's cow, which is
-     * invulnerable and never dies. A test that has to be aimed away from its neighbours is not
-     * testing the reach it claims to, so the plots were given room instead.
-     */
     private static TargetRule untilDead() {
         return TargetRule.DEFAULT.withCompletion(TargetRule.Completion.UNTIL_DEAD);
     }
@@ -342,7 +279,6 @@ final class AttackIntentGameTest {
             helper.fail("could not spawn the cow this test is about");
             throw new IllegalStateException("unreachable");
         }
-        // Standing still, so the test is about the routine rather than about pathfinding.
         cow.setNoAi(true);
         return cow;
     }
@@ -362,12 +298,6 @@ final class AttackIntentGameTest {
         return attackingAnchor(helper, rule, length, weapon, true);
     }
 
-    /**
-     * @param length   how long the routine runs before looping, which is what separates an action
-     *                 that held the timeline from one the next loop simply repeated
-     * @param weapon   whether the swing insists on the recorded weapon or picks for itself
-     * @param recorded whether it insists on the recorded creature or takes whatever is nearest
-     */
     private static ChronoAnchorBlockEntity attackingAnchor(GameTestHelper helper, TargetRule rule,
                                                            int length,
                                                            ActionSettings.ToolRule weapon,

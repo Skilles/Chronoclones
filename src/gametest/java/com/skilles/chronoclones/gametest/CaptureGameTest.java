@@ -27,9 +27,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 
-/**
- * Capture behaviour that can only be checked against a running world.
- */
 final class CaptureGameTest {
 
     private CaptureGameTest() {}
@@ -48,12 +45,6 @@ final class CaptureGameTest {
                 CaptureGameTest::passingMainHandDoesNotShadowTheOffHand);
     }
 
-    /**
-     * A click the block ignored is not a thing the routine should spend forever repeating.
-     *
-     * <p>The interaction events fire before any of the work, so this used to record a stick being
-     * used on stone as faithfully as it recorded a hoe tilling dirt.
-     */
     private static void refusedInteractionRecordsNothing(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -80,16 +71,11 @@ final class CaptureGameTest {
         }
     }
 
-    /**
-     * Eating on a full stomach is a refusal, and a refusal is not an action.
-     */
     private static void refusedItemUseRecordsNothing(GameTestHelper helper) {
         BlockPos absolute = helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR));
         ServerPlayer player = recordingPlayerAt(helper, absolute);
         RecordingSession session = RecordingSessions.start(player);
         try {
-            // A mock player is created invulnerable, and an invulnerable player can always eat
-            // however full it is, so the refusal this test is about would never happen.
             player.setGameMode(GameType.SURVIVAL);
             player.getFoodData().setFoodLevel(20);
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.APPLE));
@@ -107,12 +93,6 @@ final class CaptureGameTest {
         }
     }
 
-    /**
-     * Two hands are two calls, and only the one that did something is written down.
-     *
-     * <p>Vanilla tries the main hand and then the off hand. A main hand that passed used to record
-     * a phantom action beside the real one, so the routine replayed a thing that had never happened.
-     */
     private static void passingMainHandDoesNotShadowTheOffHand(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
@@ -125,7 +105,6 @@ final class CaptureGameTest {
             BlockHitResult hit =
                     new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false);
 
-            // The main hand has nothing dirt cares about; the off hand has a hoe.
             player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.STICK));
             player.setItemInHand(InteractionHand.OFF_HAND, new ItemStack(Items.DIAMOND_HOE));
 
@@ -153,38 +132,19 @@ final class CaptureGameTest {
         }
     }
 
-    /**
-     * A mock player standing where the action is.
-     *
-     * <p>A session takes its origin from wherever the player is when it starts, and a mock player
-     * is created at the world spawn -- millions of blocks away, where everything in this plot is
-     * out of range and dropped without a word.
-     */
     private static ServerPlayer recordingPlayerAt(GameTestHelper helper, BlockPos absolute) {
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.snapTo(absolute.getX() + 0.5, absolute.getY() + 1.0, absolute.getZ() + 0.5);
         return player;
     }
 
-    /**
-     * Using an item on a block is one action, and it remembers what it was used on.
-     *
-     * <p>Tilling a field recorded a "Use Hoe" and then a "Place Hoe" that could only ever fail:
-     * NeoForge wraps every {@code useOn} in block-snapshot capture, so the farmland the hoe leaves
-     * behind arrives as a placement with a hoe as the item that placed it. Between them the two
-     * capture handlers should cover each interaction exactly once.
-     */
     private static void tillingRecordsOneAction(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
-        // A hoe refuses to till anything with a block on top of it.
         helper.setBlock(target.above(), Blocks.AIR);
 
         BlockPos absolute = helper.absolutePos(target);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        // A mock player is placed at the world spawn, and a session takes its origin from wherever
-        // the player is standing when it starts. Left there, every action in this plot is millions
-        // of blocks out of range and is dropped without a word.
         player.snapTo(absolute.getX() + 0.5, absolute.getY() + 1.0, absolute.getZ() + 0.5);
 
         RecordingSession session = RecordingSessions.start(player);
@@ -194,7 +154,6 @@ final class CaptureGameTest {
                     InteractionHand.MAIN_HAND,
                     new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false));
 
-            // If the hoe did not till, this test is about nothing.
             helper.assertBlockPresent(Blocks.FARMLAND, target);
 
             List<TimedAction> recorded = session.finish().actions();
@@ -208,7 +167,6 @@ final class CaptureGameTest {
                         + " rather than a use on a block");
                 return;
             }
-            // Dirt, not farmland: what it was used on, not what it left behind.
             if (use.expectedBlock().map(block -> block.value() != Blocks.DIRT).orElse(true)) {
                 helper.fail("the hoe did not remember tilling dirt: " + use.expectedBlock());
                 return;
@@ -219,9 +177,6 @@ final class CaptureGameTest {
         }
     }
 
-    /**
-     * A session keeps the block it was opened on, which is what the editor draws it as.
-     */
     private static void recordedSessionRemembersWhatItOpened(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.CHEST);
@@ -232,7 +187,6 @@ final class CaptureGameTest {
             BlockPos absolute = helper.absolutePos(target);
             ContainerWatch.noteInteraction(player, absolute, session);
 
-            // Opening the chest for real, so the watch sees the menu the player is looking at.
             helper.useBlock(target, player);
             if (!(player.containerMenu instanceof ChestMenu)) {
                 helper.fail("the chest never opened, so nothing was recorded to check");
@@ -271,19 +225,15 @@ final class CaptureGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        // The session origin is snapshotted at start, so park the actor first.
         FakePlayer owner = AnchorTestFixture.owner(level);
         BlockPos anchorAbsolute = helper.absolutePos(ANCHOR);
         owner.setPos(anchorAbsolute.getX() + 0.5, anchorAbsolute.getY(), anchorAbsolute.getZ() + 0.5);
 
-        // The collision under test is one of UUIDs, and this session is keyed by the one
-        // the anchor will act under.
         RecordingSession session = RecordingSessions.start(owner);
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
                     try {
-                        // Fails loudly rather than passing vacuously if replay never happened.
                         helper.assertBlockNotPresent(Blocks.STONE, target);
 
                         if (session.actionCount() != 0) {
@@ -295,7 +245,6 @@ final class CaptureGameTest {
                             helper.fail("the anchor lost its routine mid-test");
                         }
                     } finally {
-                        // discard() refuses fake players, so clear the shared state directly.
                         RecordingSessions.clear();
                     }
                 })

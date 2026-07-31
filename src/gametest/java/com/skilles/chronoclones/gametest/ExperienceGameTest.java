@@ -21,9 +21,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
 import net.minecraft.world.phys.AABB;
 
-/**
- * Experience a clone earns, keeps, and hands back when its anchor is broken.
- */
 final class ExperienceGameTest {
 
     private ExperienceGameTest() {}
@@ -39,13 +36,6 @@ final class ExperienceGameTest {
                 ExperienceGameTest::smeltedResultBanksItsExperience);
     }
 
-    /**
-     * The other end of the lend-and-return seam: nothing here knows what a furnace is.
-     *
-     * <p>A furnace owes its experience to whoever takes the result out, through vanilla's own
-     * {@code awardUsedRecipes}. The clone is that player for the length of the session, so the
-     * experience lands in its bank without this mod naming the source.
-     */
     private static void smeltedResultBanksItsExperience(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
@@ -57,8 +47,6 @@ final class ExperienceGameTest {
             return;
         }
 
-        // Seeded rather than smelted: one smelt takes two hundred ticks, which is a test's whole
-        // budget spent watching a progress bar.
         RecipeHolder<?> smelting = level.recipeAccess().getRecipes().stream()
                 .filter(holder -> holder.value() instanceof SmeltingRecipe recipe
                         && recipe.experience() > 0.0f)
@@ -68,8 +56,6 @@ final class ExperienceGameTest {
             helper.fail("no smelting recipe worth any experience to seed the furnace with");
             return;
         }
-        // Twenty uses, not one: vanilla floors uses x experience and rolls a die for the fraction,
-        // so a single use of a recipe worth 0.7 pays nothing three times in ten.
         for (int use = 0; use < 20; use++) {
             furnace.setRecipeUsed(smelting);
         }
@@ -95,19 +81,11 @@ final class ExperienceGameTest {
                 .thenSucceed();
     }
 
-    /** Vanilla furnace menu order: input, fuel, result, then the player's own. */
     private static final int FURNACE_MENU_SIZE = 3 + 36;
     private static final int FURNACE_RESULT = 2;
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /**
-     * destroyBlock never runs playerDestroy, so an ore mined by a clone used to pay nothing at all.
-     *
-     * <p>Diamond rather than coal: coal owes {@code UniformInt.of(0, 2)}, so a clone banking nothing
-     * from one is a legal roll of the dice and this test would fail about one run in three. Diamond
-     * owes three at the least.
-     */
     private static void minedOreBanksItsExperience(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.DIAMOND_ORE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
@@ -127,7 +105,6 @@ final class ExperienceGameTest {
                 .thenSucceed();
     }
 
-    /** The counterpart: a block that owes nothing must not somehow pay. */
     private static void minedStoneBanksNothing(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
@@ -147,7 +124,6 @@ final class ExperienceGameTest {
                 .thenSucceed();
     }
 
-    /** Banked experience belongs to whoever breaks the anchor, like everything else inside it. */
     private static void brokenAnchorGivesBackExperience(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -162,10 +138,6 @@ final class ExperienceGameTest {
                     List<ExperienceOrb> orbs = level.getEntitiesOfClass(ExperienceOrb.class,
                             new AABB(absolute).inflate(5.0));
                     int total = orbs.stream().mapToInt(ExperienceOrb::getValue).sum();
-                    // Exactly, now that a plot has room around it: this used to say "at least",
-                    // because the box had to be wide enough for a spilled orb's own random motion
-                    // and that reached into whatever the next test along was doing. Which meant it
-                    // could not have noticed the anchor spilling too much.
                     if (total != 40) {
                         helper.fail("expected 40 points back on the ground, found " + total);
                     }

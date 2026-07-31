@@ -4,9 +4,7 @@ import java.util.List;
 
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Interpolates a looping route from a waypoint list.
- */
+/** Interpolation between two motion samples. */
 public final class MotionPath {
 
     private final List<Vec3> waypoints;
@@ -29,7 +27,6 @@ public final class MotionPath {
         return lengthTicks;
     }
 
-    /** Local-space position at {@code tick}. Pure: same input, same output, always. */
     public Vec3 positionAt(int tick) {
         int wrapped = Math.floorMod(tick, lengthTicks);
         int leg = wrapped / ticksPerLeg;
@@ -38,14 +35,12 @@ public final class MotionPath {
         Vec3 from = waypoints.get(leg);
         Vec3 to = waypoints.get((leg + 1) % waypoints.size());
 
-        // Explicit lerp rather than Vec3#lerp so the "no accumulation" property is visible here.
         return new Vec3(
                 from.x + (to.x - from.x) * t,
                 from.y + (to.y - from.y) * t,
                 from.z + (to.z - from.z) * t);
     }
 
-    /** Facing along the current leg, in Minecraft yaw degrees. */
     public float yawAt(int tick) {
         int wrapped = Math.floorMod(tick, lengthTicks);
         int leg = wrapped / ticksPerLeg;

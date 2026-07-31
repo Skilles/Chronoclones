@@ -18,16 +18,11 @@ import net.minecraft.world.phys.HitResult;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Decides what the player is currently being shown a preview of, and fetches it when needed.
- */
 public final class PreviewCache {
 
     private PreviewCache() {}
 
-    /** How long a fetched routine stays good. Long enough to look around, short enough to notice edits. */
     private static final long TTL_TICKS = 60;
-    /** Never more than one request in flight per this many ticks, however hard the player stares. */
     private static final long REQUEST_INTERVAL_TICKS = 10;
 
     private static @Nullable BlockPos cachedFor;
@@ -37,15 +32,8 @@ public final class PreviewCache {
     private static long cachedAtTick = Long.MIN_VALUE;
     private static final RequestClock CLOCK = new RequestClock();
 
-    /**
-     * The anchor being looked at and the routine to draw there, or null.
-     *
-     * @param failure always NONE for a routine held in hand, which has never run
-     */
     public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
                          DiagnosticState failure, BlockPos originOffset) {
-
-        /** Where the routine is actually drawn from, which is the anchor plus its nudge. */
         public Placement placement() {
             return Placement.of(anchorPos, facing, originOffset);
         }
@@ -76,10 +64,8 @@ public final class PreviewCache {
             ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }
 
-        // The offset belongs to the anchor, so it applies to a shard being lined up as well.
         BlockPos offset = fresh ? cachedOffset : BlockPos.ZERO;
 
-        // A routine in hand wins: the question is what it would do here.
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
             return new Target(pos, facing, held, true, DiagnosticState.NONE, offset);
@@ -89,11 +75,9 @@ public final class PreviewCache {
             return cached == null ? null
                     : new Target(pos, facing, cached, false, cachedFailure, offset);
         }
-        // One frame of nothing beats a stale routine drawn over a different anchor.
         return null;
     }
 
-    /** Called on the main thread by the payload handler. */
     public static void accept(AnchorPreviewPayloads.Reply reply) {
         Minecraft minecraft = Minecraft.getInstance();
         cachedFor = reply.pos();
@@ -103,12 +87,6 @@ public final class PreviewCache {
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
-    /**
-     * Moves the cached routine by a nudge just sent, rather than dropping the cache and drawing
-     * at the un-nudged origin until the reply lands.
-     *
-     * @param delta the step, or {@link BlockPos#ZERO} for a reset
-     */
     public static void nudged(BlockPos delta) {
         cachedOffset = delta.equals(BlockPos.ZERO) ? BlockPos.ZERO : cachedOffset.offset(delta);
     }

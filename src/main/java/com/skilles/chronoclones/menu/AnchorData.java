@@ -2,12 +2,7 @@ package com.skilles.chronoclones.menu;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 
-/**
- * The slots of the anchor's synced {@code ContainerData}, by name.
- *
- * <p>Written as bare numbers in two files, these drifted once and a client read past the end
- * of its buffer.
- */
+/** The indices of the anchor's synced ContainerData. */
 public final class AnchorData {
 
     private AnchorData() {}
@@ -24,20 +19,17 @@ public final class AnchorData {
     public static final int FAILURE_Z = 9;
     public static final int RUN_STATE = 10;
 
-    /** One playhead per clone, so the timeline can mark them all. */
     public static final int PLAYHEAD = 11;
 
     public static int playhead(int clone) {
         return PLAYHEAD + clone;
     }
 
-    /** And one experience total per clone, for the bar under its storage tab. */
     public static final int EXPERIENCE = PLAYHEAD + ChronoAnchorBlockEntity.CLONE_INVENTORIES;
 
     public static int experience(int clone) {
         return EXPERIENCE + clone;
     }
 
-    /** How many ints the menu syncs. Derived, so it cannot disagree with the list above. */
     public static final int COUNT = EXPERIENCE + ChronoAnchorBlockEntity.CLONE_INVENTORIES;
 }

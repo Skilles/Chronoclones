@@ -24,9 +24,6 @@ import net.neoforged.neoforge.transfer.item.ItemResource;
 
 import static com.skilles.chronoclones.gametest.AnchorTestFixture.countIn;
 
-/**
- * Lending a clone's inventory to a container session, square for square.
- */
 final class CarrierGameTest {
 
     private CarrierGameTest() {}
@@ -50,7 +47,6 @@ final class CarrierGameTest {
                 CarrierGameTest::exactSlotRuleLendsOneSquare);
     }
 
-    /** A ceiling on the amount, for a routine that should feed a furnace rather than fill it. */
     private static void quantityRuleCapsWhatItLends(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -73,7 +69,6 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /** An item rule leaves everything it does not name behind, so the clicks find an empty square. */
     private static void itemRuleHoldsBackWhatItNames(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -96,14 +91,6 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Every square goes with the clone, whatever square the recording happened to be holding.
-     *
-     * <p>A session used to be confined to one square of the clone's inventory by the slot rule,
-     * which for a session was seeded from whichever hotbar slot was selected while recording -- so
-     * it confined sessions to a square nobody had chosen. What a session may take from is a question
-     * its steps answer now, each about its own move.
-     */
     private static void exactSlotRuleLendsOneSquare(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -115,7 +102,6 @@ final class CarrierGameTest {
                         click(menuSlotOf(withheld), LEFT, ContainerInput.QUICK_MOVE)),
                 ActionSettings.DEFAULT.withSlot(
                         new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, allowed)));
-        // Both squares reach the barrel: the rule above no longer decides what may be lent.
         anchor.getCloneInventory(0).set(allowed, ItemResource.of(Items.DIAMOND), 4);
         anchor.getCloneInventory(0).set(withheld, ItemResource.of(Items.OAK_LOG), 4);
 
@@ -132,23 +118,18 @@ final class CarrierGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** A single chest: 27 of its own, then the player's storage rows, then the hotbar. */
     private static final int CHEST_SLOTS = 27;
     private static final int CHEST_MENU_SIZE = CHEST_SLOTS + Inventory.INVENTORY_SIZE;
 
     private static final int LEFT = 0;
     private static final int RIGHT = 1;
 
-    /** Where a clone's inventory slot appears in the open chest menu. */
     private static int menuSlotOf(int inventorySlot) {
         return Inventory.isHotbarSlot(inventorySlot)
                 ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.SELECTION_SIZE) + inventorySlot
                 : CHEST_SLOTS + inventorySlot - Inventory.SELECTION_SIZE;
     }
 
-    /**
-     * The click names a square, and that square holds what the anchor holds in it.
-     */
     private static void lendsTheSquareTheClickNames(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -166,7 +147,6 @@ final class CarrierGameTest {
                     if (!anchor.getCloneInventory(0).getResource(lent).isEmpty()) {
                         helper.fail("the lent square was refilled behind the session's back");
                     }
-                    // A session borrows the whole inventory, so everything else must survive it.
                     if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 5) {
                         helper.fail("the logs the session never touched did not come home");
                     }
@@ -174,7 +154,6 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /** The hotbar sits at the far end of the menu, 27 squares from where the storage rows start. */
     private static void lendsTheHotbarRowToo(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -189,14 +168,12 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /** What the session did not spend goes back where it came from, not wherever there is room. */
     private static void returnsToTheSquareItLentFrom(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
         int lent = 14;
         ChronoAnchorBlockEntity anchor = deposit(helper, List.of(
-                // Right-click takes half to the cursor, left-click puts it in the barrel.
                 click(menuSlotOf(lent), RIGHT, ContainerInput.PICKUP),
                 click(0, LEFT, ContainerInput.PICKUP)));
         anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
@@ -212,9 +189,6 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A click lands on the square it recorded, whatever is in it.
-     */
     private static void clicksTheSquareItRecorded(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -253,9 +227,6 @@ final class CarrierGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A carrier square's whole stack survives being imprinted.
-     */
     private static void stackSurvivesAnImprint(GameTestHelper helper) {
         ItemStack recorded = new ItemStack(Items.DIAMOND, 5);
         recorded.set(DataComponents.CUSTOM_NAME, Component.literal("Keystone"));
@@ -283,8 +254,6 @@ final class CarrierGameTest {
         }
         helper.succeed();
     }
-
-    // ---------------------------------------------------------------------- helpers
 
     private static ChronoAnchorBlockEntity deposit(GameTestHelper helper,
                                                    List<SessionStep> clicks) {

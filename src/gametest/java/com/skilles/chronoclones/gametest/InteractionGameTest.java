@@ -31,9 +31,6 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
-/**
- * The generic interaction paths.
- */
 final class InteractionGameTest {
 
     private InteractionGameTest() {}
@@ -71,12 +68,6 @@ final class InteractionGameTest {
                 InteractionGameTest::sessionWithoutAMenuSaysSo);
     }
 
-    /**
-     * A session whose container has been replaced by something with no menu.
-     *
-     * <p>Reported as its own thing rather than as the failure an attack gives when it swings at
-     * empty air: they read very differently to somebody trying to work out what their farm is doing.
-     */
     private static void sessionWithoutAMenuSaysSo(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
 
@@ -95,11 +86,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Taking a single item the way a player does it: right-click for half, right-drag one into a
-     * square, put the rest back. The middle of that arrives as a quick-craft drag rather than a
-     * click, which no amount of interpreting will turn into a move.
-     */
     private static void rightDragTakesOneItem(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -108,7 +94,6 @@ final class InteractionGameTest {
         BlockPos absoluteTarget = helper.absolutePos(target);
         stock(level, absoluteTarget, 0, Items.DIAMOND, 8);
 
-        // Right-drag: type 1, so start/add/end are buttons 4, 5 and 6.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         click(0, RIGHT, ContainerInput.PICKUP),
@@ -137,9 +122,6 @@ final class InteractionGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /**
-     * Nothing in this mod knows what a lever is.
-     */
     private static void flipsLever(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target.below(), Blocks.STONE);
@@ -151,7 +133,6 @@ final class InteractionGameTest {
         AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.AIR)));
 
-        // One pass, not a loop: a lever is a toggle and the routine repeats.
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
                     if (!helper.getBlockState(target).getValue(LeverBlock.POWERED)) {
@@ -161,7 +142,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** A routine recorded holding something does not run in an anchor that has none of it. */
     private static void needsItsItem(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -179,9 +159,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The borrowed stack comes home, carrying whatever the interaction did to it.
-     */
     private static void returnsWhatItBorrowed(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -209,11 +186,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    // ------------------------------------------------------------------ containers
-
-    /**
-     * The reason container work is recorded as clicks rather than amounts.
-     */
     private static void splitsByIntent(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -224,9 +196,7 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
-                        // Right-click slot 0: half of it onto the cursor.
                         click(0, RIGHT, ContainerInput.PICKUP),
-                        // Left-click the carrier's first slot: put all of it down.
                         click(CHEST_CARRIER_SLOT, LEFT, ContainerInput.PICKUP))));
 
         helper.startSequence()
@@ -240,9 +210,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Loading a furnace, which is where slots carry meaning.
-     */
     private static void loadsAFurnace(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
@@ -268,8 +235,6 @@ final class InteractionGameTest {
                     }
                     assertSlotHolds(helper, furnace, FURNACE_INPUT, Items.OAK_LOG, "input");
 
-                    // A furnace consumes fuel on the tick it arrives, so an empty fuel slot
-                    // here means the log got there and burned.
                     if (!helper.getBlockState(target).getValue(BlockStateProperties.LIT)) {
                         helper.fail("the furnace never lit - the second log did not reach the fuel "
                                 + "slot, so nothing smelts");
@@ -278,7 +243,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** Shift-clicking a stack out of a container, routed entirely by the menu's own logic. */
     private static void shiftClicksOut(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -300,7 +264,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** Slot to slot inside one container, with the anchor never holding the items. */
     private static void movesWithinContainer(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -334,9 +297,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A session refuses a menu of a different shape.
-     */
     private static void refusesAnotherMenu(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
@@ -355,10 +315,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-
-    /**
-     * Depositing, the case a routine that empties itself into a chest depends on.
-     */
     private static void depositsIntoAContainer(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -395,9 +351,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * An understocked session clicks empty squares rather than refusing to run.
-     */
     private static void runsUnderstocked(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -417,19 +370,12 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    // ------------------------------------------------------------------ steps
-
-    /**
-     * "Half" is half of whatever is standing there, which is the whole reason a move records an
-     * amount rather than a count.
-     */
     private static void moveStepTakesHalf(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
-        // Recorded against 16, replayed against 24: a baked count would move 8.
         stock(level, absoluteTarget, 3, Items.COBBLESTONE, 24);
 
         AnchorTestFixture.placeAndImprint(helper, ANCHOR,
@@ -456,7 +402,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** One item down and the rest put back, which is three clicks to the menu and one step here. */
     private static void moveStepDropsOne(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -493,7 +438,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** A shift-click names no destination, so the menu picks one at replay as it did at record. */
     private static void moveStepSendsElsewhere(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -516,10 +460,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * An empty source is not a failure: a chest that has not refilled yet is the ordinary case, and
-     * the steps after it still have work to do.
-     */
     private static void moveStepOverNothing(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -548,9 +488,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    // ------------------------------------------------------------------ menu geometry
-
-    // Vanilla menu order: container slots, main inventory, hotbar.
     private static final int CHEST_MENU_SIZE = 27 + 36;
     private static final int CHEST_CARRIER_SLOT = 27 + 27;
     private static final int CHEST_MAIN_INVENTORY_START = 27;
@@ -562,13 +499,9 @@ final class InteractionGameTest {
     private static final int LEFT = 0;
     private static final int RIGHT = 1;
 
-    /**
-     * A click on a full slot does nothing, and does nothing anywhere else either.
-     */
     private static void fullSlotLeavesTheItemAlone(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.FURNACE);
-        // A full fuel slot with nothing to smelt just sits there, so it stays full for the test.
         AnchorTestFixture.fillSlot(helper, target, FURNACE_FUEL, new ItemStack(Items.COAL, 64));
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
@@ -594,7 +527,6 @@ final class InteractionGameTest {
                                 + "than the square it named, got "
                                 + furnace.getResource(FURNACE_INPUT).getItem());
                     }
-                    // And it is not lost: a click with nowhere to go returns its item.
                     if (countIn(anchor.getInventory(), Items.COAL) != 1) {
                         helper.fail("the coal went nowhere and was not returned to the anchor");
                     }
@@ -602,9 +534,6 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A session borrows the whole inventory, so what its clicks never name comes back untouched.
-     */
     private static void untouchedStockComesHome(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -614,7 +543,6 @@ final class InteractionGameTest {
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
 
-        // Neither square is named by the session's one click.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);
         anchor.getCloneInventory(0).set(1, ItemResource.of(Items.IRON_INGOT), 7);
 
@@ -629,8 +557,6 @@ final class InteractionGameTest {
                 })
                 .thenSucceed();
     }
-
-    // ------------------------------------------------------------------ helpers
 
     private static SessionStep.RawClick click(int slot, int button, ContainerInput input) {
         return new SessionStep.RawClick(slot, button, input);
@@ -654,25 +580,19 @@ final class InteractionGameTest {
         return new ChronoAction.UseContainer.CarrierSlot(menuSlot, new ItemStack(item, count));
     }
 
-    /** Right-click the top face, dead centre - the geometry a player clicking a floor block produces. */
     private static ChronoAction useOnBlock(BlockPos localPos, Item item) {
         return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
                 InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item));
     }
 
-    /** The same, recorded against a particular block, which is what a hoe on dirt looks like. */
     private static ChronoAction useOnBlock(BlockPos localPos, Item item, Block on) {
         return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
                 InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(item),
                 java.util.Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(on)));
     }
 
-    /**
-     * A hoe recorded tilling dirt says so rather than striking whatever is standing there now.
-     */
     private static void useOnRefusesAnotherBlock(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        // Recorded on dirt, and there is stone here now.
         helper.setBlock(target, Blocks.STONE);
         helper.setBlock(target.above(), Blocks.AIR);
 
@@ -693,10 +613,8 @@ final class InteractionGameTest {
                 .thenSucceed();
     }
 
-    /** Widened to any block, the same routine tills whatever it finds. */
     private static void widenedUseOnWorksAnyway(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        // Recorded on dirt, and there is coarse dirt here now, which a hoe also works.
         helper.setBlock(target, Blocks.COARSE_DIRT);
         helper.setBlock(target.above(), Blocks.AIR);
 

@@ -11,7 +11,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/** End-to-end replay: real block state, real loot tables, real inventory. */
 final class ReplayGameTest {
 
     private ReplayGameTest() {}
@@ -29,7 +28,6 @@ final class ReplayGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** The basic loop: the routine runs, the block goes, and its drops land in the anchor. */
     private static void breakStoresDropsInAnchor(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -48,12 +46,10 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** The blacklist is enforced at execute time, whatever the recording claims. */
     private static void blacklistedBlockSurvives(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BEDROCK);
 
-        // The recording expects bedrock, so only the blacklist can stop this.
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.BEDROCK));
 
@@ -68,15 +64,8 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The square holds a different block now; a routine widened to any block mines it anyway.
-     *
-     * <p>Widened, because a routine says which block it is for: see
-     * {@code break_refuses_a_block_it_was_not_recorded_on} for what the same setup does by default.
-     */
     private static void carriesOnWhenTheBlockChanged(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
-        // The canonical drift: recorded against stone, cobblestone now.
         helper.setBlock(target, Blocks.COBBLESTONE);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
@@ -86,7 +75,6 @@ final class ReplayGameTest {
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
                     helper.assertBlockNotPresent(Blocks.COBBLESTONE, target);
-                    // Drops prove it was mined rather than replaced.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.COBBLESTONE) != 1) {
                         helper.fail("expected the drop of the block that was actually there");
                     }
@@ -94,12 +82,6 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * By default a routine is for the block it was recorded on, and says so when that is gone.
-     *
-     * <p>The other half of {@code carries_on_when_the_block_changed}: same drift, same square, and
-     * the opposite outcome, because the only difference between them is the option.
-     */
     private static void refusesABlockItWasNotRecordedOn(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.COBBLESTONE);
@@ -119,9 +101,6 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Breaking into a full anchor halts rather than dropping, asserted.
-     */
     private static void fullInventoryDoesNotDestroy(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -129,9 +108,6 @@ final class ReplayGameTest {
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        // Fill every storage slot but the last with something that cannot merge with cobblestone.
-        // The last holds the pickaxe: a clone with a full inventory is still holding its tool, and
-        // taking that away would make this a test about an empty anchor instead.
         var inventory = anchor.getCloneInventory(0);
         for (int slot = 0; slot < inventory.size() - 1; slot++) {
             inventory.set(slot, ItemResource.of(Items.BEDROCK), 64);
@@ -148,7 +124,6 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    /** Block entities are refused outright in this pass. */
     private static void blockEntitiesAreNeverBroken(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.CHEST);

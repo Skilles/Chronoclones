@@ -14,17 +14,11 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Tells the recorder what right-clicking a block actually did.
- *
- * <p>{@code RightClickBlock} is fired from inside this method, before any of the work: it is the
- * question, not the answer. NeoForge exposes nothing for the answer, and the difference matters --
- * a click that returned PASS did nothing, and a routine that replays it will do nothing forever.
- *
- * <p>The event and this return are the same invocation, so the hand they report is the same hand,
- * which is what lets a main hand that passed be told apart from the off hand that worked.
- */
 @Mixin(ServerPlayerGameMode.class)
+/**
+ * Reports what right-clicking a block actually did. The interaction events fire before the
+ * work, and NeoForge exposes nothing for the result.
+ */
 public abstract class UseItemOnMixin {
 
     @Inject(method = "useItemOn", at = @At("RETURN"))

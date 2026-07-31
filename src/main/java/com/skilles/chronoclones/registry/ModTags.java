@@ -8,9 +8,6 @@ import net.minecraft.world.level.block.Block;
 
 public final class ModTags {
 
-    /**
-     * Blocks a clone may never break, whatever the recording says.
-     */
     public static final TagKey<Block> ANCHOR_UNBREAKABLE =
             TagKey.create(Registries.BLOCK, Chronoclones.id("anchor_unbreakable"));
 

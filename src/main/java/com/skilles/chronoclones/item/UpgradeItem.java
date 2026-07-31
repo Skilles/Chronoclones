@@ -10,9 +10,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import org.jspecify.annotations.NonNull;
 
-/**
- * An anchor upgrade, which is only ever an item in a slot.
- */
 public class UpgradeItem extends Item {
 
     private final String descriptionKey;

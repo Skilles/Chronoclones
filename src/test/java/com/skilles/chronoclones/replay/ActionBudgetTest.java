@@ -7,12 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Sharing one tick's actions between anchors.
- *
- * <p>The property that matters is the one a single counter did not have: an anchor that ticks last
- * still gets to act, however greedy the ones before it are.
- */
 class ActionBudgetTest {
 
     @Test
@@ -33,13 +27,11 @@ class ActionBudgetTest {
     void greedyAnchorCannotStarveAnother() {
         ActionBudget budget = twoActiveAnchors(64);
 
-        // The first anchor takes everything it possibly can, as it would every tick.
         int greedy = 0;
         while (budget.claim("first")) {
             greedy++;
         }
 
-        // The second is asked afterwards, which under one shared counter was always too late.
         assertTrue(budget.claim("second"),
                 "the second anchor got nothing after the first took " + greedy);
     }
@@ -48,7 +40,6 @@ class ActionBudgetTest {
     @DisplayName("the guaranteed floor is a share of half the budget, not half the budget")
     void allowanceIsAFloorNotAQuota() {
         ActionBudget budget = twoActiveAnchors(64);
-        // Half of the budget is reserved as floors and split between the two; the rest is pooled.
         assertEquals(16, budget.allowance());
         assertEquals(32, budget.overflow());
     }
@@ -62,10 +53,8 @@ class ActionBudgetTest {
         while (budget.claim("first")) {
             busy++;
         }
-        // Its own floor plus the whole shared pool: only the other anchor's floor is withheld.
         assertEquals(48, busy);
 
-        // And that floor is still there for the anchor it was reserved for.
         int quiet = 0;
         while (budget.claim("second")) {
             quiet++;
@@ -114,17 +103,10 @@ class ActionBudgetTest {
     void zeroBudgetRefuses() {
         ActionBudget budget = new ActionBudget(0);
         budget.reset(0);
-        // The allowance floor is one, so a level configured to zero still ticks over rather than
-        // dividing by nothing; what it must not do is fail.
         assertTrue(budget.total() == 0);
         budget.claim("anchor");
     }
 
-    /**
-     * A budget that has already seen two anchors, so the next tick plans for two.
-     *
-     * <p>The population is last tick's: an anchor is counted from the tick after it first asks.
-     */
     private static ActionBudget twoActiveAnchors(int total) {
         ActionBudget budget = new ActionBudget(total);
         budget.claim("first");

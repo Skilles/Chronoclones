@@ -24,9 +24,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Which nearby routines mark up an open container.
- */
 class GoggleSlotsTest {
 
     private static final BlockPos CHEST = new BlockPos(10, 64, 10);
@@ -36,7 +33,6 @@ class GoggleSlotsTest {
         return anchor(pos, BlockPos.ZERO, carrierSlots);
     }
 
-    /** An anchor at {@code pos}, north-facing, working the container one step north of its origin. */
     private static PreviewCache.Target anchor(BlockPos pos, BlockPos nudge, int... carrierSlots) {
         List<ChronoAction.UseContainer.CarrierSlot> carrier =
                 java.util.Arrays.stream(carrierSlots)
@@ -56,7 +52,6 @@ class GoggleSlotsTest {
                 DiagnosticState.NONE, nudge);
     }
 
-    /** The anchor position whose local (0, 0, -1) lands on the chest, for a north-facing anchor. */
     private static BlockPos anchorFor(BlockPos container) {
         return container.south();
     }
@@ -75,7 +70,6 @@ class GoggleSlotsTest {
     @Test
     @DisplayName("a routine working a different container is ignored")
     void otherContainersAreIgnored() {
-        // Same routine, an anchor one block over, so its session lands on the chest next door.
         assertNull(GoggleSlots.collect(
                 List.of(anchor(anchorFor(CHEST).east(), 30)), CHEST, MENU_SIZE));
     }
@@ -83,8 +77,6 @@ class GoggleSlotsTest {
     @Test
     @DisplayName("a session recorded against a differently shaped menu is ignored")
     void differentMenuShapeIsIgnored() {
-        // Slot indices only mean anything relative to the menu that produced them, so marking up a
-        // menu of another shape would point at squares chosen by arithmetic rather than by anyone.
         assertNull(GoggleSlots.collect(
                 List.of(anchor(anchorFor(CHEST), 30)), CHEST, 3 + 36));
     }
@@ -92,8 +84,6 @@ class GoggleSlotsTest {
     @Test
     @DisplayName("two anchors sharing a container are both shown")
     void anchorsSharingAContainerAreMerged() {
-        // A chest worked by two routines is ordinary. The second anchor has to be nudged onto
-        // it, so this covers the highlight following the nudge too.
         GoggleSlots.Session session = GoggleSlots.collect(List.of(
                 anchor(anchorFor(CHEST), 30),
                 anchor(anchorFor(CHEST).above(), new BlockPos(0, -1, 0), 31)), CHEST, MENU_SIZE);

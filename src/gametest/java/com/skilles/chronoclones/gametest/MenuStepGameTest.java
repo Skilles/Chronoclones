@@ -27,9 +27,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * The menus a session reaches that are not a chest: a villager's offers, an anvil's name field.
- */
 final class MenuStepGameTest {
 
     private MenuStepGameTest() {}
@@ -53,13 +50,6 @@ final class MenuStepGameTest {
                 MenuStepGameTest::repeatedTradesAreOneStep);
     }
 
-    /**
-     * Two clicks on one offer are one choice.
-     *
-     * <p>Here rather than in a unit test because it turns on comparing real stacks: an ItemStack has
-     * no value equality, so a Trade of empty ones compares equal to another by accident and proves
-     * nothing at all.
-     */
     private static void repeatedTradesAreOneStep(GameTestHelper helper) {
         SessionStep.Trade first = new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
                 ItemStack.EMPTY, new ItemStack(Items.BRICK, 4));
@@ -73,7 +63,6 @@ final class MenuStepGameTest {
             helper.fail("clicking one offer twice made " + steps.size() + " steps: " + steps);
         }
 
-        // And a different offer after it is still a second step.
         SessionStep.Trade other = new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
                 ItemStack.EMPTY, new ItemStack(Items.BREAD, 6));
         if (SessionSteps.interpret(List.of(new SessionSteps.Event.Did(first),
@@ -85,20 +74,14 @@ final class MenuStepGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** Vanilla menu order for a merchant: two payment slots, the result, then the player's own. */
     private static final int MERCHANT_MENU_SIZE = 3 + 36;
     private static final int MERCHANT_RESULT = 2;
 
     private static final int ANVIL_MENU_SIZE = 3 + 36;
     private static final int ANVIL_INPUT = 0;
     private static final int ANVIL_RESULT = 2;
-    /** Where the carrier puts the clone's first square, in a menu with three of its own. */
     private static final int ANVIL_HOTBAR_0 = 3 + 27;
 
-    /**
-     * A villager's trades reorder as it levels, so the fifth trade of that day is not the same
-     * promise as the fifth trade today. The offer is matched, never the index.
-     */
     private static void tradeSurvivesReordering(GameTestHelper helper) {
         Villager villager = merchant(helper, ANCHOR.north(),
                 offer(Items.EMERALD, 1, Items.BREAD, 6),
@@ -106,7 +89,6 @@ final class MenuStepGameTest {
 
         ChronoAnchorBlockEntity anchor = tradingAnchor(helper, villager, Items.APPLE, 4);
 
-        // Recorded second, offered first: an index would buy bread.
         setOffers(villager,
                 offer(Items.EMERALD, 1, Items.APPLE, 4),
                 offer(Items.EMERALD, 1, Items.BREAD, 6));
@@ -124,7 +106,6 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /** With the offer gone there is nothing to buy, and nothing worth guessing at. */
     private static void tradeRefusesAMissingOffer(GameTestHelper helper) {
         Villager villager = merchant(helper, ANCHOR.north(),
                 offer(Items.EMERALD, 1, Items.APPLE, 4));
@@ -141,7 +122,6 @@ final class MenuStepGameTest {
                         helper.fail("expected the missing offer to be reported, got "
                                 + anchor.getLastFailure().reason());
                     }
-                    // And the payment is still in the anchor rather than in a villager's pocket.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.EMERALD) != 1) {
                         helper.fail("the emerald was spent on a trade that never happened");
                     }
@@ -149,10 +129,6 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * Sold out looks exactly like working normally unless somebody says otherwise: the payment goes
-     * in, no result comes out, and the session appears to have decided not to bother today.
-     */
     private static void tradeReportsBeingSoldOut(GameTestHelper helper) {
         Villager villager = merchant(helper, ANCHOR.north(),
                 offer(Items.EMERALD, 1, Items.APPLE, 4));
@@ -177,13 +153,11 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /** An entity target is a point to look around, not a square to reach into. */
     private static void sessionFindsAVillagerThatMoved(GameTestHelper helper) {
         Villager villager = merchant(helper, ANCHOR.north(),
                 offer(Items.EMERALD, 1, Items.APPLE, 4));
         ChronoAnchorBlockEntity anchor = tradingAnchor(helper, villager, Items.APPLE, 4);
 
-        // Two blocks off where it was recorded, well inside the default radius.
         Vec3 moved = villager.position().add(2.0, 0.0, 0.0);
         villager.snapTo(moved.x, moved.y, moved.z);
 
@@ -196,13 +170,9 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A rename travels by its own packet, so it is a step of its own rather than a click.
-     */
     private static void anvilNamesWhatItIsGiven(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
-        // An anvil charges a level for the work, out of what the clone has banked.
         int banked = ExperienceStore.pointsForLevels(5);
         anchor.setCloneExperience(0, new ExperienceStore(banked));
 
@@ -226,9 +196,6 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The work costs levels the clone has not got, which the menu would otherwise decline in silence.
-     */
     private static void anvilWithoutExperienceSaysSo(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
@@ -240,7 +207,6 @@ final class MenuStepGameTest {
                         helper.fail("expected the shortfall to be reported, got "
                                 + anchor.getLastFailure().reason());
                     }
-                    // The sword is not eaten by the attempt: it comes home unnamed.
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.IRON_SWORD) != 1) {
                         helper.fail("the sword did not come back from the anvil it could not pay for");
                     }
@@ -248,7 +214,6 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    /** A bottle in the clone's own stock is the way a player tops itself up. */
     private static void anvilDrinksABottle(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
@@ -264,9 +229,6 @@ final class MenuStepGameTest {
                                 + ", reporting " + anchor.getLastFailure().reason());
                         return;
                     }
-                    // A bottle is worth 3 to 11 points and a level costs 7, so one usually does and
-                    // sometimes does not: what matters is that it drank, and stopped when it could
-                    // afford the work.
                     int bottles = AnchorTestFixture.countIn(anchor.getInventory(),
                             Items.EXPERIENCE_BOTTLE);
                     if (bottles == 4) {
@@ -279,9 +241,6 @@ final class MenuStepGameTest {
                 .thenSucceed();
     }
 
-    // ---------------------------------------------------------------------- helpers
-
-    /** An anchor whose routine puts a sword in an anvil, names it, and takes it out. */
     private static ChronoAnchorBlockEntity renamingAnchor(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.ANVIL);
@@ -297,9 +256,6 @@ final class MenuStepGameTest {
                                         SessionStep.Amount.ALL)))));
     }
 
-    /**
-     * An anchor whose routine buys one thing from {@code villager}, by what it offers.
-     */
     private static ChronoAnchorBlockEntity tradingAnchor(GameTestHelper helper, Villager villager,
                                                          net.minecraft.world.item.Item bought,
                                                          int count) {
@@ -327,10 +283,6 @@ final class MenuStepGameTest {
                 SessionStep.Amount.ALL);
     }
 
-    /**
-     * A villager with exactly the offers the test is about, so no profession or levelling is
-     * involved in deciding what it sells.
-     */
     private static Villager merchant(GameTestHelper helper, BlockPos relative,
                                      MerchantOffer... offers) {
         Villager villager = EntityTypes.VILLAGER.spawn(helper.getLevel(),
@@ -344,12 +296,6 @@ final class MenuStepGameTest {
         return villager;
     }
 
-    /**
-     * Puts exactly these offers in the villager's book.
-     *
-     * <p>Through the live list rather than {@code overrideOffers}, which does nothing on the server:
-     * it exists for the client to be told what a merchant sells.
-     */
     private static void setOffers(Villager villager, MerchantOffer... offers) {
         MerchantOffers live = villager.getOffers();
         live.clear();

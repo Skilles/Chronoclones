@@ -11,21 +11,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * That nothing in the anchor window is drawn on top of anything else.
- */
 class AnchorLayoutTest {
 
-    /** The canvas Minecraft guarantees whatever the window size and GUI scale. */
     private static final int MIN_CANVAS = 240;
 
     private record Row(String name, int top, int height) {
+
         int bottom() {
             return top + height;
         }
     }
 
-    /** Every band the screen draws into, top to bottom, in the order it expects them. */
     private static List<Row> rows() {
         List<Row> rows = new ArrayList<>();
         rows.add(new Row("title", Layout.TITLE_Y, Layout.LINE_HEIGHT));
@@ -81,8 +77,6 @@ class AnchorLayoutTest {
         int bottom = top + Layout.BAND_HEIGHT;
         int grid = Layout.STORAGE_ROWS * 18;
 
-        // The rail exists because four squares stacked are exactly four rows of nine tall. Lose
-        // that and the band grows to whichever column is taller, which is the height it saved.
         assertEquals(grid, 4 * 18, "the rail no longer matches the grid it stands beside");
         assertTrue(Layout.STORAGE_Y >= top + Layout.PANEL_INSET,
                 "the grid is under the panel's own border");
@@ -112,9 +106,6 @@ class AnchorLayoutTest {
     @Test
     @DisplayName("a section name straddles its panel and still clears the band above")
     void legendsClearTheBandAbove() {
-        // A name and the tabs both knock a hole in the border they straddle to make room for
-        // themselves. Touching the band above is enough to punch that hole through its edge too,
-        // so these want a real gap rather than merely not overlapping.
         assertGap("the storage name", Layout.BAND_Y - Layout.LEGEND_RISE,
                 Layout.PILLS_Y + Layout.PILLS_HEIGHT);
         assertGap("the inventory name", Layout.INVENTORY_PANEL_Y - Layout.LEGEND_RISE,
@@ -131,8 +122,6 @@ class AnchorLayoutTest {
     @Test
     @DisplayName("the transport controls fit the timeline's row without taking any more of it")
     void transportFitsBesideTheTimeline() {
-        // The point of putting them here is that the row already had slack above and below the
-        // track. Spend more than that and the whole window below has to move down.
         assertTrue(Layout.TRANSPORT_Y >= Layout.TITLE_Y + Layout.LINE_HEIGHT,
                 "the controls run into the title");
         assertTrue(Layout.TRANSPORT_Y + Layout.TRANSPORT_SIZE <= Layout.PILLS_Y,
@@ -154,7 +143,6 @@ class AnchorLayoutTest {
                             <= Layout.transportX(index),
                     "control " + index + " overlaps the one before it");
         }
-        // Same clipping the tabs and the storage rows are held to.
         int clipped = Math.max(0, Layout.HEIGHT - MIN_CANVAS) / 2;
         assertTrue(Layout.TRANSPORT_Y >= clipped,
                 "the transport controls are pushed off the top by " + clipped + "px");
@@ -171,10 +159,6 @@ class AnchorLayoutTest {
     @Test
     @DisplayName("everything clickable survives the smallest screen the game will scale to")
     void clickableRowsSurviveTheSmallestScreen() {
-        // A clone's storage is a whole player inventory, so the window is taller than the canvas
-        // Minecraft guarantees. Vanilla centres it, so half the overflow goes off each edge and
-        // the title is the part that is lost. Nothing the mouse needs may go with it: a slot drawn
-        // past the edge cannot be reached, because the pointer cannot leave the screen.
         int clipped = Math.max(0, Layout.HEIGHT - MIN_CANVAS) / 2;
 
         assertTrue(Layout.TAB_Y >= clipped,
@@ -188,8 +172,6 @@ class AnchorLayoutTest {
     @Test
     @DisplayName("a clone's storage is laid out like the player inventory it mirrors")
     void storageMirrorsThePlayerInventory() {
-        // The hotbar sits at the bottom of both grids, so a recorded slot lands where the eye
-        // expects it rather than nine squares away.
         for (int slot = 0; slot < 9; slot++) {
             assertEquals(3, Layout.storageRow(slot), "hotbar slot " + slot + " is not on the last row");
             assertEquals(slot, Layout.storageColumn(slot));

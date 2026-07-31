@@ -11,10 +11,6 @@ import com.mojang.serialization.JsonOps;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Charge is the primary balance lever, so the arithmetic that decides whether an
- * upgraded anchor is a tradeoff or a free win is pinned down here.
- */
 class ChargeBufferTest {
 
     @Test

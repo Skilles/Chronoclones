@@ -19,9 +19,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Which picture stands for which action, in the list and on the timeline.
- */
 class ActionIconsTest {
 
     @Test
@@ -38,8 +35,6 @@ class ActionIconsTest {
     @Test
     @DisplayName("a session shows the block it was opened on")
     void sessionsShowWhatTheyOpened() {
-        // The creature half of this lives in a game test: finding a kind of creature's spawn egg
-        // reads item components, which are not bound until a datapack has loaded.
         assertEquals(Optional.of(Items.CHEST), item(new ChronoAction.UseContainer(
                 new MenuTarget.Block(BlockPos.ZERO,
                         Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.CHEST))),
@@ -49,7 +44,6 @@ class ActionIconsTest {
     @Test
     @DisplayName("a session recorded before the block was kept has nothing to show")
     void oldSessionsShowNothing() {
-        // Falls back to the mark it used to draw, rather than to a picture of air.
         assertTrue(ActionIcons.of(new ChronoAction.UseContainer(
                 new MenuTarget.Block(BlockPos.ZERO), 63, List.of(), List.of())).isEmpty());
     }

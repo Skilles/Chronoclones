@@ -21,9 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The override layer, whose whole point is that leaving it alone changes nothing.
- */
 class ActionSettingsTest {
 
     @Test
@@ -33,8 +30,6 @@ class ActionSettingsTest {
                 .withCompletion(TargetRule.Completion.UNTIL_DEAD)
                 .withSticky(false);
 
-        // The editor cannot build this any more, but a hand-edited or traded recording can, and
-        // "keep swinging until the target dies" means nothing while the target keeps changing.
         assertTrue(wandering.locksTarget(),
                 "an until-dead attack that re-picks each swing leaves a pen of half-hurt animals");
     }
@@ -151,7 +146,6 @@ class ActionSettingsTest {
     @Test
     @DisplayName("an action saved before settings existed keeps the square it recorded")
     void legacyHeldSlotBecomesAPreference() {
-        // What TimedAction used to write: a bare held_slot beside the action.
         JsonObject legacy = JsonParser.parseString("""
                 {
                   "tick": 3,

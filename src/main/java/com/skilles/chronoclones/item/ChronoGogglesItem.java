@@ -10,9 +10,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Headwear that shows what every anchor in range is going to do.
- */
 public class ChronoGogglesItem extends Item {
 
     public ChronoGogglesItem(Properties properties) {

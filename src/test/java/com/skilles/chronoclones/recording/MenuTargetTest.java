@@ -10,9 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Where a session's target lands once the anchor it belongs to has been turned around.
- */
 class MenuTargetTest {
 
     private static final BlockPos ORIGIN = new BlockPos(100, 64, 100);
@@ -26,11 +23,9 @@ class MenuTargetTest {
     void blockTargetCentresAfterRotating() {
         MenuTarget target = new MenuTarget.Block(new BlockPos(0, 0, -3));
 
-        // North is the recorded orientation, so nothing moves.
         assertEquals(Vec3.atCenterOf(new BlockPos(100, 64, 97)),
                 target.toWorld(ORIGIN, Direction.NORTH));
 
-        // Turned a quarter: three in front becomes three to the side, still a square's centre.
         Vec3 east = target.toWorld(ORIGIN, Direction.EAST);
         assertEquals(Vec3.atCenterOf(BlockPos.containing(east)), east,
                 "a rotated block target no longer sits in the middle of a square: " + east);

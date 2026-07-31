@@ -9,9 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * When the recording overlay is on screen.
- */
 class RecordingHudStateTest {
 
     private static final UUID SESSION = UUID.fromString("00000000-0000-0000-0000-00000000beef");
@@ -45,7 +42,6 @@ class RecordingHudStateTest {
         RecordingHudState state = new RecordingHudState();
         assertTrue(state.update(SESSION, 40, 3, false, 100));
 
-        // The item still says 40 ticks, and nothing will ever say otherwise.
         long stalled = 100 + RecordingHudState.STALL_TICKS - 1;
         assertTrue(state.update(SESSION, 40, 3, false, stalled),
                 "gave up on a session that is only lagging");
@@ -69,8 +65,6 @@ class RecordingHudStateTest {
         RecordingHudState state = new RecordingHudState();
         state.update(SESSION, 5, 0, false, 0);
 
-        // Different session, identical counters: without the id check this reads as "not advancing"
-        // and a brand new recording starts its life already halfway to being aged out.
         assertTrue(state.update(OTHER, 5, 0, false, RecordingHudState.STALL_TICKS + 1));
     }
 
@@ -81,7 +75,6 @@ class RecordingHudStateTest {
         state.update(SESSION, 10, 1, true, 100);
 
         assertTrue(state.isWarning(100));
-        // The server sets this for a single tick, which is at best one frame.
         assertTrue(state.isWarning(100 + RecordingHudState.WARNING_TICKS - 1),
                 "the warning vanished before anyone could read it");
         assertFalse(state.isWarning(100 + RecordingHudState.WARNING_TICKS));

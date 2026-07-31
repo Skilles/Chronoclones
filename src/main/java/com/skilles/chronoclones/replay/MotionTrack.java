@@ -9,9 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Reads a recorded motion track back as a continuous path.
- */
+/** A recording's motion samples, interpolated to any tick. */
 public final class MotionTrack {
 
     private final List<MotionSample> samples;
@@ -28,7 +26,6 @@ public final class MotionTrack {
         return samples.size();
     }
 
-    /** Local-space position at {@code tick}, interpolated between surrounding samples. */
     public Vec3 localPositionAt(int tick) {
         if (samples.isEmpty()) {
             return Vec3.ZERO;
@@ -47,7 +44,6 @@ public final class MotionTrack {
                 from.localPos().z + (to.localPos().z - from.localPos().z) * t);
     }
 
-    /** Local-space yaw at {@code tick}, interpolated the short way around the circle. */
     public float localYawAt(int tick) {
         if (samples.isEmpty()) {
             return 0.0f;
@@ -60,7 +56,6 @@ public final class MotionTrack {
         MotionSample to = samples.get(i + 1);
         double t = progressBetween(from, to, tick);
 
-        // Interpolating raw degrees would spin the clone the long way around when crossing ±180.
         float delta = LocalSpace.wrapDegrees(to.localYaw() - from.localYaw());
         return LocalSpace.wrapDegrees(from.localYaw() + (float) (delta * t));
     }
@@ -96,7 +91,6 @@ public final class MotionTrack {
         return Math.clamp(t, 0.0, 1.0);
     }
 
-    /** Index of the last sample at or before {@code tick}. Binary search: samples are ordered. */
     private int indexAtOrBefore(int tick) {
         int lo = 0;
         int hi = samples.size() - 1;

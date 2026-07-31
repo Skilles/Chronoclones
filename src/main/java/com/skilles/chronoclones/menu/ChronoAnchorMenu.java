@@ -30,25 +30,18 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     private static final int ANCHOR_SLOTS = ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS;
     private static final int CLONES = ChronoAnchorBlockEntity.CLONE_INVENTORIES;
 
-    /** Defined alongside the slot names, so the buffer and the readers cannot drift apart. */
     public static final int DATA_COUNT = AnchorData.COUNT;
 
-    /** Every clone's storage, plus fuel and the three modules. */
     private static final int TOTAL_ANCHOR_SLOTS =
             ANCHOR_SLOTS * CLONES + 1 + ChronoAnchorBlockEntity.UPGRADE_SLOTS;
 
     private final ChronoAnchorBlockEntity anchor;
     private final ContainerData data;
 
-    /** Which clone's squares are the visible ones. Each side sets its own on the same click. */
     private int selectedClone;
 
-    /** A mark per recorded action, for the timeline. Empty on the server side. */
     private final List<Mark> actionMarks;
 
-    /**
-     * Client-side constructor, reached via the extra data written when the menu is opened.
-     */
     public ChronoAnchorMenu(int containerId, Inventory playerInventory, RegistryFriendlyByteBuf extraData) {
         this(containerId, playerInventory, resolve(playerInventory, extraData.readBlockPos()),
                 new SimpleContainerData(DATA_COUNT), readTimeline(extraData));
@@ -60,12 +53,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private static final List<Mark> NO_TIMELINE = List.of();
 
-    /**
-     * One action as the anchor's timeline needs it: when it happens, and what it is about.
-     *
-     * <p>The whole action would do, but the screen only ever draws a mark and the recording is the
-     * one thing the anchor does not otherwise send to a client that is merely looking at it.
-     */
     public record Mark(int tick, java.util.Optional<net.minecraft.core.Holder<net.minecraft.world.item.Item>> icon) {}
 
     private static final net.minecraft.network.codec.StreamCodec<RegistryFriendlyByteBuf,
@@ -92,7 +79,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return List.copyOf(marks);
     }
 
-    /** Each action's mark, in order. Only the client is given these. */
     public List<Mark> getActionMarks() {
         return actionMarks;
     }
@@ -104,8 +90,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.data = data;
         this.actionMarks = actionMarks;
 
-        // Every clone's squares, stacked on the same coordinates. Laid out like a player's own
-        // inventory, the storage rows above the hotbar row.
         for (int clone = 0; clone < CLONES; clone++) {
             ItemStacksResourceHandler storage = anchor.getCloneInventory(clone);
             int page = clone;
@@ -117,7 +101,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
             }
         }
 
-        // Fuel, then three upgrades, on the row below the storage grid.
         ItemStacksResourceHandler fuel = anchor.getFuelHandler();
         addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, Layout.FUEL_X, Layout.MODULE_Y));
 
@@ -149,12 +132,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
     }
 
-    /** Where this menu's anchor stands, for anything that has to name it over the network. */
     public BlockPos getAnchorPos() {
         return anchor.getBlockPos();
     }
 
-    /** Whether the storage can be reached: a blank anchor has nothing to keep in it. */
     public boolean hasStorage() {
         return getLengthTicks() > 0;
     }
@@ -164,18 +145,13 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return Math.min(selectedClone, Math.max(0, getActiveClones() - 1));
     }
 
-    /**
-     * The tab strip, arriving as a menu button so no payload of our own is needed.
-     */
     @Override
     public boolean clickMenuButton(@NonNull Player player, int buttonId) {
         if (buttonId >= RUN_STATE_BUTTON) {
             return setRunState(player, buttonId - RUN_STATE_BUTTON);
         }
-        // Against the synced count, not the anchor's own: UpgradeState is only ever recomputed on
-        // the server tick, so a client asking the block entity is always told there is one clone.
-        // A page with no clone behind it is never drawn again, so anything moved into it would be
-        // stranded there.
+        // The synced count, not the anchor's: UpgradeState is only recomputed on the server
+        // tick, so a client asking the block entity is always told there is one clone.
         if (buttonId < 0 || buttonId >= Math.min(CLONES, getActiveClones())) {
             return false;
         }
@@ -183,18 +159,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return true;
     }
 
-    /**
-     * The first transport button's id. Past the clone tabs, which take the ids below it.
-     */
     public static final int RUN_STATE_BUTTON = 16;
 
-    /**
-     * Unlike picking a tab, this changes what the anchor does, so it is asked whose anchor it is.
-     */
     private boolean setRunState(Player player, int ordinal) {
-        // Never a clone. A routine may put things into an anchor and take things out of it, which
-        // is stock keeping; starting and stopping its neighbours is operating them, and a clone
-        // acts under its owner's name, so the ownership check below would wave it straight through.
+        // A clone acts under its owner's name, so the ownership check below would pass it.
         if (player.isFakePlayer()) {
             return false;
         }
@@ -210,15 +178,12 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return RunState.byOrdinal(data.get(AnchorData.RUN_STATE));
     }
 
-    /** Where the selected clone's squares start, for a shift-click that must not leave the page. */
     private int selectedPageStart() {
         return getSelectedClone() * ANCHOR_SLOTS;
     }
 
-    /** Menu index of the fuel slot, which follows every clone's storage. */
     public static final int FUEL_SLOT = ANCHOR_SLOTS * CLONES;
 
-    /** Points banked by one clone, for the bar under its storage tab. */
     public int getCloneExperience(int clone) {
         return data.get(AnchorData.experience(clone));
     }
@@ -255,50 +220,34 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         return data.get(AnchorData.TICKS_PER_STEP);
     }
 
-    /** Anchor-local position of the last failure, for the diagnostic line. */
     public BlockPos getFailurePos() {
         return new BlockPos(data.get(AnchorData.FAILURE_X), data.get(AnchorData.FAILURE_Y),
                 data.get(AnchorData.FAILURE_Z));
     }
 
-    /**
-     * Slot geometry, shared by the menu and the screen. Every y is the top of its band.
-     */
     public static final class Layout {
+
         public static final int WIDTH = 230;
         public static final int HEIGHT = 259;
 
-        /** A line of text, and the border a slot box draws outside itself. Both eat into spacing. */
         public static final int LINE_HEIGHT = 9;
         public static final int SLOT_BORDER = 1;
 
         public static final int MARGIN = 7;
         public static final int CONTENT_WIDTH = WIDTH - 2 * MARGIN;
 
-        /** Panel border plus its inner padding: where a panel's contents may start. */
         public static final int PANEL_INSET = 5;
 
-        /**
-         * Section names sit astride their panel's top border, which is a row of height the window
-         * does not have to find from anywhere.
-         */
         public static final int LEGEND_X = MARGIN + 8;
         public static final int LEGEND_RISE = 4;
 
         public static final int TITLE_Y = 6;
 
-        /** A gap every band keeps, so a section name never lands on its neighbour's border. */
         public static final int BAND_GAP = 6;
 
         public static final int TIMELINE_Y = 22;
         public static final int TIMELINE_HEIGHT = 7;
 
-        /**
-         * Play, pause and stop, at the right-hand end of the timeline's row.
-         *
-         * <p>Taller than the track they stand beside, which they can afford: the row has slack above
-         * and below that nothing else was using, so the controls cost the window no height at all.
-         */
         public static final int TRANSPORT_SIZE = 14;
         public static final int TRANSPORT_GAP = 2;
         public static final int TRANSPORT_COUNT = 3;
@@ -307,7 +256,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int TRANSPORT_X = WIDTH - MARGIN - TRANSPORT_WIDTH;
         public static final int TRANSPORT_Y = TIMELINE_Y - (TRANSPORT_SIZE - TIMELINE_HEIGHT) / 2 - 1;
 
-        /** What the track has left once the controls have taken their end of the row. */
         public static final int TIMELINE_WIDTH = TRANSPORT_X - MARGIN - 6;
 
         public static int transportX(int index) {
@@ -317,16 +265,9 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int PILLS_Y = 37;
         public static final int PILLS_HEIGHT = 18;
 
-        // ---------------------------------------------------------- the storage band
-
         public static final int BAND_Y = 65;
         public static final int BAND_HEIGHT = 91;
 
-        /**
-         * Fuel, the charge column and the modules stand beside the storage grid rather than under
-         * it. Four squares stacked are exactly as tall as four rows of nine, so the band costs the
-         * window nothing that the grid was not already spending.
-         */
         public static final int RAIL_X = MARGIN;
         public static final int RAIL_WIDTH = 40;
         public static final int RAIL_SLOT_X = RAIL_X + PANEL_INSET;
@@ -335,7 +276,6 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int FUEL_X = RAIL_SLOT_X;
         public static final int UPGRADE_X = RAIL_SLOT_X;
 
-        /** Upright, so the bar is as tall as the squares it stands next to. */
         public static final int CHARGE_X = RAIL_SLOT_X + 22;
         public static final int CHARGE_Y = MODULE_Y;
         public static final int CHARGE_WIDTH = 7;
@@ -346,26 +286,20 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int STORAGE_Y = BAND_Y + PANEL_INSET;
         public static final int STORAGE_ROWS = 4;
 
-        /** Under the fourth row: what the clone whose tab is showing has banked. */
         public static final int CLONE_XP_Y = STORAGE_Y + STORAGE_ROWS * 18 + 3;
         public static final int CLONE_XP_HEIGHT = 6;
         public static final int STORAGE_X = STORAGE_PANEL_X + PANEL_INSET;
 
-        /** The clone tabs straddle the storage panel's top border, at the other end from its name. */
         public static final int TAB_Y = BAND_Y - 5;
         public static final int TAB_RIGHT_EDGE = WIDTH - MARGIN - 6;
-
-        // ---------------------------------------------------------- below the band
 
         public static final int INVENTORY_PANEL_Y = 166;
         public static final int INVENTORY_PANEL_HEIGHT = 87;
 
-        /** Centred in its own panel, which the storage grid cannot be with the rail beside it. */
         public static final int GRID_X = (WIDTH - 9 * 18) / 2;
         public static final int PLAYER_Y = 171;
         public static final int HOTBAR_Y = 230;
 
-        /** The hotbar last, so a clone's storage reads exactly like the player inventory below it. */
         public static int storageRow(int inventorySlot) {
             return Inventory.isHotbarSlot(inventorySlot) ? 3 : (inventorySlot - 9) / 9;
         }
@@ -387,18 +321,14 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         ItemStack original = stack.copy();
 
         if (index < TOTAL_ANCHOR_SLOTS) {
-            // Out of the anchor and into the player.
             if (!moveItemStackTo(stack, TOTAL_ANCHOR_SLOTS, slots.size(), true)) {
                 return ItemStack.EMPTY;
             }
         } else {
-            // Only the visible clone's squares: moveItemStackTo does not check isActive, so
-            // without this a shift-click scatters across pages nobody can see.
             int page = selectedPageStart();
             int pageEnd = page + ANCHOR_SLOTS;
             int fuel = ANCHOR_SLOTS * CLONES;
 
-            // Upgrades and fuel route to their own slots first.
             boolean moved;
             if (UpgradeState.isUpgrade(stack.getItem())) {
                 moved = moveItemStackTo(stack, fuel + 1, TOTAL_ANCHOR_SLOTS, false);

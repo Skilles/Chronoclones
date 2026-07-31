@@ -13,17 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * The same, for right-clicking a creature.
- *
- * <p>{@code EntityInteract} fires from inside this method and says only that somebody clicked. A
- * cow that is not holding still for shears, a villager with nothing to say, a mount somebody else
- * is riding: all of them fire the event and none of them do anything.
- *
- * <p>Fake players are skipped, because a clone replaying an interaction calls this too, and a
- * recording that recorded its own clones would grow every time it ran.
- */
 @Mixin(Player.class)
+/** Reports what right-clicking an entity actually did. */
 public abstract class InteractOnMixin {
 
     @Inject(method = "interactOn", at = @At("RETURN"))

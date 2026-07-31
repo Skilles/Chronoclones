@@ -8,9 +8,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 
-/**
- * Exposes the anchor's inventory to automation.
- */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ModCapabilities {
 

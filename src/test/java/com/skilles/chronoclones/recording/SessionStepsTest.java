@@ -16,12 +16,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Reading a session's clicks as the moves the player meant by them.
- */
 class SessionStepsTest {
 
-    /** A holder, not a stack: an item's default components are not bound in the JUnit bootstrap. */
     private static final Holder<Item> STONE = BuiltInRegistries.ITEM.wrapAsHolder(Items.STONE);
 
     private static SessionSteps.Event clicked(int slot, int button, ContainerInput input,
@@ -31,17 +27,14 @@ class SessionStepsTest {
                 slot, button, input, slotItem, heldBefore, heldAfter));
     }
 
-    /** A click that fills the cursor from a square holding stone. */
     private static SessionSteps.Event take(int slot, int button) {
         return clicked(slot, button, ContainerInput.PICKUP, Optional.of(STONE), false, true);
     }
 
-    /** A click that empties the cursor into a square. */
     private static SessionSteps.Event put(int slot, int button) {
         return clicked(slot, button, ContainerInput.PICKUP, Optional.empty(), true, false);
     }
 
-    /** A click that puts one down and keeps the rest. */
     private static SessionSteps.Event putOne(int slot) {
         return clicked(slot, 1, ContainerInput.PICKUP, Optional.empty(), true, true);
     }
@@ -78,7 +71,6 @@ class SessionStepsTest {
         assertEquals(SessionStep.Amount.ONE,
                 assertInstanceOf(SessionStep.Move.class, steps.get(0)).observed());
         assertEquals(55, assertInstanceOf(SessionStep.Move.class, steps.get(1)).to());
-        // The last click emptied the cursor, so it moved everything that was left.
         assertEquals(SessionStep.Amount.ALL,
                 assertInstanceOf(SessionStep.Move.class, steps.get(2)).observed());
     }
@@ -96,7 +88,6 @@ class SessionStepsTest {
         assertEquals(4, move.from());
     }
 
-    /** Vanilla's encoding: the low two bits are the stage, the next two the kind of drag. */
     private static SessionSteps.Event drag(int slot, int type, int stage, boolean heldAfter) {
         return clicked(slot, stage | type << 2, ContainerInput.QUICK_CRAFT,
                 Optional.empty(), true, heldAfter);
@@ -120,9 +111,6 @@ class SessionStepsTest {
     @Test
     @DisplayName("dropping one item into a square is a move, however the mouse got there")
     void oneSquareDragIsTheClickItAmountsTo() {
-        // Holding right and letting go over one square arrives as a three-part drag rather than a
-        // click if the mouse twitched. Vanilla turns that back into one right-click, and so does
-        // this: otherwise "take half, drop one, put the rest back" is five rows nobody can edit.
         List<SessionStep> steps = SessionSteps.interpret(List.of(
                 take(4, 1),
                 drag(-999, 1, 0, true),
@@ -130,8 +118,6 @@ class SessionStepsTest {
                 drag(-999, 1, 2, true),
                 put(4, 0)));
 
-        // One row, not five: the last click puts the rest back where it came from, which moves
-        // nothing that replaying the move does not already put back.
         assertEquals(1, steps.size(), "steps: " + steps);
         SessionStep.Move move = assertInstanceOf(SessionStep.Move.class, steps.getFirst());
         assertEquals(4, move.from());
@@ -172,8 +158,6 @@ class SessionStepsTest {
     @Test
     @DisplayName("a swap loses both halves of the move rather than naming one wrongly")
     void swapFallsBackToBothClicks() {
-        // Picking up stone and left-clicking a square holding something else swaps them: the cursor
-        // comes away full, which is not a move, and the take is no longer half of anything.
         List<SessionSteps.Event> clicks = List.of(take(4, 0),
                 clicked(54, 0, ContainerInput.PICKUP,
                         Optional.of(BuiltInRegistries.ITEM.wrapAsHolder(Items.DIRT)), true, true));
@@ -234,8 +218,6 @@ class SessionStepsTest {
     @Test
     @DisplayName("choosing the same offer twice running is one choice")
     void repeatedTradesCollapse() {
-        // Clicking an offer refills the payment squares and buys nothing, so the second click of a
-        // pair is the same choice made again, not a second purchase.
         SessionStep.Trade bread = new SessionStep.Trade(ItemStack.EMPTY, ItemStack.EMPTY,
                 ItemStack.EMPTY);
 
@@ -275,7 +257,6 @@ class SessionStepsTest {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
                 take(4, 0), did(new SessionStep.Button(1)), put(54, 0)));
 
-        // The take could not have been part of a move across the button, so all three stand alone.
         assertEquals(List.of(new SessionStep.RawClick(4, 0, ContainerInput.PICKUP),
                 new SessionStep.Button(1),
                 new SessionStep.RawClick(54, 0, ContainerInput.PICKUP)), steps);
@@ -290,7 +271,6 @@ class SessionStepsTest {
     void orderIsPreserved() {
         List<SessionStep> steps = SessionSteps.interpret(List.of(
                 take(4, 0), put(54, 0),
-                // A swap leaves the cursor alone, so it interrupts nothing and names nothing.
                 clicked(9, 3, ContainerInput.SWAP,
                         Optional.of(STONE), false, false),
                 take(5, 0), put(55, 0)));

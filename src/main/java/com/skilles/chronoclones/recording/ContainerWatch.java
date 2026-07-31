@@ -28,39 +28,16 @@ import net.minecraft.world.item.trading.MerchantOffers;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Records what a player did inside a container, as the clicks they made.
- */
+/** Records what a player did inside a container, as the clicks they made. */
 public final class ContainerWatch {
 
     private ContainerWatch() {}
 
-    /**
-     * An open container and the clicks made in it so far.
-     *
-     * @param snapshot every occupied player slot as the menu opened, narrowed on close
-     * @param touched  the player slots the clicks name, collected live because a swap's
-     *                 hotbar button needs the open menu to resolve
-     */
     private record Watch(MenuTarget target, BlockPos pos, List<SessionSteps.Event> clicks, int menuSize,
                          List<ChronoAction.UseContainer.CarrierSlot> snapshot, Set<Integer> touched) {}
 
-    /**
-     * Something right-clicked this tick, held only until we learn whether it opened a menu.
-     *
-     * <p>The tick is the whole of what makes "this tick" true. Without it a click on something that
-     * never opened anything simply sat in the map, and the next menu the player opened -- a minute
-     * later, across the room, on something else entirely -- was recorded as having been opened by
-     * it. A menu is attributed to a click made on the same tick or not at all.
-     *
-     * @param pos  where it is in the world, for the highlight and for the capture position
-     * @param tick the server tick the click arrived on
-     */
     private record Pending(MenuTarget target, BlockPos pos, long tick) {}
 
-    /**
-     * What the menu looked like as a click arrived, which is gone by the time it returns.
-     */
     private record Before(Optional<Holder<Item>> slotItem, boolean held) {
 
         static final Before NOTHING = new Before(Optional.empty(), false);
@@ -70,13 +47,6 @@ public final class ContainerWatch {
     private static final Map<UUID, Pending> PENDING = new ConcurrentHashMap<>();
     private static final Map<UUID, Before> MID_CLICK = new ConcurrentHashMap<>();
 
-    /**
-     * Notes a click that might turn out to have opened a menu.
-     *
-     * <p>Nothing has been recorded for it yet: the click is armed in {@link InteractionWatch} and
-     * this simply competes for it. Whichever of the two settles first describes what happened --
-     * a session if a menu opened, an interaction if one did not.
-     */
     public static void noteInteraction(ServerPlayer player, BlockPos pos,
                                        RecordingSession session) {
         PENDING.put(player.getUUID(), new Pending(
@@ -85,7 +55,6 @@ public final class ContainerWatch {
                 pos, now(player)));
     }
 
-    /** The same, for an entity: a villager's trades, a horse's saddlebags, a chest boat. */
     public static void noteInteraction(ServerPlayer player, Entity target,
                                        RecordingSession session) {
         PENDING.put(player.getUUID(), new Pending(
@@ -94,39 +63,27 @@ public final class ContainerWatch {
                 target.blockPosition(), now(player)));
     }
 
-    /**
-     * A container opened: start collecting clicks, and retract the click that opened it.
-     */
     public static void onContainerOpened(ServerPlayer player, RecordingSession session) {
         Pending pending = PENDING.remove(player.getUUID());
         if (pending == null) {
             return;
         }
-        // A menu opens on the tick the click that opened it arrived. Anything older belonged to a
-        // click that opened nothing, and this menu was opened by something else.
         if (pending.tick() != now(player)) {
             return;
         }
-        // A block menu has to be one replay can open again; an entity's is opened through the
-        // entity, which the target rule finds for itself.
         if (pending.target() instanceof MenuTarget.Block
                 && player.level().getBlockState(pending.pos())
                         .getMenuProvider(player.level(), pending.pos()) == null) {
             return;
         }
 
-        // The click that opened this is the session, not an interaction beside it.
         InteractionWatch.claim(player);
         Watch watch = new Watch(pending.target(), pending.pos(), new ArrayList<>(),
                 player.containerMenu.slots.size(), snapshot(player), new LinkedHashSet<>());
         OPEN.put(player.getUUID(), watch);
-        // Nothing to highlight yet, but this signals that the container is being watched.
         publish(player, watch);
     }
 
-    /**
-     * Tells the client which slots the session has picked up, for the highlight drawn over the menu.
-     */
     private static void publish(ServerPlayer player, Watch watch) {
         List<Integer> carried = new ArrayList<>();
         for (ChronoAction.UseContainer.CarrierSlot slot : carried(watch.snapshot(), watch.touched())) {
@@ -136,9 +93,6 @@ public final class ContainerWatch {
                 player.containerMenu.containerId, List.copyOf(watch.touched()), carried));
     }
 
-    /**
-     * Every occupied player slot as the menu opened.
-     */
     private static List<ChronoAction.UseContainer.CarrierSlot> snapshot(ServerPlayer player) {
         List<ChronoAction.UseContainer.CarrierSlot> layout = new ArrayList<>();
         AbstractContainerMenu menu = player.containerMenu;
@@ -157,12 +111,7 @@ public final class ContainerWatch {
         return layout;
     }
 
-    /**
-     * The menu as a click arrives, from the mixin's first half.
-     *
-     * <p>A click is only nameable from both sides of it: what the square held, and whether the cursor
-     * came away with anything.
-     */
+    /** A click is only nameable from both sides: what the slot held, and what the cursor took. */
     public static void beforeClick(ServerPlayer player, int slot) {
         if (!watching(player)) {
             return;
@@ -178,9 +127,6 @@ public final class ContainerWatch {
         MID_CLICK.put(player.getUUID(), new Before(item, !menu.getCarried().isEmpty()));
     }
 
-    /**
-     * The same click, returned, from the mixin's second half.
-     */
     public static void onClick(ServerPlayer player, int slot, int button, ContainerInput input) {
         Before before = MID_CLICK.remove(player.getUUID());
         if (!watching(player)) {
@@ -191,18 +137,15 @@ public final class ContainerWatch {
             return;
         }
         if (before == null) {
-            // The watch began between the two halves of one click, so this one is unnameable.
             before = Before.NOTHING;
         }
         watch.clicks().add(new SessionSteps.Event.Clicked(
                 new SessionSteps.Observation(slot, button, input, before.slotItem(),
                         before.held(), !player.containerMenu.getCarried().isEmpty())));
 
-        // -1 is outside the window and container slots are not the carrier's business; the
-        // snapshot filters both.
         watch.touched().add(slot);
+        // The one click whose target is not the slot it names: the button is a hotbar index.
         if (input == ContainerInput.SWAP) {
-            // The one click whose target is not the slot it names: the button is a hotbar index.
             int swapped = menuSlotOf(player, button);
             if (swapped >= 0) {
                 watch.touched().add(swapped);
@@ -212,14 +155,7 @@ public final class ContainerWatch {
         stopIfOverfull(player, watch);
     }
 
-    /**
-     * Ends the recording once one session has collected more clicks than a session may hold.
-     *
-     * <p>The action cap counts actions, and a whole container session is one of them however long
-     * somebody stands in an open chest clicking. Without this, that one action grows until it is
-     * too large to send or to save -- so this is the cap that actually bounds it, and it stops the
-     * recording rather than quietly truncating what the player is in the middle of doing.
-     */
+    /** The action cap counts a whole session as one action, so this is what bounds it. */
     private static void stopIfOverfull(ServerPlayer player, Watch watch) {
         if (watch.clicks().size() < ChronoclonesConfig.maxContainerSteps()) {
             return;
@@ -230,7 +166,6 @@ public final class ContainerWatch {
         }
     }
 
-    /** The server tick this player's level is on. */
     private static long now(ServerPlayer player) {
         return player.level().getGameTime();
     }
@@ -239,17 +174,10 @@ public final class ContainerWatch {
         return RecordingSessions.get(player) != null && OPEN.containsKey(player.getUUID());
     }
 
-    /**
-     * A control in the menu: an enchantment tier, a loom pattern. From the mixin, since there is no
-     * event and no click to read it from.
-     */
     public static void onButton(ServerPlayer player, int id) {
         record(player, new SessionStep.Button(id));
     }
 
-    /**
-     * A merchant's offer chosen, kept as what it offers rather than where it sat in the list.
-     */
     public static void onTrade(ServerPlayer player, int index) {
         if (!(player.containerMenu instanceof MerchantMenu merchant)) {
             return;
@@ -262,7 +190,6 @@ public final class ContainerWatch {
         record(player, new SessionStep.Trade(offer.getCostA(), offer.getCostB(), offer.getResult()));
     }
 
-    /** A name typed into an anvil. */
     public static void onRename(ServerPlayer player, String text) {
         record(player, new SessionStep.Rename(text));
     }
@@ -278,7 +205,6 @@ public final class ContainerWatch {
         }
     }
 
-    /** Where a player-inventory index sits in the open menu, or -1 if this menu does not show it. */
     private static int menuSlotOf(ServerPlayer player, int inventorySlot) {
         AbstractContainerMenu menu = player.containerMenu;
         for (int index = 0; index < menu.slots.size(); index++) {
@@ -290,9 +216,6 @@ public final class ContainerWatch {
         return -1;
     }
 
-    /**
-     * The player's own items that this session actually depends on.
-     */
     static List<ChronoAction.UseContainer.CarrierSlot> carried(
             List<ChronoAction.UseContainer.CarrierSlot> snapshot, Set<Integer> touched) {
         List<ChronoAction.UseContainer.CarrierSlot> carried = new ArrayList<>();
@@ -304,7 +227,6 @@ public final class ContainerWatch {
         return carried;
     }
 
-    /** The session, or null if nothing was clicked. */
     public static ChronoAction.@Nullable UseContainer onContainerClosed(ServerPlayer player,
                                                                      RecordingSession session) {
         Watch watch = OPEN.get(player.getUUID());
@@ -317,15 +239,11 @@ public final class ContainerWatch {
                 SessionSteps.interpret(watch.clicks()));
     }
 
-    /** The world position of the container currently open for this player, if any. */
     public static @Nullable BlockPos openPosition(ServerPlayer player) {
         Watch watch = OPEN.get(player.getUUID());
         return watch == null ? null : watch.pos();
     }
 
-    /**
-     * Stops watching this player, and takes the highlight down with it.
-     */
     public static void forget(ServerPlayer player) {
         OPEN.remove(player.getUUID());
         PENDING.remove(player.getUUID());
@@ -333,12 +251,6 @@ public final class ContainerWatch {
         send(player, new RecordingHighlightPayload(NO_CONTAINER, List.of(), List.of()));
     }
 
-    /**
-     * Forgetting a watch also happens on the way out of a dimension, and on respawn.
-     *
-     * <p>Asked whether the channel exists rather than assumed: sending down a connection that has
-     * not negotiated it is a hard error, not a dropped packet.
-     */
     private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
         if (player.connection != null && !player.hasDisconnected()
                 && player.connection.hasChannel(RecordingHighlightPayload.TYPE)) {
@@ -346,7 +258,6 @@ public final class ContainerWatch {
         }
     }
 
-    /** A container id no menu has, which the client reads as "draw nothing". */
     private static final int NO_CONTAINER = -1;
 
     public static void clear() {

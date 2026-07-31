@@ -12,9 +12,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * The highlight packet, over the wire.
- */
 class RecordingHighlightPayloadTest {
 
     private static RegistryAccess.Frozen registries;
@@ -33,7 +30,6 @@ class RecordingHighlightPayloadTest {
     @Test
     @DisplayName("touched and carried survive the wire, and stay apart")
     void survivesTheWire() {
-        // Deliberately different lists: equal ones would pass even if the codec swapped them.
         RecordingHighlightPayload original =
                 new RecordingHighlightPayload(7, List.of(0, 4, 31, 60), List.of(60));
 
@@ -47,7 +43,6 @@ class RecordingHighlightPayloadTest {
     @Test
     @DisplayName("the clear sent when a watch ends survives too")
     void clearSurvives() {
-        // Container id -1 is what takes the highlight down; empty lists must not trip the codec.
         RecordingHighlightPayload decoded =
                 roundTrip(new RecordingHighlightPayload(-1, List.of(), List.of()));
 

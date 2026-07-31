@@ -41,9 +41,6 @@ import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 
-/**
- * Editing how an anchor reads its routine, and who may.
- */
 final class RoutineEditGameTest {
 
     private RoutineEditGameTest() {}
@@ -81,14 +78,6 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::rowsNameThemselvesAfterTheirOptions);
     }
 
-    /**
-     * Crouching with an empty recorder takes the recording out, leaving the anchor blank.
-     *
-     * <p>Driven through {@code gameMode.useItemOn} rather than by calling the anchor's own method,
-     * because the routing is what was broken: vanilla skips a block's {@code useItemOn} entirely
-     * for a crouching player holding anything, so the anchor never saw this and nothing happened.
-     * A test that called {@code extractRecording} directly passed the whole time.
-     */
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -108,13 +97,11 @@ final class RoutineEditGameTest {
                 helper.fail("the recording did not come back out whole");
                 return;
             }
-            // Taking it out is a removal like any other, so the storage comes with it.
             if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
                 helper.fail("the storage stayed shut inside an anchor with nothing to run");
                 return;
             }
 
-            // And a second try finds nothing to take, rather than handing over a blank recording.
             crouchOnto(helper, player, new ItemStack(ModItems.CHRONO_RECORDER.get()), ANCHOR);
             if (anchor.extractRecording() != null) {
                 helper.fail("a blank anchor handed over a second recording");
@@ -122,31 +109,22 @@ final class RoutineEditGameTest {
             }
             helper.succeed();
         } finally {
-            // The fake player for an owner is shared by every test in this level.
             player.getInventory().clearContent();
         }
     }
 
-    /**
-     * A row is named after what it does, and renames itself when an option changes what that is.
-     *
-     * <p>Asserted on the translation key rather than the words, because a server has no language
-     * loaded and the words are the one part of this a translator is meant to change.
-     */
     private static void rowsNameThemselvesAfterTheirOptions(GameTestHelper helper) {
         TimedAction breaking = new TimedAction(1, new ChronoAction.BreakBlock(
                 new BlockPos(0, 0, -1),
                 BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.COBBLESTONE),
                 new ItemStack(Items.NETHERITE_PICKAXE)));
 
-        // Recorded on cobblestone, so it is the cobblestone one.
         if (!keyOf(RecordingDetail.title(breaking)).equals("gui.chronoclones.editor.name.break")) {
             helper.fail("a break recorded on cobblestone was not named after it: "
                     + keyOf(RecordingDetail.title(breaking)));
             return;
         }
 
-        // Widened to any block, and no longer entitled to name one.
         TimedAction widened = breaking.withSettings(
                 ActionSettings.DEFAULT.withRecordedSubject(false));
         if (!keyOf(RecordingDetail.title(widened)).equals("gui.chronoclones.editor.name.break.any")) {
@@ -155,7 +133,6 @@ final class RoutineEditGameTest {
             return;
         }
 
-        // A name of the player's own outlives every option they touch afterwards.
         TimedAction named = breaking.withSettings(
                 ActionSettings.DEFAULT.withName("Cobble farm").withRecordedSubject(false));
         if (!RecordingDetail.title(named).getString().equals("Cobble farm")) {
@@ -166,14 +143,12 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
-    /** The translation key a component was built from, or its literal contents. */
     private static String keyOf(Component component) {
         return component.getContents() instanceof TranslatableContents translatable
                 ? translatable.getKey()
                 : component.getString();
     }
 
-    /** Uses an item on a block the way a crouching player does, through the server's own path. */
     private static void crouchOnto(GameTestHelper helper, FakePlayer player, ItemStack held,
                                    BlockPos relativePos) {
         ServerLevel level = helper.getLevel();
@@ -186,13 +161,10 @@ final class RoutineEditGameTest {
                     InteractionHand.MAIN_HAND,
                     new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false));
         } finally {
-            // The hand is left alone: what comes back goes into the inventory, and the emptied
-            // hand is the likeliest square for it. The caller clears the lot afterwards.
             player.setShiftKeyDown(false);
         }
     }
 
-    /** The first recording on any recorder the player is carrying. */
     private static @org.jspecify.annotations.Nullable Recording recordingCarriedBy(FakePlayer player) {
         for (ItemStack stack : player.getInventory()) {
             Recording recording = ChronoRecorderItem.recordingOf(stack);
@@ -203,12 +175,6 @@ final class RoutineEditGameTest {
         return null;
     }
 
-    /**
-     * The storage belongs to the recording that filled it.
-     *
-     * <p>Left inside a blank anchor it is unreachable in every sense: the squares are shut, and a
-     * player with no recording to imprint has no way to open them again.
-     */
     private static void discardingSpillsTheStorage(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -237,9 +203,6 @@ final class RoutineEditGameTest {
                     if (diamonds != 7) {
                         helper.fail("expected seven diamonds handed back, found " + diamonds);
                     }
-                    // Exactly, now that a plot has room around it: this said "at least" while a
-                    // neighbouring test's orbs could drift into any box wide enough for the spill's
-                    // own motion, and so could not have noticed too much coming back either.
                     int points = level.getEntitiesOfClass(ExperienceOrb.class,
                                     new AABB(absolute).inflate(3.0)).stream()
                             .mapToInt(ExperienceOrb::getValue).sum();
@@ -250,7 +213,6 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** Shut squares, so nothing can be put somewhere it would be stranded. */
     private static void blankAnchorHasNoStorage(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -269,12 +231,7 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
-    /**
-     * The half of the icon choice a unit test cannot reach: finding a creature's spawn egg reads
-     * item components, which are not bound until a datapack has loaded.
-     */
     private static void creatureActionsArePicturedAsCreatures(GameTestHelper helper) {
-        // A bucket says nothing about which cow was milked, so the cow is what is shown.
         assertIcon(helper, new ChronoAction.InteractEntity(
                         Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
                         InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET)),
@@ -299,7 +256,6 @@ final class RoutineEditGameTest {
         }
     }
 
-    /** An item filter is how a routine stops hauling whatever happens to be in the square. */
     private static void stepCarriesOnlyItsItem(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 0, Items.DIAMOND,
                 ActionSettings.StepSettings.DEFAULT.withItems(
@@ -313,11 +269,9 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** Stock rarely lands back where it was, so the recorded square is a hint by default. */
     private static void stepFindsItsItemElsewhere(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 3, Items.DIAMOND,
                 ActionSettings.StepSettings.DEFAULT);
-        // Recorded coming out of slot 3, actually sitting in slot 7.
         stock(helper.getLevel(), helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
                 7, Items.DIAMOND, 5);
 
@@ -327,7 +281,6 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** The same, told to sort as it works: the recorded square or nothing. */
     private static void exactStepLooksNowhereElse(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = sendingAnchor(helper, 3, Items.DIAMOND,
                 ActionSettings.StepSettings.DEFAULT.withSlot(
@@ -341,7 +294,6 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** Told to move one, it moves one, whatever the recording happened to move. */
     private static void cappedStepMovesPartOfIt(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -349,7 +301,6 @@ final class RoutineEditGameTest {
         BlockPos absolute = helper.absolutePos(target);
         stock(helper.getLevel(), absolute, 0, Items.DIAMOND, 12);
 
-        // Slot to slot inside the barrel, so what stays behind is visible in the barrel itself.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
                                 new MenuTarget.Block(new BlockPos(0, 0, -1)), 27 + 36, List.of(),
@@ -383,9 +334,6 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * An anchor whose one step shift-clicks {@code item} out of {@code from}, under one step rule.
-     */
     private static ChronoAnchorBlockEntity sendingAnchor(GameTestHelper helper, int from,
                                                          net.minecraft.world.item.Item item,
                                                          ActionSettings.StepSettings rule) {
@@ -406,7 +354,6 @@ final class RoutineEditGameTest {
         }
     }
 
-    /** Deleting one action is not the same as re-timing the rest of the routine. */
     private static void deletingAnActionKeepsTheRest(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(List.of(
@@ -424,7 +371,6 @@ final class RoutineEditGameTest {
             helper.fail("deleting an action shortened the routine from " + before.lengthTicks()
                     + " to " + after.lengthTicks() + " ticks");
         }
-        // The survivors keep their own ticks, so what is left happens when it always did.
         if (after.actions().get(0).tick() != before.actions().get(0).tick()
                 || after.actions().get(1).tick() != before.actions().get(2).tick()) {
             helper.fail("the surviving actions were re-timed by the deletion");
@@ -437,9 +383,6 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
-    /**
-     * A step turned off is how one is dropped without re-performing the whole routine to get it back.
-     */
     private static void skippedStepMovesNothing(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -449,7 +392,6 @@ final class RoutineEditGameTest {
         stock(level, absolute, 0, Items.DIAMOND, 5);
         stock(level, absolute, 1, Items.EMERALD, 5);
 
-        // Two shift-clicks out of the barrel, the first of which is switched off.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
                                 new MenuTarget.Block(new BlockPos(0, 0, -1)), 27 + 36, List.of(),
@@ -496,7 +438,6 @@ final class RoutineEditGameTest {
         }
     }
 
-    /** What the editor's discard button reaches, once the payload has checked who is asking. */
     private static void discardingLeavesTheAnchorBlank(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -514,7 +455,6 @@ final class RoutineEditGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** An edit is only worth anything if the running anchor reads it. */
     private static void editedSettingsReachTheRoutine(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -534,9 +474,6 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
-    /**
-     * Only the interpretation changes, so the clones must not be rebuilt out from under themselves.
-     */
     private static void reinterpretingDoesNotRestartClones(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
@@ -558,7 +495,6 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    /** The authority check the edit payload leans on, which is the anchor's only protection. */
     private static void onlyTheOwnerMayReinterpret(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));

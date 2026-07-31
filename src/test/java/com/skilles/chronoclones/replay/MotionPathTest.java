@@ -9,9 +9,6 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * DAY 1 SPIKE (1b), executed as a test rather than by eye.
- */
 class MotionPathTest {
 
     private static final List<Vec3> ROUTE = List.of(

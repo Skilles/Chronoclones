@@ -18,13 +18,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The item a recording keeps, which is now the whole item rather than only its kind.
- *
- * <p>Built out of patches rather than out of live stacks: this source set boots the registries but
- * never binds item component prototypes, so constructing an {@link net.minecraft.world.item.ItemStack}
- * here throws. Anything needing a real stack is a game test.
- */
 class RecordedItemTest {
 
     private static RegistryAccess.Frozen registries;
@@ -59,7 +52,6 @@ class RecordedItemTest {
     @DisplayName("an empty hand is representable, which vanilla's own item template is not")
     void emptyHandIsRepresentable() {
         assertTrue(RecordedItem.NOTHING.isEmpty());
-        // Half the interactions worth recording are done bare-handed, so this has to survive too.
         assertTrue(roundTrip(RecordedItem.NOTHING).isEmpty());
     }
 

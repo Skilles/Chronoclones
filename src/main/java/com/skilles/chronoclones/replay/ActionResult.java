@@ -4,9 +4,7 @@ import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 
 import net.minecraft.core.BlockPos;
 
-/**
- * Outcome of one attempted action. {@code reason == NONE} means it happened.
- */
+/** Outcome of one attempted action. NONE means it happened. */
 public record ActionResult(FailureReason reason, BlockPos localPos) {
 
     public static final ActionResult OK = new ActionResult(FailureReason.NONE, BlockPos.ZERO);

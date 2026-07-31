@@ -8,10 +8,6 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
-/**
- * A button drawn out of the mod's own panels, so a screen full of controls reads as one surface
- * rather than as vanilla widgets parked on it.
- */
 class FlatButton extends AbstractButton {
 
     private final Font font;
@@ -22,7 +18,6 @@ class FlatButton extends AbstractButton {
         this(font, x, y, width, height, label, onPress, false);
     }
 
-    /** {@code danger} for the one action a screen offers that cannot be taken back. */
     FlatButton(Font font, int x, int y, int width, int height, Component label, Runnable onPress,
                boolean danger) {
         super(x, y, width, height, label);

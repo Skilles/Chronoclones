@@ -7,9 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * A clone's experience bank, whose readings have to agree with the bar a player already knows.
- */
 class ExperienceStoreTest {
 
     @Test
@@ -23,7 +20,6 @@ class ExperienceStoreTest {
     @Test
     @DisplayName("the level boundaries are vanilla's own")
     void levelsMatchVanilla() {
-        // Vanilla's first three bands are 7, 9 and 11 points wide.
         assertEquals(0, ExperienceStore.levelOf(6));
         assertEquals(1, ExperienceStore.levelOf(7));
         assertEquals(1, ExperienceStore.levelOf(15));
@@ -73,8 +69,6 @@ class ExperienceStoreTest {
     @Test
     @DisplayName("a bar reading converts back to the points behind it")
     void pointsSurviveABarReading() {
-        // The fake player only exposes a level and a fraction, so this is how a clone's bank is read
-        // back after an anvil or a table has charged it.
         for (int points = 0; points < 400; points++) {
             int level = ExperienceStore.levelOf(points);
             assertEquals(points, ExperienceStore.pointsFor(level, ExperienceStore.progressOf(points)),

@@ -6,9 +6,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The clone tab strip, which shares a row with the readout to its left.
- */
 class CloneTabsTest {
 
     private static final int RIGHT_EDGE = 168;
@@ -36,7 +33,6 @@ class CloneTabsTest {
         assertEquals(RIGHT_EDGE, CloneTabs.xOf(tabs - 1, tabs, RIGHT_EDGE) + CloneTabs.WIDTH,
                 "the last tab does not end at the right edge");
 
-        // The readout beside it is the upgrade line, which needs the rest of the row.
         assertTrue(CloneTabs.xOf(0, tabs, RIGHT_EDGE) > 80,
                 "four tabs reach back across the readout");
     }

@@ -23,9 +23,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * What a routine breaks, and how long it takes about it.
- */
 final class BreakingGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
@@ -33,7 +30,6 @@ final class BreakingGameTest {
     private BreakingGameTest() {}
 
     static void register() {
-        // Obsidian with a diamond pickaxe is ~190 ticks, so these need a longer window.
         ChronoclonesGameTests.add("break_takes_time_in_survival", 400,
                 BreakingGameTest::survivalBreakTakesTime);
         ChronoclonesGameTests.add("break_is_instant_from_a_creative_recording",
@@ -58,12 +54,6 @@ final class BreakingGameTest {
                 BreakingGameTest::smartToolRefusesToBreakForNothing);
     }
 
-    /**
-     * Told to pick for itself, the anchor uses a tool the recording never mentioned.
-     *
-     * <p>Recorded with a shovel, which is the wrong thing for stone and which the anchor does not
-     * have either. Exact would report having no shovel; smart reaches for the pickaxe.
-     */
     private static void smartToolPicksSomethingElse(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -84,14 +74,12 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /** Nothing a block needs, and nothing it needs: hands will do. */
     private static void smartToolFallsBackToHands(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 smartly(breakWith(Blocks.DIRT, new ItemStack(Items.NETHERITE_PICKAXE))));
-        // Not a tool anywhere, and dirt does not ask for one.
         emptyEveryClone(anchor);
 
         helper.startSequence()
@@ -104,12 +92,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * And where hands would leave nothing behind, it stops instead.
-     *
-     * <p>Bare hands do break stone, eventually, and drop nothing for it. An anchor that destroys
-     * what it cannot keep is worse than one that says it has no pickaxe.
-     */
     private static void smartToolRefusesToBreakForNothing(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -117,7 +99,6 @@ final class BreakingGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 smartly(breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE))));
         emptyEveryClone(anchor);
-        // A shovel breaks stone for nothing, so it is no better than the hands beside it.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_SHOVEL), 1);
 
         helper.startSequence()
@@ -131,25 +112,17 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /** The same routine, told to choose its own tool. */
     private static Recording smartly(Recording recording) {
         return recording.withSettings(0,
                 ActionSettings.DEFAULT.withTool(ActionSettings.ToolRule.SMART));
     }
 
-    /**
-     * A clone swings a tool it owns, or it does not swing.
-     *
-     * <p>Breaking was the one action taking what it needed from the recording rather than from the
-     * inventory, so an empty anchor mined with a netherite pickaxe it had never been given.
-     */
     private static void breakNeedsTheToolInTheAnchor(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.OBSIDIAN, new ItemStack(Items.DIAMOND_PICKAXE)));
-        // The fixture stocks what a recording digs with; this is a test about not having it.
         emptyEveryClone(anchor);
 
         helper.startSequence()
@@ -163,13 +136,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * And it swings the one it owns, not the one in the recording.
-     *
-     * <p>Read off the drops, which say which pickaxe was in the clone's hand without any waiting
-     * about: recorded with Silk Touch and stocked with a plain pickaxe of the same kind, so stone
-     * coming back whole would be the recording's enchantment still doing the work.
-     */
     private static void breakDigsWithTheAnchorsOwnTool(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -181,7 +147,6 @@ final class BreakingGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, silked));
         emptyEveryClone(anchor);
-        // The same kind of pickaxe, so the slot rule still finds one, and a plain one.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_PICKAXE), 1);
 
         helper.startSequence()
@@ -199,7 +164,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /** Undoes the tool the fixture hands out, for the tests that are about not having one. */
     private static void emptyEveryClone(ChronoAnchorBlockEntity anchor) {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
@@ -209,12 +173,6 @@ final class BreakingGameTest {
         }
     }
 
-    /**
-     * A placement told it no longer cares which block builds with whatever the clone was given.
-     *
-     * <p>The other side of {@code break_refuses_a_block_it_was_not_recorded_on}: the same option,
-     * on the action that puts blocks down rather than the one that takes them up.
-     */
     private static void widenedPlacementUsesWhatItHas(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.AIR);
@@ -226,7 +184,6 @@ final class BreakingGameTest {
                                 Blocks.STONE.defaultBlockState()),
                         ActionSettings.DEFAULT.withRecordedSubject(false)));
 
-        // Not one stone anywhere: only the widened rule can find anything to build with.
         anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIRT), 8);
 
         helper.startSequence()
@@ -239,9 +196,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A survival routine mines rather than deletes.
-     */
     private static void survivalBreakTakesTime(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
@@ -255,9 +209,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A creative recording keeps creative's instant break.
-     */
     private static void creativeBreakIsInstant(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
@@ -267,15 +218,11 @@ final class BreakingGameTest {
                 survivalShape.motion(), survivalShape.actions(), survivalShape.lengthTicks(),
                 survivalShape.authorName(), survivalShape.authorId(), true));
 
-        // Well inside the ~190 ticks the same block takes in survival.
         helper.startSequence()
                 .thenExecuteAfter(15, () -> helper.assertBlockPresent(Blocks.AIR, target))
                 .thenSucceed();
     }
 
-    /**
-     * Widened to any block, the routine recorded stone swings its pickaxe at the obsidian there now.
-     */
     private static void breaksWhateverIsThere(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
@@ -284,20 +231,15 @@ final class BreakingGameTest {
                 breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE))
                         .withSettings(0, ActionSettings.DEFAULT.withRecordedSubject(false)));
 
-        // Obsidian with a diamond pickaxe is over nine seconds of mining, which is the point.
         helper.startSequence()
                 .thenExecuteAfter(250, () -> helper.assertBlockPresent(Blocks.AIR, target))
                 .thenSucceed();
     }
 
-    /**
-     * A wooden pickaxe on obsidian gets nowhere, and gets nowhere the way a player would.
-     */
     private static void aPoorToolIsSlowNotRefused(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.OBSIDIAN);
 
-        // Recorded on the obsidian it is aimed at, so the tool is the only thing under test.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.OBSIDIAN, new ItemStack(Items.WOODEN_PICKAXE)));
 
@@ -312,7 +254,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /** Hands are a tool like any other: a routine recorded empty-handed still clears dirt. */
     private static void bareHandsClearSoftBlocks(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.DIRT);
@@ -325,7 +266,6 @@ final class BreakingGameTest {
                 .thenSucceed();
     }
 
-    /** A routine recorded breaking one block, with whatever tool. */
     private static Recording breakWith(Block expected, ItemStack tool) {
         return new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),

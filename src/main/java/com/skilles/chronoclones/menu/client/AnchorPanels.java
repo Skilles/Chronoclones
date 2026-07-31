@@ -8,12 +8,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
-/**
- * The pieces the anchor window is drawn out of, so the screen itself is only layout.
- *
- * <p>Nine-sliced sprites rather than one background texture: the rows have moved several times and
- * a baked background would have to be repainted for each move, where these stretch to fit.
- */
 final class AnchorPanels {
 
     private AnchorPanels() {}
@@ -45,7 +39,6 @@ final class AnchorPanels {
     static final int WARNING = 0xFFE0B860;
     static final int HALTED = 0xFFE06060;
 
-    /** Vanilla's experience green, so the anchor's bar and the player's own agree. */
     static final int LEVEL = 0xFF80FF20;
 
     static final int TRACK = 0xFF15151A;
@@ -54,12 +47,10 @@ final class AnchorPanels {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_SPRITE, x, y, width, height);
     }
 
-    /** A rounded ring in {@code tint}, for whatever needs to be picked out from its neighbours. */
     static void outline(GuiGraphicsExtractor g, int x, int y, int width, int height, int tint) {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, OUTLINE_SPRITE, x, y, width, height, tint);
     }
 
-    /** Drawn around the 16x16 the item occupies, as vanilla's slot texture is. */
     static void slot(GuiGraphicsExtractor g, int x, int y) {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, x - 1, y - 1, 18, 18);
     }
@@ -68,9 +59,6 @@ final class AnchorPanels {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, ICON_SIZE, ICON_SIZE, tint);
     }
 
-    /**
-     * A section name astride its panel's top border, with the border cleared behind it.
-     */
     static void legend(GuiGraphicsExtractor g, Font font, String name, int x, int panelTop) {
         int top = panelTop - Layout.LEGEND_RISE;
 
@@ -79,9 +67,6 @@ final class AnchorPanels {
         g.text(font, name, x + 6, top, MUTED);
     }
 
-    /**
-     * A segmented bar filling rightwards, for a quantity read along a row.
-     */
     static void bar(GuiGraphicsExtractor g, int x, int y, int width, int height,
                     float fraction, int colour) {
         track(g, x, y, width, height);
@@ -93,16 +78,11 @@ final class AnchorPanels {
         }
     }
 
-    /** The recessed track a bar runs in. */
     static void track(GuiGraphicsExtractor g, int x, int y, int width, int height) {
         g.fill(x - 1, y - 1, x + width + 1, y + height + 1, SLOT_EDGE);
         g.fill(x, y, x + width, y + height, TRACK);
     }
 
-    /**
-     * A segmented bar filling upwards. Segments rather than one block so a glance reads as a
-     * quantity, and upwards because a column of charge reads like a column of charge.
-     */
     static void barUp(GuiGraphicsExtractor g, int x, int y, int width, int height,
                       float fraction, int colour) {
         track(g, x, y, width, height);
@@ -115,12 +95,6 @@ final class AnchorPanels {
         }
     }
 
-    /**
-     * A transport control: a box with a glyph in it, lit when it is the state the anchor is in.
-     *
-     * <p>Drawn rather than blitted, because a triangle, two bars and a square are less trouble as
-     * geometry than as three more sprites to keep in step with the rest of the kit.
-     */
     static void transport(GuiGraphicsExtractor g, Kind kind, int x, int y, int size,
                           boolean current, boolean hovered) {
         int tint = current ? ACCENT : (hovered ? TEXT : MUTED);
@@ -134,7 +108,6 @@ final class AnchorPanels {
         int span = size - inset * 2;
 
         switch (kind) {
-            // A triangle, one row at a time, narrowing to a point at the right.
             case PLAY -> {
                 for (int row = 0; row < span; row++) {
                     int width = span - Math.abs(row - (span - 1) / 2) * 2;
@@ -149,21 +122,17 @@ final class AnchorPanels {
         }
     }
 
-    /** The three transport glyphs. */
     enum Kind {
+
         PLAY,
         PAUSE,
         STOP
     }
 
-    /**
-     * The same colour at a given opacity, for a wash behind something rather than a line around it.
-     */
     static int wash(int colour, int alpha) {
         return (colour & 0x00FFFFFF) | (Math.clamp(alpha, 0, 255) << 24);
     }
 
-    /** A tick mark, drawn inside a box of {@code size}: down to the left, then up to the right. */
     static void tick(GuiGraphicsExtractor g, int x, int y, int size, int colour) {
         int foot = size / 2;
         for (int step = 0; step < foot - 1; step++) {
@@ -175,7 +144,6 @@ final class AnchorPanels {
         }
     }
 
-    /** The playhead: a small diamond sitting astride the timeline. */
     static void playhead(GuiGraphicsExtractor g, int x, int y, int colour) {
         for (int row = 0; row < 4; row++) {
             g.fill(x - row, y + row, x + row + 1, y + row + 1, colour);

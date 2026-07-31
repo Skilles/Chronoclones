@@ -17,9 +17,6 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * What survives an anchor being broken.
- */
 final class AnchorDropsGameTest {
 
     private AnchorDropsGameTest() {}
@@ -33,10 +30,8 @@ final class AnchorDropsGameTest {
 
     private static final double SEARCH_RADIUS = 5.0;
 
-    /** Long enough for the drops to have been added to the level and come to rest. */
     private static final int SETTLE_TICKS = 8;
 
-    /** A routine must not be destroyable with a pickaxe (loot table {@code copy_components}). */
     private static void dropsWithRoutine(GameTestHelper helper) {
         Recording original = AnchorTestFixture.breakOneBlock(Blocks.STONE);
         AnchorTestFixture.placeAndImprint(helper, ANCHOR, original);
@@ -69,7 +64,6 @@ final class AnchorDropsGameTest {
                 .thenSucceed();
     }
 
-    /** The anchor stores through the transfer API, so the vanilla spill does not see it. */
     private static void spillsInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -93,13 +87,6 @@ final class AnchorDropsGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The drops around this anchor.
-     *
-     * <p>Wide enough for the scatter: a spilled stack is thrown with random motion, and four
-     * inventories now spill at once, which is what made two blocks an intermittent miss. The plot
-     * has room for that without reaching into anybody else's.
-     */
     private static ItemStack findDrop(ServerLevel level, BlockPos absolute, net.minecraft.world.item.Item item) {
         List<ItemEntity> drops = level.getEntitiesOfClass(ItemEntity.class,
                 new AABB(absolute).inflate(SEARCH_RADIUS));

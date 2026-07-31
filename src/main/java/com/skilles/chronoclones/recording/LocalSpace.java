@@ -4,24 +4,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * Conversion between world space and anchor-local space, so one recording rotates onto anchors
- * facing any direction.
- *
- * <p>Cardinal rotations only, because arbitrary yaw does not map the block grid onto itself.
- * Local space is "as if facing north", and a quarter-turn clockwise is
- * {@code (x,z) -> (-z,x)}, which is also +90 degrees of yaw.
- */
+/** Conversions between world space and a routine's own anchor-relative space. */
 public final class LocalSpace {
 
     private LocalSpace() {}
 
-    /** Mandatory at record start; see the class docs. */
+    /** Rotations are quarter turns, so an origin facing has to be one of the four. */
     public static Direction snapToCardinal(float yaw) {
         return Direction.fromYRot(yaw);
     }
 
-    /** Quarter-turns clockwise from NORTH. NORTH=0, EAST=1, SOUTH=2, WEST=3. */
     public static int stepsFromNorth(Direction facing) {
         return switch (facing) {
             case NORTH -> 0;
@@ -36,9 +28,6 @@ public final class LocalSpace {
         return Math.floorMod(steps, 4);
     }
 
-    // ------------------------------------------------------------------ rotation primitives
-
-    /** Rotates by {@code steps} quarter-turns clockwise about Y. Pure integer math. */
     public static BlockPos rotateY(BlockPos pos, int steps) {
         int x = pos.getX();
         int z = pos.getZ();
@@ -50,7 +39,6 @@ public final class LocalSpace {
         };
     }
 
-    /** Rotates by {@code steps} quarter-turns clockwise about Y. Exact for the same four cases. */
     public static Vec3 rotateY(Vec3 vec, int steps) {
         return switch (normalizeSteps(steps)) {
             case 0 -> new Vec3(vec.x, vec.y, vec.z);
@@ -60,7 +48,6 @@ public final class LocalSpace {
         };
     }
 
-    /** Rotates a direction by {@code steps} quarter-turns clockwise. Vertical directions are fixed. */
     public static Direction rotateY(Direction direction, int steps) {
         if (direction.getAxis().isVertical()) {
             return direction;
@@ -71,8 +58,6 @@ public final class LocalSpace {
         }
         return result;
     }
-
-    // ------------------------------------------------------------------ world -> local
 
     public static BlockPos toLocal(BlockPos world, BlockPos origin, Direction originFacing) {
         return rotateY(world.subtract(origin), -stepsFromNorth(originFacing));
@@ -87,12 +72,9 @@ public final class LocalSpace {
         return rotateY(world, -stepsFromNorth(originFacing));
     }
 
-    /** Pitch is rotation-invariant about Y and is deliberately not converted. */
     public static float toLocalYaw(float worldYaw, Direction originFacing) {
         return wrapDegrees(worldYaw - originFacing.toYRot());
     }
-
-    // ------------------------------------------------------------------ local -> world
 
     public static BlockPos toWorld(BlockPos local, BlockPos anchor, Direction anchorFacing) {
         return anchor.offset(rotateY(local, stepsFromNorth(anchorFacing)));
@@ -111,7 +93,6 @@ public final class LocalSpace {
         return wrapDegrees(localYaw + anchorFacing.toYRot());
     }
 
-    /** Normalises to (-180, 180], matching how Minecraft stores entity yaw. */
     public static float wrapDegrees(float degrees) {
         float wrapped = degrees % 360.0f;
         if (wrapped <= -180.0f) {

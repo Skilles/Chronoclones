@@ -19,9 +19,6 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 
-/**
- * The overlay drawn over everything while a recording is running.
- */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHud {
 
@@ -29,11 +26,9 @@ public final class RecordingHud {
 
     private static final RecordingHudState STATE = new RecordingHudState();
 
-    /** Recording red, and the amber the border turns when something needs reading. */
     private static final int LIVE = 0xFF4B4B;
     private static final int WARN = 0xFFB020;
 
-    /** Thickness of the border in scaled pixels, drawn as this many one-pixel rings. */
     private static final int BORDER = 18;
 
     @SubscribeEvent
@@ -61,7 +56,6 @@ public final class RecordingHud {
         }
 
         boolean warning = STATE.isWarning(now);
-        // Partial ticks rather than whole ones, or it strobes.
         float phase = (now + delta.getGameTimeDeltaPartialTick(false)) / 9.0f;
         float pulse = warning ? 1.0f : 0.62f + 0.38f * (float) ((Math.sin(phase) + 1.0) / 2.0);
 
@@ -69,13 +63,11 @@ public final class RecordingHud {
         readout(graphics, client, warning);
     }
 
-    /** A vignette rather than a hard frame: hard edges read as a broken texture. */
     private static void border(GuiGraphicsExtractor graphics, int colour, float pulse) {
         int width = graphics.guiWidth();
         int height = graphics.guiHeight();
 
         for (int ring = 0; ring < BORDER; ring++) {
-            // Quadratic falloff: dense at the edge, gone before anything readable.
             float fromEdge = 1.0f - ring / (float) BORDER;
             int alpha = (int) (0x66 * fromEdge * fromEdge * pulse);
             if (alpha <= 0) {
@@ -89,7 +81,6 @@ public final class RecordingHud {
         }
     }
 
-    /** Time, actions, and how close each is to the cap that will stop the session. */
     private static void readout(GuiGraphicsExtractor graphics, Minecraft client, boolean warning) {
         int centre = graphics.guiWidth() / 2;
         int top = 6;
@@ -98,7 +89,6 @@ public final class RecordingHud {
                         RecordingHudState.clock(STATE.elapsedTicks()), STATE.actionCount())
                 .withStyle(warning ? ChatFormatting.GOLD : ChatFormatting.RED), centre, top, 0xFFFFFFFF);
 
-        // Both caps, side by side, because either one ending the session is a surprise otherwise.
         int barWidth = 60;
         int gap = 4;
         int barY = top + 12;
@@ -117,14 +107,10 @@ public final class RecordingHud {
 
     private static void meter(GuiGraphicsExtractor graphics, int x, int y, int width, float filled) {
         graphics.fill(x, y, x + width, y + 3, 0x80_000000);
-        // The colour is the warning: a bar that only changes length gets read as decoration.
         int colour = filled > 0.9f ? 0xFF_FF4B4B : filled > 0.75f ? 0xFF_FFB020 : 0xFF_9BE8A0;
         graphics.fill(x, y, x + Math.round(width * filled), y + 3, colour);
     }
 
-    /**
-     * The progress stamp on whichever recorder in the inventory carries one.
-     */
     private static @Nullable RecordingProgress stampOf(LocalPlayer player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);

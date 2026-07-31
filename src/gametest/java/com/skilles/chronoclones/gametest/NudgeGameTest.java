@@ -8,9 +8,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 
-/**
- * Moving a routine's origin, and the one thing that must not move with it.
- */
 final class NudgeGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
@@ -22,7 +19,6 @@ final class NudgeGameTest {
         ChronoclonesGameTests.add("nudge_cannot_extend_reach", NudgeGameTest::nudgeCannotExtendReach);
     }
 
-    /** The routine breaks one block further along, and leaves the original alone. */
     private static void nudgeMovesTheTarget(GameTestHelper helper) {
         BlockPos recorded = AnchorTestFixture.targetOf(ANCHOR);
         BlockPos nudged = recorded.west();
@@ -31,7 +27,6 @@ final class NudgeGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        // The anchor faces north, so local space is world space and west is -X.
         anchor.nudgeOrigin(new BlockPos(-1, 0, 0));
 
         helper.startSequence()
@@ -42,14 +37,10 @@ final class NudgeGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * An offset past the radius makes a routine fail, rather than making it reach further.
-     */
     private static void nudgeCannotExtendReach(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        // A refusal needs no block to refuse at.
         int beyond = ChronoclonesConfig.MAX_RADIUS.getAsInt() + 4;
         anchor.nudgeOrigin(new BlockPos(0, 0, -beyond));
 
@@ -63,5 +54,4 @@ final class NudgeGameTest {
                 })
                 .thenSucceed();
     }
-
 }

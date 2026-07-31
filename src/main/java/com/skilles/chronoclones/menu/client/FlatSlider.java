@@ -6,10 +6,6 @@ import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
-/**
- * A slider in the same clothes as {@link FlatButton}: the value reads as a label, the position as a
- * thin fill along the bottom edge.
- */
 abstract class FlatSlider extends AbstractSliderButton {
 
     private final Font font;

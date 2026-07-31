@@ -12,6 +12,7 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModEntities {
+
     public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
             DeferredRegister.create(BuiltInRegistries.ENTITY_TYPE, Chronoclones.MODID);
 
@@ -19,10 +20,8 @@ public final class ModEntities {
             ENTITY_TYPES.register("chrono_clone", () -> EntityType.Builder
                     .<ChronoCloneEntity>of(ChronoCloneEntity::new, MobCategory.MISC)
                     .sized(0.6f, 1.8f)
-                    // Clones are never persisted; anchors respawn them on load.
                     .noSave()
                     .fireImmune()
-                    // Driven every tick by the anchor, so the tracker must send every tick.
                     .updateInterval(1)
                     .clientTrackingRange(8)
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, Chronoclones.id("chrono_clone"))));

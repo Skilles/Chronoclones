@@ -8,9 +8,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * Which anchors the goggles are allowed to reveal.
- */
 class GoggleVisibilityTest {
 
     private static final UUID VIEWER = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
@@ -19,8 +16,6 @@ class GoggleVisibilityTest {
     @Test
     @DisplayName("your own anchors are always visible")
     void ownAnchorsAlwaysVisible() {
-        // The config is about other people's routines. Hiding the viewer's own would make the
-        // goggles useless on the only anchors they can act on.
         assertTrue(GogglePayloads.visibleTo(VIEWER, VIEWER, true));
         assertTrue(GogglePayloads.visibleTo(VIEWER, VIEWER, false));
     }
@@ -36,8 +31,6 @@ class GoggleVisibilityTest {
     @Test
     @DisplayName("an unowned anchor is visible either way")
     void unownedIsVisible() {
-        // No owner means it was never imprinted by anybody, so there is nobody it could be private
-        // from, and refusing it would hide anchors placed by a datapack or spawned in a structure.
         assertTrue(GogglePayloads.visibleTo(null, VIEWER, true));
         assertTrue(GogglePayloads.visibleTo(null, VIEWER, false));
     }

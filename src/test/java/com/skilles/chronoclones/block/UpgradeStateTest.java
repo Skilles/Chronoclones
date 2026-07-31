@@ -11,17 +11,8 @@ import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Capabilities are derived from slot contents on every read. These tests cover that derivation
- * and the caps that stop a stack of splitters spawning unbounded clones.
- */
 class UpgradeStateTest {
 
-    /**
-     * Counts upgrades by axis the way {@code UpgradeState.from} does, without building an
-     * {@code ItemResource}, which constructs an {@code ItemStack} internally, which needs
-     * datapack-bound components and so cannot happen in a unit test.
-     */
     private static UpgradeState install(net.minecraft.world.item.Item... items) {
         int[] counts = new int[UpgradeState.Axis.values().length];
         for (net.minecraft.world.item.Item item : items) {

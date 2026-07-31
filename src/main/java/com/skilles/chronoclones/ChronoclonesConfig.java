@@ -2,8 +2,8 @@ package com.skilles.chronoclones;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-/** Server-side tunables. MAX_RADIUS is enforced at record time and again at execute time. */
 public final class ChronoclonesConfig {
+
     public static final ModConfigSpec SPEC;
 
     public static final ModConfigSpec.IntValue MAX_RADIUS;
@@ -15,9 +15,6 @@ public final class ChronoclonesConfig {
     public static final ModConfigSpec.IntValue MAX_ACTION_TICKS;
     public static final ModConfigSpec.BooleanValue ALLOW_PVP;
     public static final ModConfigSpec.IntValue GOGGLE_RADIUS;
-    /**
-     * Whether Chrono Goggles show anchors somebody else imprinted.
-     */
     public static final ModConfigSpec.BooleanValue GOGGLES_SHOW_OTHERS;
 
     static {
@@ -66,25 +63,14 @@ public final class ChronoclonesConfig {
         SPEC = b.build();
     }
 
-    /** What {@code maxContainerSteps} is set to, or its default where no config has been loaded. */
     public static int maxContainerSteps() {
         return orDefault(MAX_CONTAINER_STEPS, 256);
     }
 
-    /** What {@code maxRecordingBytes} is set to, or its default where no config has been loaded. */
     public static int maxRecordingBytes() {
         return orDefault(MAX_RECORDING_BYTES, 131_072);
     }
 
-    /**
-     * A limit that can be asked for before any config exists.
-     *
-     * <p>Most of these are read while a routine runs, which only happens on a server with its config
-     * loaded. The size caps are not: they are read from the recording codec, and item data decodes
-     * on clients, during early loading, and inside unit tests, where reaching into an unloaded spec
-     * throws. Refusing to decode somebody's routine because the config was not ready yet would be a
-     * far worse failure than measuring it against the shipped default.
-     */
     private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
         return SPEC.isLoaded() ? value.getAsInt() : fallback;
     }

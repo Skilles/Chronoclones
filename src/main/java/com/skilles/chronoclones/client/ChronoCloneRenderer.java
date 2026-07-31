@@ -25,12 +25,8 @@ import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Draws the clone: the author's player model, translucent and tinted.
- */
 public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, ChronoCloneRenderState> {
 
-    /** Solid enough to read as a body, sheer enough to never be mistaken for one. */
     private static final int TINT = 0x99_7FF5DC;
 
     private final HumanoidModel<ChronoCloneRenderState> wideModel;
@@ -42,7 +38,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         this.shadowRadius = 0.4f;
         this.shadowStrength = 0.6f;
         this.itemModelResolver = context.getItemModelResolver();
-        // The two player meshes differ only in arm width, and which one applies comes from the skin.
         this.wideModel = new HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER));
         this.slimModel = new HumanoidModel<>(context.bakeLayer(ModelLayers.PLAYER_SLIM));
     }
@@ -57,7 +52,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         super.extractRenderState(entity, state, partialTicks);
 
         state.bodyRot = Mth.rotLerp(partialTicks, entity.yRotO, entity.getYRot());
-        // yRot is the head's rotation relative to the body; the absolute yaw turns it twice.
         state.yRot = 0.0f;
         state.xRot = Mth.lerp(partialTicks, entity.xRotO, entity.getXRot());
 
@@ -87,7 +81,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         RenderType renderType = RenderTypes.entityTranslucent(state.skin.body().texturePath());
 
         poseStack.pushPose();
-        // As LivingEntityRenderer: face the body, flip into model space, drop to the feet.
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0f - state.bodyRot));
         poseStack.scale(-1.0f, -1.0f, 1.0f);
         poseStack.translate(0.0f, -1.501f, 0.0f);
@@ -100,9 +93,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         super.submit(state, poseStack, collector, camera);
     }
 
-    /**
-     * Whatever the clone is holding, posed off the hand it is holding it in.
-     */
     private void submitHeldItems(ChronoCloneRenderState state,
                                  HumanoidModel<ChronoCloneRenderState> model,
                                  PoseStack poseStack, SubmitNodeCollector collector) {
@@ -122,7 +112,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         model.translateToHand(state, arm, poseStack);
         poseStack.mulPose(Axis.XP.rotationDegrees(-90.0f));
         poseStack.mulPose(Axis.YP.rotationDegrees(180.0f));
-        // Mirrored across the body: the same offset off the left hand puts it inside the arm.
         poseStack.translate(arm == HumanoidArm.RIGHT ? 1.0f / 16.0f : -1.0f / 16.0f,
                 2.0f / 16.0f, -10.0f / 16.0f);
 
@@ -131,13 +120,6 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity, Chron
         poseStack.popPose();
     }
 
-    /**
-     * The author's skin, defaulting to the UUID-derived silhouette until the answer lands.
-     *
-     * <p>This used to build a profile out of the author's id and name and hand it to the skin
-     * manager, which reads textures off a profile's properties -- and a profile assembled from an
-     * id and a name has none, so every clone wore the default silhouette forever.
-     */
     private static PlayerSkin skinOf(ChronoCloneEntity entity) {
         UUID author = entity.authorId();
         return author == null ? DefaultPlayerSkin.getDefaultSkin() : AuthorSkins.of(author);

@@ -9,20 +9,11 @@ import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 
 import org.jspecify.annotations.Nullable;
 
-/**
- * Turns a run of swings into what the player was trying to do.
- *
- * <p>A recording captures five swings where the player meant "kill that". Replayed literally, five
- * swings against a tougher mob leave it alive and the clone walks away. Collapsing the run into one
- * action with a goal is the difference between repeating the input and repeating the outcome.
- */
+/** Collapses a run of swings at one target into a single action with a goal. */
 public final class AttackIntent {
 
     private AttackIntent() {}
 
-    /**
-     * One recorded action, with the entity it was aimed at if it was a swing.
-     */
     public record Swing(TimedAction timed, @Nullable UUID target) {
 
         public static Swing of(TimedAction timed) {
@@ -30,12 +21,6 @@ public final class AttackIntent {
         }
     }
 
-    /**
-     * Collapses adjacent swings at one target, and marks the survivor if the target died.
-     *
-     * <p>Adjacent only: a player who hit a zombie, turned to a cow, then came back meant three
-     * things, not two.
-     */
     public static List<TimedAction> coalesce(List<Swing> swings, Set<UUID> killed) {
         List<TimedAction> collapsed = new ArrayList<>(swings.size());
 
@@ -50,7 +35,6 @@ public final class AttackIntent {
                 i++;
             }
 
-            // The first swing's tick, so the clone starts when the player started.
             collapsed.add(killed.contains(first.target())
                     ? withCompletion(first.timed(), TargetRule.Completion.UNTIL_DEAD)
                     : first.timed());

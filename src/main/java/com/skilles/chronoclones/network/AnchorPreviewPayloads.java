@@ -17,14 +17,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Preview traffic: a routine sent to one client, on request, for as long as they are looking at it.
- */
 public final class AnchorPreviewPayloads {
 
     private AnchorPreviewPayloads() {}
 
-    /** Client → server: "I am looking at the anchor here, what does it do?" */
     public record Request(BlockPos pos) implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Request> TYPE =
@@ -39,12 +35,8 @@ public final class AnchorPreviewPayloads {
         }
     }
 
-    /**
-     * Server → client: the routine, or empty if that anchor has none.
-     */
     public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure,
                         BlockPos originOffset) implements CustomPacketPayload {
-
         public static final CustomPacketPayload.Type<Reply> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("anchor_preview"));
 
@@ -62,9 +54,6 @@ public final class AnchorPreviewPayloads {
         }
     }
 
-    /**
-     * Answers a request, if the player could plausibly be looking at that anchor.
-     */
     public static void handleRequest(Request request, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
@@ -82,6 +71,5 @@ public final class AnchorPreviewPayloads {
                 anchor.getLastFailure(), anchor.getOriginOffset()));
     }
 
-    /** A little beyond any reasonable reach, so a laggy client is not refused its own preview. */
     private static final double MAX_REQUEST_DISTANCE_SQR = 12.0 * 12.0;
 }

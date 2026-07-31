@@ -9,22 +9,12 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * What a container session carries.
- */
 class ContainerWatchTest {
 
-    /**
-     * One occupied square. The stack is empty because it cannot be anything else here: an item's
-     * default components are bound during datapack load, so {@code new ItemStack(Items.X)} throws in
-     * the FML JUnit bootstrap. It costs nothing: {@link ContainerWatch#carried} decides purely on slot
-     * index, and which stack survives the narrowing is asserted in {@code PrecisionGameTest}.
-     */
     private static ChronoAction.UseContainer.CarrierSlot slot(int menuSlot) {
         return new ChronoAction.UseContainer.CarrierSlot(menuSlot, ItemStack.EMPTY);
     }
 
-    /** A full player inventory, of which any one session touches almost nothing. */
     private static List<ChronoAction.UseContainer.CarrierSlot> fullInventory() {
         return List.of(slot(54), slot(55), slot(60), slot(31), slot(42));
     }
@@ -42,15 +32,12 @@ class ContainerWatchTest {
     @Test
     @DisplayName("a session that only clicks container slots carries nothing")
     void withdrawalCarriesNothing() {
-        // Taking things out of a chest names chest slots throughout. Demanding the player's inventory
-        // as a precondition would make a pure withdrawal impossible to run on a fresh anchor.
         assertEquals(List.of(), ContainerWatch.carried(fullInventory(), Set.of(0, 3, 8)));
     }
 
     @Test
     @DisplayName("a click outside the window carries nothing extra")
     void outsideClickIsHarmless() {
-        // Dropping by clicking the background arrives as slot -1, which matches no square.
         assertEquals(List.of(), ContainerWatch.carried(fullInventory(), Set.of(-1)));
     }
 
@@ -61,7 +48,6 @@ class ContainerWatchTest {
                 ContainerWatch.carried(fullInventory(), Set.of(31, 60));
 
         assertEquals(2, carried.size(), "carried: " + carried);
-        // Snapshot order, not click order: this is a description of a layout, not of a sequence.
         assertEquals(60, carried.get(0).menuSlot());
         assertEquals(31, carried.get(1).menuSlot());
     }

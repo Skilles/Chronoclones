@@ -9,28 +9,22 @@ import com.skilles.chronoclones.registry.ModItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.entity.EquipmentSlot;
 
-/**
- * Every anchor the goggles can currently see.
- */
 public final class GoggleCache {
 
     private GoggleCache() {}
 
-    /** Two seconds. Long enough that walking around does not flood, short enough to feel live. */
     private static final long REFRESH_INTERVAL_TICKS = 40;
 
     private static List<GogglePayloads.Entry> anchors = List.of();
     private static boolean truncated;
     private static final RequestClock CLOCK = new RequestClock();
 
-    /** The anchors to draw, refreshing in the background if the goggles are on. */
     public static List<PreviewCache.Target> current() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.level == null) {
             return List.of();
         }
         if (!client.player.getItemBySlot(EquipmentSlot.HEAD).is(ModItems.CHRONO_GOGGLES.get())) {
-            // Taking them off clears immediately rather than fading out over the refresh interval.
             forget();
             return List.of();
         }
@@ -49,12 +43,10 @@ public final class GoggleCache {
         return targets;
     }
 
-    /** Whether the server had more anchors than it was willing to send. */
     public static boolean isTruncated() {
         return truncated;
     }
 
-    /** Called on the main thread by the payload handler. */
     public static void accept(GogglePayloads.Reply reply) {
         anchors = reply.anchors();
         truncated = reply.truncated();

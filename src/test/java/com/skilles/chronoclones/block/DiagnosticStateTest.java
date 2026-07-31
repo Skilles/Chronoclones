@@ -11,9 +11,6 @@ import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Halts have to be pauses, not traps.
- */
 class DiagnosticStateTest {
 
     @Test

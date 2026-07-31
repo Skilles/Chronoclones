@@ -6,10 +6,6 @@ import java.util.UUID;
 
 import net.minecraft.world.phys.Vec3;
 
-/**
- * A complete captured performance: a dense, evenly-sampled motion track plus a sparse,
- * event-driven action track.
- */
 public record Recording(
         List<MotionSample> motion,
         List<TimedAction> actions,
@@ -17,15 +13,11 @@ public record Recording(
         String authorName,
         UUID authorId,
         boolean creative) {
-
     public Recording {
         motion = List.copyOf(motion);
         actions = List.copyOf(actions);
     }
 
-    /**
-     * A survival recording, which is nearly all of them.
-     */
     public Recording(List<MotionSample> motion, List<TimedAction> actions, int lengthTicks,
                      String authorName, UUID authorId) {
         this(motion, actions, lengthTicks, authorName, authorId, false);
@@ -35,18 +27,12 @@ public record Recording(
         return motion.isEmpty() && actions.isEmpty();
     }
 
-    /**
-     * The same performance, read differently at one action.
-     */
     public Recording withSettings(int index, ActionSettings settings) {
         List<TimedAction> edited = new java.util.ArrayList<>(actions);
         edited.set(index, edited.get(index).withSettings(settings));
         return new Recording(motion, edited, lengthTicks, authorName, authorId, creative);
     }
 
-    /**
-     * This routine without one action, keeping its length so the rest still happen when they did.
-     */
     public Recording without(int index) {
         List<TimedAction> kept = new java.util.ArrayList<>(actions);
         kept.remove(index);
@@ -65,7 +51,6 @@ public record Recording(
         return counts;
     }
 
-    /** Furthest horizontal reach, so a shard can be inspected before it is imprinted. */
     public double reach() {
         double maxSqr = 0.0;
         for (MotionSample sample : motion) {
@@ -85,8 +70,6 @@ public record Recording(
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.target().localPoint()));
                 case ChronoAction.InteractEntity a ->
                         maxSqr = Math.max(maxSqr, horizontalSqr(a.localPos()));
-                // Using an item in mid-air happens wherever the clone is standing, which the motion
-                // samples already account for.
                 case ChronoAction.UseItem ignored -> { }
             }
         }

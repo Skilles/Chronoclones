@@ -18,19 +18,13 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import org.jspecify.annotations.NonNull;
 
-/**
- * The Chrono Anchor screen: a timeline, the running totals, one clone's storage, charge and
- * modules, the diagnostic, and the player's own inventory.
- */
 public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu> {
 
-    /** Level with the storage band, so the handle reads as attached to a section. */
     private static final int EDITOR_TAB_Y = Layout.BAND_Y;
 
     private DrawerTab editorTab;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
-        // imageWidth/imageHeight are final in 26.x and must go through the 5-arg constructor.
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
     }
 
@@ -51,11 +45,9 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     protected void containerTick() {
         super.containerTick();
 
-        // Nothing to edit until something is imprinted, and the handle should say so.
         editorTab.active = menu.getLengthTicks() > 0;
     }
 
-    /** Not inside the container's pose translation, so coordinates here are absolute. */
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(extractor, mouseX, mouseY, partialTick);
@@ -75,11 +67,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         playerInventory(extractor, xo, yo);
     }
 
-    // ------------------------------------------------------------------ sections
-
-    /**
-     * The routine's length, ticked where its actions fall, with a diamond per clone.
-     */
     private void timeline(GuiGraphicsExtractor extractor, int xo, int yo) {
         int x = xo + Layout.MARGIN;
         int y = yo + Layout.TIMELINE_Y;
@@ -96,14 +83,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         for (ChronoAnchorMenu.Mark mark : menu.getActionMarks()) {
             int at = x + (width - 1) * Math.clamp(mark.tick(), 0, length) / length;
-            // The picture where there is one, and the tick it replaces where there is not.
             if (!ActionIcon.draw(extractor, mark.icon(), at - MARK_SIZE / 2,
                     y + (height - MARK_SIZE) / 2, MARK_SIZE)) {
                 extractor.fill(at, y, at + 1, y + height, AnchorPanels.ACCENT);
             }
         }
 
-        // A stopped anchor has no clones, so it has nowhere to draw a playhead.
         if (menu.getRunState() == RunState.STOPPED) {
             return;
         }
@@ -114,20 +99,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    /**
-     * As tall as the track it stands on, so a mark reads as part of the ruler rather than on top
-     * of it. The row's slack above and below is what makes even this much possible.
-     */
     private static final int MARK_SIZE = 11;
 
-    /** The three glyphs in the order they read: play, pause, stop. */
     private static final AnchorPanels.Kind[] TRANSPORT = {
             AnchorPanels.Kind.PLAY, AnchorPanels.Kind.PAUSE, AnchorPanels.Kind.STOP
     };
 
-    /**
-     * Play, pause and stop, at the far end of the timeline's row.
-     */
     private void transport(GuiGraphicsExtractor extractor, int xo, int yo) {
         RunState state = menu.getRunState();
 
@@ -138,10 +115,8 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    /** Which control the pointer is over, or -1. Read while drawing, set while hit-testing. */
     private int hoveredTransport = -1;
 
-    /** The control at a screen position, or -1. */
     private int transportAt(int mouseX, int mouseY) {
         for (int index = 0; index < TRANSPORT.length; index++) {
             if (within(mouseX, mouseY, Layout.transportX(index), Layout.TRANSPORT_Y,
@@ -152,9 +127,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         return -1;
     }
 
-    /**
-     * Actions, clones and rate, each in its own box, sized to what it says.
-     */
     private void pills(GuiGraphicsExtractor extractor, int xo, int yo) {
         int x = xo + Layout.MARGIN;
         int y = yo + Layout.PILLS_Y;
@@ -200,7 +172,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                 + font.width(pill.value()) + PILL_SPACING + font.width(pill.label());
     }
 
-    /** Whatever the three pills do not use, shared between them. */
     private int pillGap() {
         int used = 0;
         for (Pill pill : pillContents()) {
@@ -222,8 +193,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         experienceBar(extractor, xo, yo);
 
-        // A blank anchor's squares hold nothing and take nothing, and should not look as though
-        // they might. Over the grid rather than instead of it, so the shape is still legible.
         if (!menu.hasStorage()) {
             extractor.fill(xo + Layout.STORAGE_X - 1, yo + Layout.STORAGE_Y - 1,
                     xo + Layout.STORAGE_X - 1 + 9 * 18, yo + Layout.CLONE_XP_Y
@@ -232,9 +201,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    /**
-     * What the clone whose tab is showing has banked, under its last row of squares.
-     */
     private void experienceBar(GuiGraphicsExtractor extractor, int xo, int yo) {
         int points = menu.getCloneExperience(menu.getSelectedClone());
         int level = ExperienceStore.levelOf(points);
@@ -251,9 +217,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                 ExperienceStore.progressOf(points), AnchorPanels.LEVEL);
     }
 
-    /**
-     * Fuel, charge and the modules, standing beside the storage grid rather than under it.
-     */
     private void rail(GuiGraphicsExtractor extractor, int xo, int yo) {
         AnchorPanels.panel(extractor, xo + Layout.RAIL_X, yo + Layout.BAND_Y,
                 Layout.RAIL_WIDTH, Layout.BAND_HEIGHT);
@@ -292,9 +255,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    // ------------------------------------------------------------------ labels
-
-    /** Wrapped in a translate to leftPos/topPos, so these coordinates are window-local. */
     @Override
     protected void extractLabels(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         extractor.text(font, title, Layout.MARGIN, Layout.TITLE_Y, AnchorPanels.TEXT);
@@ -314,7 +274,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         cloneTabs(extractor);
     }
 
-    /** Right-aligned against the title: how full, and how far through. */
     private void status(GuiGraphicsExtractor extractor) {
         Component line = menu.getLengthTicks() <= 0
                 ? Component.translatable("gui.chronoclones.anchor.no_recording")
@@ -325,20 +284,15 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.text(font, line, right - font.width(line), Layout.TITLE_Y,
                 menu.getLengthTicks() <= 0 ? AnchorPanels.MUTED : AnchorPanels.ACCENT);
 
-        // The upright bar has no room to letter itself, so the number lives up here.
         String percent = Math.round(chargeFraction() * 100) + "%";
         extractor.text(font, percent, right - font.width(line) - PILL_SPACING * 2 - font.width(percent),
                 Layout.TITLE_Y, AnchorPanels.MUTED);
     }
 
-    /** Just past the title, so a routine in trouble says so without a band of its own. */
     private int warningX() {
         return Layout.MARGIN + font.width(title) + 6;
     }
 
-    /**
-     * The clone tabs, straddling the storage panel's top border.
-     */
     private void cloneTabs(GuiGraphicsExtractor extractor) {
         int tabs = CloneTabs.count(menu.getActiveClones());
         int selected = menu.getSelectedClone();
@@ -359,14 +313,10 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
-    // ------------------------------------------------------------------ input
-
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
         int control = transportAt((int) event.x(), (int) event.y());
         if (control >= 0 && minecraft != null && minecraft.gameMode != null) {
-            // Sent, not applied: unlike a tab, the state lives on the anchor and comes back synced,
-            // and the server is the one that decides whether this player may set it.
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
                     ChronoAnchorMenu.RUN_STATE_BUTTON + control);
             return true;
@@ -377,7 +327,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                 Layout.TAB_RIGHT_EDGE, Layout.TAB_Y);
 
         if (tab >= 0 && tab != menu.getSelectedClone() && minecraft != null && minecraft.gameMode != null) {
-            // Both sides act on the same click: the menu has no synced field for the selection.
             menu.clickMenuButton(minecraft.player, tab);
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId, tab);
             return true;
@@ -385,20 +334,15 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         return super.mouseClicked(event, doubled);
     }
 
-    /**
-     * Tooltips for the parts of the window that are not slots.
-     */
     @Override
     protected void extractTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         super.extractTooltip(extractor, mouseX, mouseY);
-        // A slot under the pointer has already claimed the tooltip, and two at once is one too many.
         if (hoveredSlot != null) {
             return;
         }
 
         if (within(mouseX, mouseY, Layout.CHARGE_X, Layout.CHARGE_Y,
                 Layout.CHARGE_WIDTH, Layout.CHARGE_HEIGHT)) {
-            // The bar answers "roughly how full"; this answers "will it finish".
             tooltip(extractor, mouseX, mouseY, Component.translatable(
                     "gui.chronoclones.anchor.charge.detail", menu.getCharge(), menu.getChargeCapacity()));
         } else if (within(mouseX, mouseY, Layout.STORAGE_X, Layout.CLONE_XP_Y,
@@ -438,14 +382,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         extractor.setTooltipForNextFrame(font, text, mouseX, mouseY);
     }
 
-    /** Whether the mouse is over a window-local rectangle, both in screen coordinates. */
     private boolean within(int mouseX, int mouseY, int x, int y, int width, int height) {
         int left = leftPos + x;
         int top = topPos + y;
         return mouseX >= left && mouseX < left + width && mouseY >= top && mouseY < top + height;
     }
-
-    // ------------------------------------------------------------------ readings
 
     private float chargeFraction() {
         return (float) menu.getCharge() / menu.getChargeCapacity();
@@ -455,7 +396,6 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         return Component.translatable(key).getString();
     }
 
-    /** Amber for something the routine will get past, red for something it will not. */
     private static int bannerEdge(DiagnosticState.FailureReason reason) {
         return reason.halts() ? AnchorPanels.HALTED : AnchorPanels.WARNING;
     }

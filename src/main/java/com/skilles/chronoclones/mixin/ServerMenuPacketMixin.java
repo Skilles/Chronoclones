@@ -13,15 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Captures the two menu interactions that arrive as packets of their own: choosing a merchant's
- * offer, and naming something in an anvil.
- *
- * <p>Caught here rather than on the menus, because this is where the player is: an anvil's rename
- * field belongs to {@code ItemCombinerMenu} and a merchant's customer is private to its menu. It also
- * means replay, which calls those methods directly, is structurally incapable of being recorded.
- */
 @Mixin(ServerGamePacketListenerImpl.class)
+/** Captures anvil renames, which have no event. */
 public abstract class ServerMenuPacketMixin {
 
     @Inject(method = "handleSelectTrade", at = @At("HEAD"))

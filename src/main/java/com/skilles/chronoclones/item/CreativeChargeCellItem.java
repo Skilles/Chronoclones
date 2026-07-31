@@ -10,9 +10,6 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Creative-only fuel that keeps an anchor permanently charged.
- */
 public class CreativeChargeCellItem extends Item {
 
     public CreativeChargeCellItem(Properties properties) {

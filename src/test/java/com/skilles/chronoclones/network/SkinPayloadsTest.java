@@ -20,13 +20,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Carrying an author's face from the server to the client.
- *
- * <p>The texture property is the entire point of the round trip: a profile that arrives without it
- * resolves to the same UUID-derived silhouette the client could already draw for itself, which is
- * the bug this exists to fix.
- */
 class SkinPayloadsTest {
 
     private static RegistryAccess.Frozen registries;
@@ -39,8 +32,6 @@ class SkinPayloadsTest {
     @Test
     @DisplayName("a profile keeps its texture property across the wire")
     void texturesSurviveTheWire() {
-        // Built with its properties: the two-argument constructor gives an immutable empty map,
-        // and a profile with no textures is exactly the useless one this payload exists to replace.
         PropertyMap properties = new PropertyMap(
                 ImmutableMultimap.of("textures", new Property("textures", "aGVsbG8=", "signed")));
         GameProfile profile = new GameProfile(

@@ -15,27 +15,11 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Lends a clone's inventory to the fake player for the length of one container session.
- *
- * <p>A clone's inventory is shaped like a player's, so the recorded clicks land on the squares the
- * player clicked without anything having to be staged into place.
- */
+/** Lends a clone's items into the fake player for a container session, and drains them back. */
 public final class ContainerCarrier {
 
     private ContainerCarrier() {}
 
-    /**
-     * Moves the clone's inventory into the fake player, square for square, as far as the rules
-     * allow.
-     *
-     * <p>Anything held back simply stays home, so the session finds an empty square and its steps
-     * move nothing. That is the same shape as a player who walked up with less than last time.
-     *
-     * <p>Every square is lent. Which of them a session may take from is a question its steps answer,
-     * each about its own move; asking it again out here only ever meant "the hotbar square that
-     * happened to be selected while recording", which is nothing anybody chose.
-     */
     public static void load(ItemStacksResourceHandler inventory, FakePlayer player,
                             AbstractContainerMenu menu, ActionSettings settings) {
         Inventory target = player.getInventory();
@@ -67,13 +51,9 @@ public final class ContainerCarrier {
         }
     }
 
-    /**
-     * Moves everything the fake player is holding back, dropping what will not fit.
-     */
     public static void drain(ServerLevel level, BlockPos anchorPos,
                              ItemStacksResourceHandler inventory, FakePlayer player,
                              @Nullable AbstractContainerMenu menu) {
-        // The cursor first: only vanilla's removed() promises to hand it back.
         if (menu != null) {
             ItemStack carried = menu.getCarried();
             if (!carried.isEmpty()) {
@@ -93,12 +73,6 @@ public final class ContainerCarrier {
         }
     }
 
-    /**
-     * Puts a stack back in the square it was lent from, or anywhere at all if that has been taken.
-     *
-     * <p>Slots past the inventory proper are armour and the offhand, which a session can reach with
-     * a swap and which have nowhere of their own to come home to.
-     */
     private static void restore(ServerLevel level, BlockPos anchorPos,
                                 ItemStacksResourceHandler inventory, int slot, ItemStack stack) {
         if (slot < inventory.size() && inventory.getResource(slot).isEmpty()) {

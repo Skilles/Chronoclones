@@ -11,20 +11,12 @@ import net.minecraft.client.input.InputWithModifiers;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
-/**
- * A yes-or-no control, for the settings that are only ever yes or no.
- *
- * <p>A cycling button can say "Yes" and "Skipped" as readily as a checkbox can, but it cannot say
- * which of them it is offering until you have read the label and worked out that pressing it will
- * change what it says. A box is either ticked or it is not.
- */
 class FlatCheckbox extends AbstractButton {
 
     private final Font font;
     private final BooleanSupplier value;
     private final Consumer<Boolean> onToggle;
 
-    /** Square, and small enough that the label beside it is what the eye reads first. */
     private static final int BOX = 10;
 
     FlatCheckbox(Font font, int x, int y, int width, int height, Component label,

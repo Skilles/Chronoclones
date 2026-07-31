@@ -11,11 +11,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Client to server: move an anchor's routine by one step.
- *
- * @param delta how far to move, or {@link BlockPos#ZERO} to reset
- */
 public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<AnchorNudgePayload> TYPE =
@@ -32,9 +27,6 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
         return TYPE;
     }
 
-    /**
-     * Applies a nudge, if the sender has any business nudging that anchor.
-     */
     public static void handle(AnchorNudgePayload payload, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
@@ -59,6 +51,5 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
         }
     }
 
-    /** The same reach the preview request allows, since you nudge what you are looking at. */
     private static final double MAX_NUDGE_DISTANCE_SQR = 12.0 * 12.0;
 }

@@ -31,24 +31,16 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
-/**
- * Shared setup for anchor game tests.
- */
 final class AnchorTestFixture {
 
-    /** Whoever recorded the routine. Cosmetic only: decides whose skin a clone wears. */
     static final UUID AUTHOR_ID = UUID.fromString("a0000000-0000-0000-0000-00000000000a");
     static final String AUTHOR_NAME = "RoutineAuthor";
 
-    /** Whoever imprinted the anchor. Every event and permission check must see this identity. */
     static final UUID OWNER_ID = UUID.fromString("b0000000-0000-0000-0000-00000000000b");
     static final String OWNER_NAME = "AnchorOwner";
 
     private AnchorTestFixture() {}
 
-    /**
-     * A recording that breaks a single block one step north of the anchor.
-     */
     static Recording breakOneBlock(Block expected) {
         return new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
@@ -59,17 +51,14 @@ final class AnchorTestFixture {
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 
-    /** A one-action routine, for exercising a single executor path. */
     static Recording routine(ChronoAction action) {
         return routine(List.of(action));
     }
 
-    /** The same, recorded as if the player held the item in {@code heldSlot}. */
     static Recording routine(ChronoAction action, int heldSlot) {
         return routine(action, ActionSettings.DEFAULT.withSlot(ActionSettings.SlotRule.prefer(heldSlot)));
     }
 
-    /** The same, with the interpretation the editor would have written. */
     static Recording routine(ChronoAction action, ActionSettings settings) {
         return new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
@@ -77,7 +66,6 @@ final class AnchorTestFixture {
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 
-    /** Several actions on consecutive ticks, for paths whose point is that they happen in sequence. */
     static Recording routine(List<ChronoAction> actions) {
         List<TimedAction> timed = new java.util.ArrayList<>(actions.size());
         for (int i = 0; i < actions.size(); i++) {
@@ -89,20 +77,15 @@ final class AnchorTestFixture {
                 20, AUTHOR_NAME, AUTHOR_ID);
     }
 
-    /** The world position the above routine targets, for an anchor at {@code anchorPos}. */
     static BlockPos targetOf(BlockPos anchorPos) {
         return anchorPos.north();
     }
 
-    /**
-     * Places a north-facing anchor and imprints {@code recording} as {@link #OWNER_ID}.
-     */
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording) {
         return placeAndImprint(helper, relativeAnchorPos, recording, owner(helper.getLevel()));
     }
 
-    /** The same, imprinted by somebody specific: for tests about who may do what afterwards. */
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording,
                                                  net.minecraft.server.level.ServerPlayer imprinter) {
@@ -125,18 +108,6 @@ final class AnchorTestFixture {
         return anchor;
     }
 
-    /**
-     * Stocks every clone with the tool or weapon each action in {@code recording} was recorded
-     * swinging.
-     *
-     * <p>A clone digs with a tool it owns and swings a weapon it owns, the same as it places with a
-     * block it owns, so a test about anything else has to be given one or it is really a test about
-     * an empty inventory. Alongside the creative charge cell, and for the same reason.
-     *
-     * <p>Only what an action swings: what a placement or an interaction holds is the thing it
-     * consumes, and handing that out would feed the tests whose whole point is an anchor with
-     * nothing to build from.
-     */
     static void giveRecordedTools(ChronoAnchorBlockEntity anchor, Recording recording) {
         for (TimedAction timed : recording.actions()) {
             ItemStack swung = switch (timed.action()) {
@@ -151,32 +122,15 @@ final class AnchorTestFixture {
             for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
                 ItemStacksResourceHandler inventory = anchor.getCloneInventory(clone);
                 if (countIn(inventory, swung.getItem()) == 0) {
-                    // The last square, so a test filling the inventory from the front has to
-                    // reach the tool deliberately rather than by accident.
                     inventory.set(inventory.size() - 1, tool, 1);
                 }
             }
         }
     }
 
-    /**
-     * How wide a plot is, which has to match the structure the tests are registered against.
-     *
-     * <p>Kept in step with {@code datagen/make_test_plot_structure.py}, which writes it.
-     */
     private static final int PLOT_SIZE = 17;
 
-    /**
-     * Refuses to run a test on a plot smaller than the tests were laid out for.
-     *
-     * <p>The plot's size is the framework's answer to three separate questions -- how far apart to
-     * put the next test, which entities to sweep up between runs, and which chunks to force-load --
-     * and a structure that fails to load silently answers all three with one block. That is not a
-     * failure anybody would recognise: what it looks like is a mob standing in a chunk that ticks
-     * block entities and not entities, so an anchor swings for a hundred ticks at a cow whose
-     * invulnerability never wears off, in roughly one run of four. It cost a long afternoon to find
-     * once. Better a sentence.
-     */
+    /** A structure that fails to load leaves a one-block plot and fails in baffling ways. */
     private static void requireRoom(GameTestHelper helper) {
         AABB plot = helper.getBounds();
         if (plot.getXsize() < PLOT_SIZE || plot.getZsize() < PLOT_SIZE) {
@@ -191,9 +145,6 @@ final class AnchorTestFixture {
         return FakePlayerFactory.get(level, new GameProfile(OWNER_ID, OWNER_NAME));
     }
 
-    /**
-     * Installs the creative charge cell so charge never confounds a test.
-     */
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {
         anchor.getFuelHandler().set(0,
                 net.neoforged.neoforge.transfer.item.ItemResource.of(
@@ -204,13 +155,8 @@ final class AnchorTestFixture {
         return helper.getBlockState(relative);
     }
 
-    /**
-     * Puts a stack straight into a container slot, past any face restrictions.
-     */
     static void fillSlot(GameTestHelper helper, BlockPos relative, int slot,
                          net.minecraft.world.item.ItemStack stack) {
-        // Through the level rather than helper.getBlockEntity, which wants an exact class and this
-        // wants any container.
         if (helper.getLevel().getBlockEntity(helper.absolutePos(relative))
                 instanceof net.minecraft.world.Container container) {
             container.setItem(slot, stack);
@@ -219,7 +165,6 @@ final class AnchorTestFixture {
         }
     }
 
-    /** The first stack of one item, components and all, or null. */
     static net.minecraft.world.item.ItemStack findStack(
             net.neoforged.neoforge.transfer.ResourceHandler<
                     net.neoforged.neoforge.transfer.item.ItemResource> handler,
@@ -233,7 +178,6 @@ final class AnchorTestFixture {
         return null;
     }
 
-    /** Total of one item across a handler, for asserting what ended up where. */
     static int countIn(net.neoforged.neoforge.transfer.ResourceHandler<
             net.neoforged.neoforge.transfer.item.ItemResource> handler, net.minecraft.world.item.Item item) {
         int total = 0;

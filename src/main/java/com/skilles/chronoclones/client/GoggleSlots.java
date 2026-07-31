@@ -21,23 +21,12 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Which slots of an open container some nearby anchor's routine works on.
- */
 public final class GoggleSlots {
 
     private GoggleSlots() {}
 
-    /**
-     * The slots one routine touches in one container.
-     *
-     * @param carried the squares it stocks, and what it expects in each
-     */
     public record Session(Set<Integer> touched, Map<Integer, ItemStack> carried) {}
 
-    /**
-     * The session for the container the player has open, or null if nothing nearby uses it.
-     */
     public static @Nullable Session sessionFor(AbstractContainerScreen<?> screen) {
         BlockPos open = openContainerPos();
         if (open == null) {
@@ -46,9 +35,6 @@ public final class GoggleSlots {
         return collect(GoggleCache.current(), open, screen.getMenu().slots.size());
     }
 
-    /**
-     * The same answer, from the anchors and the container rather than from the game's state.
-     */
     static @Nullable Session collect(List<PreviewCache.Target> anchors, BlockPos open, int menuSize) {
         Set<Integer> touched = new HashSet<>();
         Map<Integer, ItemStack> carried = new HashMap<>();
@@ -58,12 +44,10 @@ public final class GoggleSlots {
                 if (!(timed.action() instanceof ChronoAction.UseContainer session)) {
                     continue;
                 }
-                // Only a block session: an entity's menu is not the one the player has open here.
                 if (!(session.target() instanceof MenuTarget.Block block)
                         || !target.placement().toWorld(block.localPos()).equals(open)) {
                     continue;
                 }
-                // Replay refuses a differently shaped menu; so should the highlight.
                 if (session.menuSize() != menuSize) {
                     continue;
                 }
@@ -71,7 +55,6 @@ public final class GoggleSlots {
                     step.squares().forEach(touched::add);
                 }
                 for (ChronoAction.UseContainer.CarrierSlot slot : session.carrier()) {
-                    // First claim wins: two anchors on one square is a conflict to surface.
                     carried.putIfAbsent(slot.menuSlot(), slot.stack());
                 }
             }
@@ -80,9 +63,6 @@ public final class GoggleSlots {
         return touched.isEmpty() && carried.isEmpty() ? null : new Session(touched, carried);
     }
 
-    /**
-     * The block whose menu is open.
-     */
     private static @Nullable BlockPos openContainerPos() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null || !(client.hitResult instanceof BlockHitResult hit)

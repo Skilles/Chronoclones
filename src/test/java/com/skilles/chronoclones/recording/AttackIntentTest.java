@@ -18,9 +18,6 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-/**
- * Reading a run of swings as what the player was trying to do.
- */
 class AttackIntentTest {
 
     private static final UUID ZOMBIE = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -33,7 +30,6 @@ class AttackIntentTest {
                 ItemStack.EMPTY)), target);
     }
 
-    /** Anything that is not a swing, to prove a run does not reach across one. */
     private static AttackIntent.Swing other(int tick) {
         return AttackIntent.Swing.of(new TimedAction(tick, new ChronoAction.UseItem(
                 InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BREAD))));

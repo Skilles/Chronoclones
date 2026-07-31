@@ -21,33 +21,19 @@ import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/** Visual-only clone. Never a FakePlayer: the anchor acts, through a shared one. */
 public class ChronoCloneEntity extends Entity {
 
-    /**
-     * Author identity, synced for rendering only.
-     */
     private static final EntityDataAccessor<String> AUTHOR_ID =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> AUTHOR_NAME =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.STRING);
 
-    /** What the clone appears to be holding. Cosmetic: see {@code ChronoAction.heldTemplate}. */
     private static final EntityDataAccessor<ItemStack> HELD_ITEM =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
 
-    /**
-     * What the clone is holding in its other hand.
-     *
-     * <p>A routine can record an off-hand interaction, and replay performs it with the off hand,
-     * so a clone that showed everything in its right hand was describing work it was not doing.
-     */
     private static final EntityDataAccessor<ItemStack> OFFHAND_ITEM =
             SynchedEntityData.defineId(ChronoCloneEntity.class, EntityDataSerializers.ITEM_STACK);
 
-    /**
-     * Drives the walk cycle.
-     */
     private final WalkAnimationState walkAnimation = new WalkAnimationState();
 
     public ChronoCloneEntity(EntityType<? extends ChronoCloneEntity> type, Level level) {
@@ -60,7 +46,6 @@ public class ChronoCloneEntity extends Entity {
         return new ChronoCloneEntity(ModEntities.CHRONO_GHOST.get(), level);
     }
 
-    /** Set by the anchor. Bypasses movement entirely: no deltas, no physics. */
     public void driveTo(Vec3 pos, float yaw, float pitch) {
         this.setPos(pos.x, pos.y, pos.z);
         this.setYRot(yaw);
@@ -69,13 +54,11 @@ public class ChronoCloneEntity extends Entity {
         this.setDeltaMovement(Vec3.ZERO);
     }
 
-    /** Called by the anchor when the clone is spawned, once per routine. */
     public void setAuthor(UUID authorId, String authorName) {
         this.entityData.set(AUTHOR_ID, authorId.toString());
         this.entityData.set(AUTHOR_NAME, authorName);
     }
 
-    /** The author's id, or null before the anchor has assigned one. */
     public @Nullable UUID authorId() {
         String raw = this.entityData.get(AUTHOR_ID);
         if (raw.isEmpty()) {
@@ -84,7 +67,6 @@ public class ChronoCloneEntity extends Entity {
         try {
             return UUID.fromString(raw);
         } catch (IllegalArgumentException malformed) {
-            // Synced strings are attacker-reachable in principle; a bad one costs a default skin.
             return null;
         }
     }
@@ -93,9 +75,6 @@ public class ChronoCloneEntity extends Entity {
         return this.entityData.get(AUTHOR_NAME);
     }
 
-    /**
-     * Sets the visibly held item, skipping the write when nothing changed.
-     */
     public void setOffhandItem(ItemStack stack) {
         if (!ItemStack.matches(this.entityData.get(OFFHAND_ITEM), stack)) {
             this.entityData.set(OFFHAND_ITEM, stack.copy());
@@ -120,12 +99,8 @@ public class ChronoCloneEntity extends Entity {
         return this.walkAnimation;
     }
 
-    // Skins are cached per author on the client, not per clone: four clones of one anchor and
-    // every anchor in a base are very often the same person's, and each kept its own copy.
-
     @Override
     public void tick() {
-        // No super.tick(): the anchor moves this entity, with no physics of its own.
         float travelled = (float) Mth.length(this.getX() - this.xo, 0.0, this.getZ() - this.zo);
         this.walkAnimation.update(Math.min(travelled * 4.0f, 1.0f), 0.4f, 1.0f);
     }
@@ -150,7 +125,6 @@ public class ChronoCloneEntity extends Entity {
         return true;
     }
 
-    /** Clones are never interactable and never take damage. */
     @Override
     public boolean hurtServer(@NonNull ServerLevel level, @NonNull DamageSource source, float amount) {
         return false;

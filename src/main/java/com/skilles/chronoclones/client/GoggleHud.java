@@ -15,9 +15,6 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
-/**
- * One line, and only when the goggles are showing fewer anchors than there are.
- */
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class GoggleHud {
 
@@ -33,7 +30,6 @@ public final class GoggleHud {
         if (client.player == null || client.gui.hud.isHidden() || !GoggleCache.isTruncated()) {
             return;
         }
-        // Bottom centre: the goggles' subject is the world, so this stays out of the middle.
         graphics.centeredText(client.font,
                 Component.translatable("hud.chronoclones.goggles.truncated", GogglePayloads.MAX_ANCHORS)
                         .withStyle(ChatFormatting.GRAY),

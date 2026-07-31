@@ -18,8 +18,8 @@ import org.jspecify.annotations.Nullable;
 /** A routine as geometry: boxes where it acts, spheres where it swings, and its path. */
 public final class PreviewShape {
 
-    /** What a routine does at one block, coloured by how much it should worry you. */
     public enum Kind {
+
         BREAK(0xFF_FF6B4A),
         PLACE(0xFF_7CFF9B),
         INTERACT(0xFF_86FFE7),
@@ -33,19 +33,10 @@ public final class PreviewShape {
         }
     }
 
-    /** Drawn over the step an anchor is currently stuck on, whatever that step normally looks like. */
     public static final int FAILING_COLOUR = 0xFF_FF2020;
 
-    /**
-     * A block the routine acts on.
-     *
-     * @param failing whether the anchor is currently stuck on this step
-     */
     public record Mark(BlockPos pos, Kind kind, boolean failing) {}
 
-    /**
-     * A region the routine reaches into without naming a block.
-     */
     public record Volume(Vec3 centre, double radius, Kind kind, boolean failing) {}
 
     private final List<Mark> marks;
@@ -66,7 +57,6 @@ public final class PreviewShape {
         return volumes;
     }
 
-    /** The walked path in world space, already ordered; may be shorter than two points. */
     public List<Vec3> path() {
         return path;
     }
@@ -79,10 +69,6 @@ public final class PreviewShape {
         return of(recording, anchorPos, anchorFacing, null);
     }
 
-    /**
-     * @param failingLocal the currently failing step, or null. Marked rather than filtered:
-     *                     the value is in seeing which step it is.
-     */
     public static PreviewShape of(Recording recording, BlockPos anchorPos, Direction anchorFacing,
                                   @Nullable BlockPos failingLocal) {
         List<Mark> marks = new ArrayList<>();
@@ -96,7 +82,6 @@ public final class PreviewShape {
 
             Vec3 reach = reachOf(timed.action());
             if (reach != null) {
-                // No half-block offset: an entity action records a point, not a square.
                 volumes.add(new Volume(LocalSpace.toWorld(reach, anchorPos, anchorFacing),
                         radiusOf(timed), kind,
                         BlockPos.containing(reach).equals(failingLocal)));
@@ -113,7 +98,6 @@ public final class PreviewShape {
 
         List<Vec3> path = new ArrayList<>(recording.motion().size());
         for (MotionSample sample : recording.motion()) {
-            // Lifted slightly so the line rides above the floor rather than z-fighting with it.
             path.add(LocalSpace.toWorld(sample.localPos(), anchorPos, anchorFacing)
                     .add(0.5, 0.1, 0.5));
         }
@@ -121,22 +105,16 @@ public final class PreviewShape {
         return new PreviewShape(List.copyOf(marks), List.copyOf(volumes), List.copyOf(path));
     }
 
-    /**
-     * Where an action reaches when it does not name a block, or null if it names one.
-     */
     private static @Nullable Vec3 reachOf(ChronoAction action) {
         return switch (action) {
             case ChronoAction.AttackEntity a -> a.localPos();
             case ChronoAction.InteractEntity a -> a.localPos();
-            // A villager's menu is not at a square: drawing a cube would put it wherever the
-            // villager's feet happened to round to, which is not where it is nor where it will be.
             case ChronoAction.UseContainer a when a.target() instanceof MenuTarget.Entity entity ->
                     entity.localPos();
             default -> null;
         };
     }
 
-    /** The action's own search radius, so the sphere is the region it will really search. */
     private static double radiusOf(TimedAction timed) {
         return timed.settings().target().radius();
     }

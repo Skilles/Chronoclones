@@ -17,9 +17,6 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 
-/**
- * Right-clicking an entity: shearing, milking, feeding, or a mod's own interaction.
- */
 public final class InteractEntityActionExecutor {
 
     private InteractEntityActionExecutor() {}

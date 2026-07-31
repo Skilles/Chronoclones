@@ -31,13 +31,11 @@ public class ChronoclonesClient {
 
     public ChronoclonesClient(ModContainer container) {
         container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
-        // Installed here so the common network class never names a client type.
         ChronoclonesNetwork.clientReplyHandler = PreviewCache::accept;
         ChronoclonesNetwork.clientHighlightHandler = RecordingHighlights::accept;
         ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
         ChronoclonesNetwork.clientRoutineHandler = ChronoclonesClient::openRoutineEditor;
         ChronoclonesNetwork.clientSkinHandler = AuthorSkins::accept;
-        // 26.2 moved hasShiftDown() onto the input event, and a tooltip has no event to ask.
         RecordingTooltips.detailRequested = () -> {
             var window = Minecraft.getInstance().getWindow();
             return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
@@ -45,7 +43,6 @@ public class ChronoclonesClient {
         };
     }
 
-    /** The server sends a routine when the player asks to edit one; opening it is all that is left. */
     private static void openRoutineEditor(com.skilles.chronoclones.network.RoutinePayloads.Open open) {
         Minecraft.getInstance().setScreenAndShow(
                 new RoutineEditorScreen(open.source(), open.recording()));
@@ -61,9 +58,6 @@ public class ChronoclonesClient {
         event.register(ModMenus.CHRONO_ANCHOR.get(), ChronoAnchorScreen::new);
     }
 
-    /**
-     * Everything the client caches about a world is scoped to that world.
-     */
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         PreviewCache.forget();

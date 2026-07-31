@@ -12,9 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * The per-step override layer, whose whole job is to change nothing until it is asked to.
- */
 class StepSettingsTest {
 
     @Test
@@ -39,7 +36,6 @@ class StepSettingsTest {
         assertTrue(settings.steps().isEmpty(), "an unedited action lists no steps at all");
         assertSame(StepSettings.DEFAULT, settings.step(0));
         assertSame(StepSettings.DEFAULT, settings.step(7));
-        // A negative index is the action itself, which is not a step and has no settings of one.
         assertSame(StepSettings.DEFAULT, settings.step(-1));
     }
 

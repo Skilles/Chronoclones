@@ -10,9 +10,6 @@ import com.skilles.chronoclones.recording.Recording;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 
-/**
- * Human-readable summary of a recording, shared by the recorder and the Chrono Shard.
- */
 public final class RecordingTooltips {
 
     private RecordingTooltips() {}
@@ -33,7 +30,6 @@ public final class RecordingTooltips {
             lines.add(Component.translatable("tooltip.chronoclones.recording.no_actions")
                     .withStyle(ChatFormatting.DARK_GRAY));
         } else {
-            // Enumerate every type present, so nothing hides in an "other" bucket.
             for (ChronoActionType type : ChronoActionType.values()) {
                 int count = counts.getOrDefault(type, 0);
                 if (count > 0) {
@@ -49,7 +45,6 @@ public final class RecordingTooltips {
                         String.format("%.1f", recording.reach()))
                 .withStyle(ChatFormatting.GRAY));
 
-        // Behind shift because the detail runs to dozens of lines.
         if (recording.actions().isEmpty()) {
             return lines;
         }
@@ -63,12 +58,8 @@ public final class RecordingTooltips {
         return lines;
     }
 
-    /**
-     * Whether the detailed listing should be shown; in practice, whether shift is held.
-     */
     public static volatile java.util.function.BooleanSupplier detailRequested = () -> false;
 
-    /** Destructive action types read hotter, so a dangerous routine is obvious at a glance. */
     private static ChatFormatting colourFor(ChronoActionType type) {
         return switch (type) {
             case BREAK_BLOCK -> ChatFormatting.GOLD;

@@ -11,17 +11,11 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Coordinate rebasing is the part most likely to be implemented wrong, so these tests
- * try to break it rather than merely demonstrate it: all 4×4 facing combinations, off-axis and
- * negative positions, and the consistency between rotating a position and rotating a yaw.
- */
 class LocalSpaceTest {
 
     private static final List<Direction> CARDINALS =
             List.of(Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST);
 
-    /** Deliberately asymmetric and off-origin so a wrong rotation cannot accidentally pass. */
     private static final List<BlockPos> PROBES = List.of(
             new BlockPos(0, 0, 0),
             new BlockPos(1, 0, 0),
@@ -33,8 +27,6 @@ class LocalSpaceTest {
 
     private static final BlockPos ORIGIN = new BlockPos(100, 64, -250);
     private static final BlockPos ANCHOR = new BlockPos(-40, 12, 900);
-
-    // ------------------------------------------------------------------ round trips
 
     @Test
     @DisplayName("round trip is the identity when anchor facing matches origin facing")
@@ -59,7 +51,6 @@ class LocalSpaceTest {
                     BlockPos local = LocalSpace.toLocal(world, ORIGIN, originFacing);
                     BlockPos replayed = LocalSpace.toWorld(local, ANCHOR, anchorFacing);
 
-                    // Rebasing back through the same anchor facing must recover the local vector.
                     BlockPos recovered = LocalSpace.toLocal(replayed, ANCHOR, anchorFacing);
                     assertEquals(local, recovered,
                             "origin " + originFacing + " anchor " + anchorFacing + " probe " + probe);
@@ -81,8 +72,6 @@ class LocalSpaceTest {
             assertEquals(world.z, back.z, 0.0);
         }
     }
-
-    // ------------------------------------------------------------------ rotation algebra
 
     @Test
     @DisplayName("four quarter-turns compose to the identity")
@@ -155,8 +144,6 @@ class LocalSpaceTest {
         }
     }
 
-    // ------------------------------------------------------------------ yaw
-
     @Test
     @DisplayName("yaw round trips for every facing")
     void yawRoundTrips() {
@@ -173,7 +160,6 @@ class LocalSpaceTest {
     @Test
     @DisplayName("a quarter-turn of position corresponds to +90 degrees of yaw")
     void yawStepMatchesPositionStep() {
-        // Facing east (1 step from north) must shift local yaw by exactly one quarter-turn.
         float worldYaw = 0.0f;
         assertEquals(
                 LocalSpace.wrapDegrees(worldYaw - Direction.EAST.toYRot()),
@@ -191,8 +177,6 @@ class LocalSpaceTest {
         assertEquals(1.0f, LocalSpace.wrapDegrees(721.0f), 1.0e-4f);
     }
 
-    // ------------------------------------------------------------------ snapping and guards
-
     @Test
     @DisplayName("yaw snaps to the nearest cardinal")
     void snapToCardinal() {
@@ -200,7 +184,6 @@ class LocalSpaceTest {
         assertEquals(Direction.WEST, LocalSpace.snapToCardinal(90.0f));
         assertEquals(Direction.NORTH, LocalSpace.snapToCardinal(180.0f));
         assertEquals(Direction.EAST, LocalSpace.snapToCardinal(-90.0f));
-        // Near-misses must still snap, not drift to a neighbour.
         assertEquals(Direction.SOUTH, LocalSpace.snapToCardinal(10.0f));
         assertEquals(Direction.SOUTH, LocalSpace.snapToCardinal(-10.0f));
     }
@@ -212,12 +195,9 @@ class LocalSpaceTest {
         assertThrows(IllegalArgumentException.class, () -> LocalSpace.stepsFromNorth(Direction.DOWN));
     }
 
-    // ------------------------------------------------------------------ the payoff
-
     @Test
     @DisplayName("rotating the anchor rotates the routine: same recording, four rotated copies")
     void rotatingAnchorRotatesRoutine() {
-        // A routine recorded facing north that digs three blocks "forward" (north is -Z).
         List<BlockPos> routine = List.of(
                 new BlockPos(0, 0, -1),
                 new BlockPos(0, 0, -2),

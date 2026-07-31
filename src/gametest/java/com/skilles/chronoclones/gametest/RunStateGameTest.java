@@ -13,9 +13,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
 
-/**
- * Play, pause and stop: what each one does to the clones and to where they had got to.
- */
 final class RunStateGameTest {
 
     private RunStateGameTest() {}
@@ -35,7 +32,6 @@ final class RunStateGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** A long enough recording that a few ticks of it are visibly partway through. */
     private static ChronoAnchorBlockEntity running(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR,
@@ -46,7 +42,6 @@ final class RunStateGameTest {
         return anchor.getContainerData().get(AnchorData.playhead(0));
     }
 
-    /** Held, not put away: the recording does not move on while the anchor is paused. */
     private static void pausingHoldsThePlayhead(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = running(helper);
 
@@ -70,7 +65,6 @@ final class RunStateGameTest {
                 .thenExecuteAfter(30, () -> { });
     }
 
-    /** The difference between pause and stop is exactly this. */
     private static void playingAfterAPauseCarriesOn(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = running(helper);
 
@@ -92,7 +86,6 @@ final class RunStateGameTest {
                 .thenExecuteAfter(30, () -> { });
     }
 
-    /** Stopping forgets where the clones were, so running again begins at the top. */
     private static void stoppingStartsOver(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = running(helper);
 
@@ -119,9 +112,6 @@ final class RunStateGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * The storage belongs to the anchor, not to the clones, so stopping must not take it away.
-     */
     private static void stoppedAnchorKeepsItsTabs(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = running(helper);
         anchor.setRunState(RunState.STOPPED);
@@ -141,7 +131,6 @@ final class RunStateGameTest {
                 .thenSucceed();
     }
 
-    /** Unlike picking a tab, this changes what somebody else's anchor does. */
     private static void onlyTheOwnerMayWorkTheTransport(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = running(helper);
 
@@ -155,13 +144,6 @@ final class RunStateGameTest {
         helper.succeed();
     }
 
-    /**
-     * Every clone this plot has, which is now the same thing as every clone in reach of it.
-     *
-     * <p>Kept to three blocks while the plots were six apart, to avoid counting the next test's
-     * clones as this one's. Wide enough to cover the whole plot now, so a clone that wandered is a
-     * clone this still finds.
-     */
     private static java.util.List<ChronoCloneEntity> clones(GameTestHelper helper) {
         return helper.getLevel().getEntitiesOfClass(ChronoCloneEntity.class,
                 new AABB(helper.absolutePos(ANCHOR)).inflate(8.0));

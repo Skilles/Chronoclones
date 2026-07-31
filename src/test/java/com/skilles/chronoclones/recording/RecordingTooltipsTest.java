@@ -25,11 +25,6 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The shard tooltip is not optional: an inscribed shard must be fully inspectable
- * before it is imprinted, because on a shared server handing someone an opaque routine that mines
- * under their base is an actual attack.
- */
 class RecordingTooltipsTest {
 
     private static Recording routine() {
@@ -57,7 +52,6 @@ class RecordingTooltipsTest {
                 ItemStack.EMPTY);
     }
 
-    /** Walks the component tree collecting every translation key, siblings included. */
     private static List<String> keys(List<Component> lines) {
         List<String> found = new ArrayList<>();
         for (Component line : lines) {
@@ -73,7 +67,6 @@ class RecordingTooltipsTest {
         component.getSiblings().forEach(s -> collectKeys(s, into));
     }
 
-    /** First argument of the first line using {@code key}, or null. */
     private static Object argOf(List<Component> lines, String key, int index) {
         for (Component line : lines) {
             Object found = argOf(line, key, index);
@@ -131,7 +124,6 @@ class RecordingTooltipsTest {
         assertEquals(1, found.stream()
                 .filter(k -> k.equals("tooltip.chronoclones.recording.action.use_item")).count());
 
-        // Nothing the routine does not do may appear, or the summary would be misleading.
         assertTrue(found.stream()
                 .noneMatch(k -> k.equals("tooltip.chronoclones.recording.action.attack_entity")));
     }
@@ -146,7 +138,6 @@ class RecordingTooltipsTest {
     @Test
     @DisplayName("tooltip reports reach, so a routine that digs far from the anchor cannot hide it")
     void showsReach() {
-        // Furthest point is the motion sample at (3, _, 4) -> exactly 5 blocks.
         assertEquals(5.0, routine().reach(), 1.0e-9);
 
         List<Component> lines = RecordingTooltips.describe(routine());

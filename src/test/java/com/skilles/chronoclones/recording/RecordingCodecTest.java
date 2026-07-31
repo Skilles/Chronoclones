@@ -30,10 +30,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * A Recording must survive both persistence (Codec -> NBT, for the block entity) and sync
- * (StreamCodec -> buffer, for item components) with equality.
- */
 class RecordingCodecTest {
 
     private static RegistryAccess.Frozen registries;
@@ -43,9 +39,6 @@ class RecordingCodecTest {
         registries = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
     }
 
-    /**
-     * Exercises every action variant, including the optional field on UseItem in both states.
-     */
     private static Recording sample() {
         return new Recording(
                 List.of(
@@ -73,7 +66,6 @@ class RecordingCodecTest {
                                 false,
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BONE_MEAL),
-                                // The block it was used on, which the filter is read from.
                                 Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.WHEAT)))),
                         new TimedAction(9, new ChronoAction.UseItem(
                                 InteractionHand.OFF_HAND,
@@ -86,11 +78,6 @@ class RecordingCodecTest {
                         new TimedAction(13, new ChronoAction.UseContainer(
                                 new MenuTarget.Block(new BlockPos(2, 0, -3),
                                         Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.CHEST))), 63,
-                                // No carrier entries, for the same reason the templates above are
-                                // empty: one holds a whole ItemStack, and a carrier slot may not be
-                                // empty. Its codec is the strict ItemStack.CODEC so that
-                                // "this session needs nothing here" cannot be encoded. A populated
-                                // carrier therefore round trips in PrecisionGameTest, with a server.
                                 List.of(),
                                 List.of(
                                         new SessionStep.Move(4, 54,
@@ -102,8 +89,6 @@ class RecordingCodecTest {
                                         new SessionStep.RawClick(4, 1, ContainerInput.PICKUP),
                                         new SessionStep.RawClick(54, 0, ContainerInput.PICKUP),
                                         new SessionStep.RawClick(-999, 0, ContainerInput.THROW)))),
-                        // A session on an entity, with the three steps that arrive as packets. The
-                        // trade's stacks are empty for the same reason the carrier is.
                         new TimedAction(15, new ChronoAction.UseContainer(
                                 new MenuTarget.Entity(new Vec3(-1.5, 0.0, 2.5),
                                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
@@ -119,9 +104,6 @@ class RecordingCodecTest {
                 UUID.fromString("11111111-2222-3333-4444-555555555555"));
     }
 
-    /**
-     * A Trade holds ItemStacks, which compare by identity, so its steps need comparing by hand.
-     */
     private static void assertStepsEqual(SessionStep expected, SessionStep actual, String where) {
         if (expected instanceof SessionStep.Trade trade) {
             assertTrue(actual instanceof SessionStep.Trade other && trade.sameOffer(other),
@@ -200,7 +182,6 @@ class RecordingCodecTest {
     @Test
     @DisplayName("a session saved before steps existed reads its clicks as raw steps")
     void legacyClicksBecomeRawSteps() {
-        // What an anchor imprinted before this release holds on disk: clicks, and no steps.
         com.google.gson.JsonObject click = new com.google.gson.JsonObject();
         click.addProperty("slot", 30);
         click.addProperty("button", 1);
@@ -288,7 +269,6 @@ class RecordingCodecTest {
         assertEquals(1, r.actionCounts().get(ChronoActionType.INTERACT_ENTITY));
         assertEquals(2, r.actionCounts().get(ChronoActionType.USE_CONTAINER));
 
-        // Furthest horizontal point is the motion sample at (-7, _, 4) -> sqrt(49+16) ~= 8.06
         assertEquals(Math.sqrt(65.0), r.reach(), 1.0e-9);
     }
 
@@ -327,7 +307,6 @@ class RecordingCodecTest {
         }
     }
 
-    /** ItemStack does not implement equals, so stacks are compared field-wise. */
     private static void assertChronoActionsEqual(ChronoAction expected, ChronoAction actual, int index) {
         assertEquals(expected.type(), actual.type(), "type at index " + index);
 
@@ -359,8 +338,6 @@ class RecordingCodecTest {
                 assertEquals(e.inside(), a.inside());
                 assertEquals(e.hand(), a.hand());
                 assertEquals(e.item().value(), a.item().value());
-                // Compared by block rather than by holder: two holders of one block need not be
-                // the same object across a round trip, and Optional::equals would say they differ.
                 assertEquals(e.expectedBlock().map(net.minecraft.core.Holder::value),
                         a.expectedBlock().map(net.minecraft.core.Holder::value),
                         "block used on at " + index);

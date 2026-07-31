@@ -7,9 +7,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 
-/**
- * One clone playing back a recording.
- */
+/** One clone playing back a recording: its playhead, cursor, and what it is part way through. */
 public final class CloneRuntime {
 
     private final int index;
@@ -25,12 +23,10 @@ public final class CloneRuntime {
         this.actionCursor = 0;
     }
 
-    /** Which of the anchor's inventories this clone draws from and stores into. */
     public int index() {
         return index;
     }
 
-    /** Phase offset for clone {@code i} of {@code n}: evenly distributed along the timeline. */
     public static int phaseOffsetFor(int index, int count, int lengthTicks) {
         if (count <= 0) {
             return 0;
@@ -56,15 +52,9 @@ public final class CloneRuntime {
 
     public void consumeAction() {
         actionCursor++;
-        // Whatever was being mined belonged to the action being left behind.
         clearMining();
     }
 
-    // ------------------------------------------------------------------ mining
-
-    /**
-     * How far through the block it is currently breaking, 0 to 1.
-     */
     private float miningProgress;
     private @Nullable BlockPos miningPos;
 
@@ -76,11 +66,7 @@ public final class CloneRuntime {
         return miningPos;
     }
 
-    /**
-     * Adds one tick of progress, restarting if the target moved.
-     *
-     * @return the new total
-     */
+    /** Restarts if the target moved. */
     public float mine(BlockPos pos, float perTick) {
         if (!pos.equals(miningPos)) {
             miningPos = pos;
@@ -95,18 +81,8 @@ public final class CloneRuntime {
         miningPos = null;
     }
 
-    // ------------------------------------------------------------------ held items
-
-    /**
-     * The item this clone is currently holding down, and how long it has been holding it.
-     *
-     * <p>Unlike everything else here, this outlives the tick: an item with a duration is one action
-     * spread over many, and the loan taken to start it has to survive until it is let go. Nothing
-     * else in the routine may run while this is set.
-     */
     private HeldItemLoan.@Nullable Loan usingLoan;
 
-    /** Ammunition lent alongside it, for the weapons that need something to fire. */
     private HeldItemLoan.@Nullable Loan ammoLoan;
     private int usingTicks;
 
@@ -122,7 +98,6 @@ public final class CloneRuntime {
         return usingLoan != null;
     }
 
-    /** How many ticks the clone has been holding it down. */
     public int usingTicks() {
         return usingTicks;
     }
@@ -143,12 +118,6 @@ public final class CloneRuntime {
         usingTicks = 0;
     }
 
-    // ------------------------------------------------------------------ targets
-
-    /**
-     * The entity this clone is working on, which outlives the action so a sticky one can come back
-     * to the same mob on the next pass.
-     */
     private int targetId = NO_TARGET;
     private int targetTicks;
 
@@ -170,7 +139,6 @@ public final class CloneRuntime {
         targetId = entityId;
     }
 
-    /** How long the current action has been waiting on its target. */
     public int targetTicks() {
         return targetTicks;
     }
@@ -179,12 +147,10 @@ public final class CloneRuntime {
         targetTicks++;
     }
 
-    /** Called when an action finishes with its target, leaving the id for a later sticky action. */
     public void releaseTarget() {
         targetTicks = 0;
     }
 
-    /** Wraps back to the start of the routine, resetting the action cursor with it. */
     public void loop(int lengthTicks) {
         if (lengthTicks <= 0) {
             playhead = 0;

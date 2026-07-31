@@ -23,49 +23,25 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import org.jspecify.annotations.Nullable;
 
-/**
- * The player one anchor acts as, and the contract for handing it between actions.
- *
- * <p>One per anchor, not one per profile. It used to be the latter -- the shared instance
- * {@code FakePlayerFactory} hands out for a game profile -- which meant two anchors owned by the
- * same player were the same object, and anything one of them left behind was waiting for the other.
- * Only the held item and the experience were ever put back, so an item that set a cooldown, applied
- * an effect, set something alight or started a use carried all of it across.
- *
- * <p>One per clone within that anchor, too. An action can span ticks -- an item held down needs the
- * player that started holding it to still be the one holding it when it is let go -- and an anchor
- * with a splitter in it runs several clones at once, so a second clone reaching for the anchor's
- * player mid-draw would reset the first one's.
- *
- * <p><b>What a reset covers</b>, in both directions: held item and its attribute modifiers, banked
- * experience, any item being used, the cooldown of whatever was just used, status effects, fire and
- * freezing, health and absorption, fall distance, pose, sprinting and crouching, the attack
- * cooldown, and any menu left open. Anything a mod adds outside that list is a known gap -- the
- * player is per-anchor, so such a thing can still reach the next action of the <em>same</em> anchor,
- * but never another anchor's.
- */
+/** A fake player per clone of one anchor, reset between actions. */
 public final class AnchorFakePlayer {
 
     private final Map<Integer, FakePlayer> players = new HashMap<>();
 
-    /** Where to put anything an action abandoned, rather than voiding it. */
     private final BlockPos anchorPos;
 
     public AnchorFakePlayer(BlockPos anchorPos) {
         this.anchorPos = anchorPos;
     }
 
-    /**
-     * The player acting for {@code operator}, reset, positioned, equipped and funded for one action.
-     */
     public FakePlayer acquire(ServerLevel level, Operator operator, int clone,
                               Vec3 position, float yaw, float pitch, InteractionHand hand,
                               ItemStack held) {
         FakePlayer actor = playerIn(level, operator, clone);
         resetForAction(actor);
 
-        // Pinned to survival: ServerPlayerGameMode.useItemOn branches on game mode, and a
-        // spectator interacts with nothing while a creative player's items are never consumed.
+        // useItemOn branches on game mode: a spectator interacts with nothing, and a creative
+        // player never consumes items.
         if (actor.gameMode.getGameModeForPlayer() != GameType.SURVIVAL) {
             actor.setGameMode(GameType.SURVIVAL);
         }
@@ -75,27 +51,18 @@ public final class AnchorFakePlayer {
         actor.setXRot(pitch);
         actor.setYHeadRot(yaw);
 
-        // Vanilla divides digging speed by five while a player is off the ground, and a fake
-        // player teleported to a block is always technically falling.
+        // Vanilla divides digging speed by five off the ground, and a teleported player is
+        // always technically falling.
         actor.setOnGround(true);
 
-        // The hand the player used, not always the main one. Downstream code asks for
-        // getItemInHand(hand), so an off-hand interaction replayed from the main hand looks at an
-        // empty hand and does nothing.
         hold(actor, hand, held.copy());
 
-        // Lent, not given: whatever it earns or spends comes back on release.
         setExperience(actor, operator.experience());
 
         return actor;
     }
 
-    /**
-     * The instance for this anchor, made on first use.
-     *
-     * <p>Rebuilt if the level ever differs, which a block entity's should not, but a player bound to
-     * the wrong level would fire its events into it.
-     */
+    /** Rebuilt if the level differs: a player bound to the wrong one fires its events into it. */
     private FakePlayer playerIn(ServerLevel level, Operator operator, int clone) {
         FakePlayer existing = players.get(clone);
         if (existing != null && existing.level() == level) {
@@ -110,11 +77,10 @@ public final class AnchorFakePlayer {
     }
 
     /**
-     * Takes back the held item and whatever experience the action left the player holding.
+     * Takes back the held item and whatever experience the action left.
      *
-     * <p>Read as a level and a fraction rather than from {@code totalExperience}, which vanilla only
-     * ever adds to: {@code giveExperienceLevels(-1)} lowers the bar without lowering the total, so an
-     * anvil charging a level for its work was charging it to nobody.
+     * <p>Read as a level and a fraction, not from {@code totalExperience}, which vanilla only ever
+     * adds to: an anvil charging a level for its work was charging it to nobody.
      */
     public void release(Operator operator, FakePlayer actor) {
         sweepOrbs(actor);
@@ -123,28 +89,19 @@ public final class AnchorFakePlayer {
         resetAfterAction(actor);
     }
 
-    /**
-     * The player this anchor has made, or null if it has not acted yet.
-     *
-     * <p>For tests and diagnostics: the reset contract is the kind of thing that is easy to write,
-     * easy to believe, and impossible to check from the outside without being able to look at what
-     * it was supposed to have cleared. Nothing in the mod's own behaviour reads this.
-     */
+    /** For tests and diagnostics. Nothing in the mod's own behaviour reads this. */
     public @Nullable FakePlayer current(int clone) {
         return players.get(clone);
     }
 
-    /** Lets go of the player when the anchor does, so an unloaded anchor leaves nothing behind. */
     public void discard() {
         for (FakePlayer actor : players.values()) {
-            // Anything still in its hand belongs to the anchor, not to a player about to vanish.
             spillHeld(actor);
             actor.discard();
         }
         players.clear();
     }
 
-    /** Puts loaned items on the ground rather than losing them with the player holding them. */
     private void spillHeld(FakePlayer actor) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack held = actor.getItemInHand(hand);
@@ -157,36 +114,21 @@ public final class AnchorFakePlayer {
         }
     }
 
-    /**
-     * Fills the attack cooldown, so the next swing lands at full strength.
-     *
-     * <p>Vanilla refills this by one every tick a player is alive, and scales damage, enchantment
-     * bonuses, criticals and sweeping by how full it is. A fake player is never ticked, so the
-     * counter it reads sits wherever the last swing reset it to -- which is zero, the uncharged
-     * 0.2x. Set well past the slowest weapon's delay, because {@code getAttackStrengthScale} clamps.
-     */
+    /** A fake player never ticks, so its attack cooldown never refills on its own. */
     public static void chargeAttack(FakePlayer actor) {
         actor.attackStrengthTicker = FULLY_CHARGED_TICKS;
     }
 
-    /** Longer than any weapon's swing delay, which is what the scale clamps against. */
     private static final int FULLY_CHARGED_TICKS = 1000;
 
-    // ------------------------------------------------------------------ the contract
-
-    /** Everything the previous action may have left set, cleared before this one starts. */
     private void resetForAction(FakePlayer actor) {
         clearTransientState(actor);
     }
 
-    /** The same, on the way out, so nothing is left set while the player sits between actions. */
     private void resetAfterAction(FakePlayer actor) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack lastHeld = actor.getItemInHand(hand);
             if (!lastHeld.isEmpty()) {
-                // The cooldown this action just started. ItemCooldowns expires entries against a
-                // tick counter that only advances while a player ticks, and this one never does,
-                // so a cooldown set here would otherwise last until the anchor unloaded.
                 actor.getCooldowns().removeCooldown(actor.getCooldowns().getCooldownGroup(lastHeld));
             }
             hold(actor, hand, ItemStack.EMPTY);
@@ -196,9 +138,6 @@ public final class AnchorFakePlayer {
         spillLeftovers(actor);
     }
 
-    /**
-     * The state a single action can set that has nothing to do with the next one.
-     */
     private void clearTransientState(FakePlayer actor) {
         actor.stopUsingItem();
         actor.removeAllEffects();
@@ -213,7 +152,6 @@ public final class AnchorFakePlayer {
         actor.setPose(Pose.STANDING);
         actor.attackStrengthTicker = 0;
 
-        // A container session closes its own menu; this catches the one that threw on the way.
         if (actor.containerMenu != actor.inventoryMenu) {
             actor.containerMenu = actor.inventoryMenu;
         }
@@ -221,11 +159,10 @@ public final class AnchorFakePlayer {
     }
 
     /**
-     * Anything still in the player's own squares, put on the ground rather than deleted.
+     * Anything left in the player's own slots, dropped rather than deleted.
      *
-     * <p>A container session loads and drains this itself, so reaching anything here means one of
-     * them failed partway. Dropping it is noisy and visible; clearing it silently would be a
-     * routine that eats its owner's stock every so often for no reason anybody could find.
+     * <p>A container session loads and drains these itself, so reaching here means one of them
+     * failed partway. Clearing it silently would eat a routine's stock for no findable reason.
      */
     private void spillLeftovers(FakePlayer actor) {
         Inventory inventory = actor.getInventory();
@@ -242,16 +179,9 @@ public final class AnchorFakePlayer {
         }
     }
 
-    /** About an arm's length: what the clone is standing in, not what is lying across the room. */
     private static final double ORB_REACH = 1.0;
 
-    /**
-     * Picks up the experience orbs the clone is standing in, as a player walking through would.
-     *
-     * <p>Some sources hand experience over and some drop it at your feet: a furnace pops orbs rather
-     * than awarding them. A fake player never ticks, so without this nothing would ever collect them
-     * and a smelting routine would bury its own floor in orbs it earned.
-     */
+    /** Vanilla collects orbs while ticking, which a fake player never does. */
     private static void sweepOrbs(FakePlayer actor) {
         if (!(actor.level() instanceof ServerLevel level)) {
             return;
@@ -263,10 +193,7 @@ public final class AnchorFakePlayer {
         }
     }
 
-    /**
-     * Sets a total directly, which vanilla has no method for: {@code giveExperiencePoints} adds, and
-     * the player must start each action with exactly what its clone banked.
-     */
+    /** giveExperiencePoints only adds, and vanilla has no setter. */
     private static void setExperience(FakePlayer actor, int points) {
         actor.experienceLevel = 0;
         actor.experienceProgress = 0.0f;
@@ -276,12 +203,7 @@ public final class AnchorFakePlayer {
         }
     }
 
-    /**
-     * Equips a stack and moves its attribute modifiers with it.
-     *
-     * <p>Vanilla applies these while ticking equipment changes, which a fake player never does, so
-     * without this a clone swinging a netherite sword hits for a bare hand's damage.
-     */
+    /** Vanilla applies equipment attribute modifiers while ticking, which this never does. */
     private static void hold(FakePlayer actor, InteractionHand hand, ItemStack stack) {
         EquipmentSlot slot = hand == InteractionHand.MAIN_HAND
                 ? EquipmentSlot.MAINHAND

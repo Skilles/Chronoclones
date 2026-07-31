@@ -11,12 +11,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * How closely an action has to match the item it was recorded with.
- *
- * <p>A game test rather than a unit test because it is about real stacks, and the unit source set
- * never binds item component prototypes.
- */
 final class ItemMatchGameTest {
 
     private ItemMatchGameTest() {}
@@ -28,7 +22,6 @@ final class ItemMatchGameTest {
                 ItemMatchGameTest::exactWantsTheComponents);
     }
 
-    /** By default a routine recorded with a worn tool is happy with a fresh one. */
     private static void sameKindIsTheDefault(GameTestHelper helper) {
         ItemMatch match = ItemMatch.of(RecordedItem.of(damaged(Items.DIAMOND_HOE, 7)),
                 ItemRule.SAME_ITEM);
@@ -42,7 +35,6 @@ final class ItemMatchGameTest {
         helper.succeed();
     }
 
-    /** Asked for exactly, what is on the item has to agree as well. */
     private static void exactWantsTheComponents(GameTestHelper helper) {
         ItemMatch match = ItemMatch.of(RecordedItem.of(damaged(Items.DIAMOND_HOE, 7)),
                 ItemRule.EXACT);

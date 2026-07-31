@@ -40,6 +40,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 public class ChronoAnchorBlock extends BaseEntityBlock {
+
     public static final MapCodec<ChronoAnchorBlock> CODEC = simpleCodec(ChronoAnchorBlock::new);
 
     public static final EnumProperty<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -63,7 +64,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         builder.add(FACING, ACTIVE);
     }
 
-    /** Facing is captured at placement. Rotating the anchor rotates the routine. */
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         return defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
@@ -74,9 +74,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return RenderShape.MODEL;
     }
 
-    /**
-     * Ownership is assigned on placement, not carried on the item.
-     */
     @Override
     public void setPlacedBy(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state, @Nullable LivingEntity placer,
                             @NonNull ItemStack stack) {
@@ -107,8 +104,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             return InteractionResult.SUCCESS;
         }
         if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
-            // The action ticks ride the menu's own opening buffer: they never change while it is
-            // open, and ContainerData cannot carry a list.
             player.openMenu(anchor, buffer -> {
                 buffer.writeBlockPos(pos);
                 ChronoAnchorMenu.writeTimeline(buffer, anchor.getRecording());
@@ -117,25 +112,18 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
 
-    /**
-     * Right-clicking with a recorder in HOLDING state imprints it.
-     */
     @Override
     protected @NonNull InteractionResult useItemOn(ItemStack stack, @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                                    @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hit) {
         boolean isRecorder = stack.is(ModItems.CHRONO_RECORDER.get());
         boolean isShard = stack.is(ModItems.CHRONO_SHARD.get());
 
-        // Everything else defers so the GUI still opens.
         if (!isRecorder && !isShard) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
         Recording carried = isRecorder ? ChronoRecorderItem.recordingOf(stack) : ChronoShardItem.recordingOf(stack);
         boolean blankShard = isShard && carried == null;
 
-        // Extraction is not handled here. It is a crouching interaction, and vanilla skips a
-        // block's useItemOn entirely for a crouching player holding anything, so this method is
-        // never called for it; ChronoRecorderItem.useOn is on the path that does run.
         if (carried == null && !blankShard) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
@@ -152,8 +140,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             return inscribeShard(anchor, stack, serverPlayer, level, pos);
         }
 
-        // A recording is untrusted the moment it can be traded: this one arrived on an item, and
-        // items travel between worlds, between servers, and through whatever edited the save.
         RecordingLimits.Refusal refusal = RecordingLimits.refuse(carried, level.registryAccess());
         if (refusal != null) {
             serverPlayer.sendOverlayMessage(Component.translatable(refusal.translationKey())
@@ -162,7 +148,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         }
 
         anchor.imprint(carried, serverPlayer);
-        // A recorder hands its recording over; a shard keeps it, so one shard can seed many anchors.
         if (isRecorder) {
             ChronoRecorderItem.clear(stack);
         }
@@ -176,13 +161,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
 
-    /**
-     * Takes an anchor's recording back onto a blank recorder, leaving the anchor blank.
-     *
-     * <p>One recorder at a time, so a stack of them cannot be turned into a stack of recordings.
-     *
-     * <p>Called from the item rather than from here: see {@link #useItemOn}.
-     */
     public static InteractionResult extractRecording(ChronoAnchorBlockEntity anchor, ItemStack recorders,
                                                      ServerPlayer player, Level level, BlockPos pos) {
         if (anchor.getRecording() == null) {
@@ -215,9 +193,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
 
-    /**
-     * Copies an anchor's routine onto a blank shard, consuming one blank.
-     */
     private static InteractionResult inscribeShard(ChronoAnchorBlockEntity anchor, ItemStack blanks,
                                                    ServerPlayer player, Level level, BlockPos pos) {
         Recording recording = anchor.getRecording();
@@ -227,8 +202,6 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
-        // A copy is a new item carrying the whole routine, so an anchor holding something oversized
-        // must not be able to hand out more of them.
         RecordingLimits.Refusal refusal = RecordingLimits.refuse(recording, level.registryAccess());
         if (refusal != null) {
             player.sendOverlayMessage(Component.translatable(refusal.translationKey())

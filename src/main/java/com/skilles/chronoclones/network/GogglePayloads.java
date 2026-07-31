@@ -27,19 +27,12 @@ import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Goggle traffic: every anchor near a player, in one exchange.
- */
 public final class GogglePayloads {
 
     private GogglePayloads() {}
 
-    /**
-     * How many anchors one reply may carry.
-     */
     public static final int MAX_ANCHORS = 8;
 
-    /** Client → server: "what is around me?" The position comes from the server's own view. */
     public record Request() implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Request> TYPE =
@@ -54,10 +47,8 @@ public final class GogglePayloads {
         }
     }
 
-    /** One anchor, as much as the preview needs to draw it. */
     public record Entry(BlockPos pos, Direction facing, BlockPos originOffset,
                         Recording recording, DiagnosticState failure) {
-
         public static final StreamCodec<RegistryFriendlyByteBuf, Entry> STREAM_CODEC =
                 StreamCodec.composite(
                         BlockPos.STREAM_CODEC.cast(), Entry::pos,
@@ -68,11 +59,6 @@ public final class GogglePayloads {
                         Entry::new);
     }
 
-    /**
-     * Server → client: the anchors in range.
-     *
-     * @param truncated whether {@link #MAX_ANCHORS} cut the list short, so the client can say so
-     */
     public record Reply(List<Entry> anchors, boolean truncated) implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Reply> TYPE =
@@ -98,7 +84,6 @@ public final class GogglePayloads {
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
-        // Worn, not merely owned, or the packet is a base-wide scan for any client.
         if (!player.getItemBySlot(EquipmentSlot.HEAD).is(ModItems.CHRONO_GOGGLES.get())) {
             return;
         }
@@ -111,7 +96,6 @@ public final class GogglePayloads {
         BlockPos centre = player.blockPosition();
 
         List<Entry> found = new ArrayList<>();
-        // Chunk-wise: a 24-block radius is a quarter of a million positions.
         int minChunkX = (centre.getX() - radius) >> 4;
         int maxChunkX = (centre.getX() + radius) >> 4;
         int minChunkZ = (centre.getZ() - radius) >> 4;
@@ -159,9 +143,6 @@ public final class GogglePayloads {
                 anchor.getOriginOffset(), recording, anchor.getLastFailure());
     }
 
-    /**
-     * Whether one anchor may be shown to one viewer.
-     */
     public static boolean visibleTo(@Nullable UUID ownerId, UUID viewer, boolean showOthers) {
         return showOthers || ownerId == null || ownerId.equals(viewer);
     }

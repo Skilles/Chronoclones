@@ -36,15 +36,10 @@ import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Server-side capture hooks.
- */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class RecordingCapture {
 
     private RecordingCapture() {}
-
-    // ------------------------------------------------------------------ motion + caps
 
     @SubscribeEvent
     public static void onPlayerTick(PlayerTickEvent.Post event) {
@@ -58,7 +53,6 @@ public final class RecordingCapture {
 
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder == null) {
-            // Only once the recorder has left the inventory: it need not stay in hand.
             RecordingSessions.discard(player);
             ContainerWatch.forget(player);
             InteractionWatch.forget(player);
@@ -75,11 +69,8 @@ public final class RecordingCapture {
             ChronoRecorderItem.stopRecording(player, recorder, stop);
         }
 
-        // A click whose result never came back is a click nothing will ever settle.
         InteractionWatch.expire(player);
     }
-
-    // ------------------------------------------------------------------ actions
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBlockBreak(BreakBlockEvent event) {
@@ -115,26 +106,16 @@ public final class RecordingCapture {
         BlockState placed = event.getPlacedBlock();
         ItemStack held = player.getMainHandItem();
 
-        // The item that produced this block, matched against anchor inventory at replay.
-        //
-        // A BlockItem, and only a BlockItem. Anything else that changes a block does so as the
-        // effect of using it -- a hoe tilling dirt, a bucket emptying, flint and steel -- and this
-        // event fires for that too, which is how tilling a field recorded a "Use Hoe" and then a
-        // "Place Hoe" that could only ever fail. Every one of those is already captured by
-        // onRightClickBlock, which skips BlockItems for exactly this reason: between them the two
-        // handlers cover every interaction once.
+        // A BlockItem and only a BlockItem. Anything else that changes a block does so as the effect
+        // of using it -- a hoe tilling dirt, a bucket emptying -- and this event fires for those too,
+        // which recorded a "Use Hoe" and then a "Place Hoe" that could only ever fail.
         if (!(held.getItem() instanceof BlockItem)) {
             return;
         }
 
-        // This is what the click did, so the click is not also recorded as an interaction.
         ChronoAction clicked = InteractionWatch.armedAction(player);
         InteractionWatch.claim(player);
 
-        // The click that caused this knows which face was struck, whereabouts on it, with which
-        // hand, and which way the player was looking -- every question vanilla asks while deciding
-        // what state to place. Without it a placement kept only where the block landed, so replay
-        // clicked the middle of the block's own square facing nowhere.
         Optional<ChronoAction.PlaceContext> context = Optional.empty();
         Direction face = session.toLocal(Direction.UP);
         if (clicked instanceof ChronoAction.UseOnBlock use) {
@@ -145,7 +126,6 @@ public final class RecordingCapture {
 
         capture(player, session, new ChronoAction.PlaceBlock(
                         session.toLocal(pos),
-                        // Facing is stored local so a rotated anchor places rotated blocks.
                         face,
                         RecordedItem.of(held),
                         placed,
@@ -172,15 +152,11 @@ public final class RecordingCapture {
                 target, event.getTarget().getUUID());
     }
 
-    /**
-     * A kill turns the run of swings that caused it into one action with a goal.
-     */
     @SubscribeEvent
     public static void onDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
         if (event.getEntity().level().isClientSide()) {
             return;
         }
-        // Every session running anywhere: a second player may have been recording the same fight.
         RecordingSessions.forEach(session -> session.noteDeath(event.getEntity().getUUID()));
     }
 
@@ -201,26 +177,15 @@ public final class RecordingCapture {
         }
 
         BlockHitResult hit = event.getHitVec();
-        // Relative to the block centre so it rotates with the anchor.
         Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
 
-        // Armed, not recorded. Whether this click did anything is decided by the method that fired
-        // this event, several steps further on.
-        //
-        // Block items are armed too, rather than skipped outright: one that places a block has its
-        // placement claim this, and one that does something else -- a modded item with a
-        // right-click mode of its own -- is an interaction like any other, which is how every one
-        // of them used to go unrecorded.
         InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseOnBlock(
                         session.toLocal(pos),
                         session.toLocal(hit.getDirection()),
                         LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
                         hit.isInside(),
                         event.getHand(),
-                        // The whole item, components and all: a water bucket and a lava bucket are
-                        // one item id apart, but a tipped arrow and a healing potion are not.
                         RecordedItem.of(stack),
-                        // What it was used on, so the routine can be told to insist on it.
                         Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
                                 player.level().getBlockState(pos).getBlock()))),
                 Vec3.atCenterOf(pos));
@@ -228,30 +193,13 @@ public final class RecordingCapture {
         ContainerWatch.noteInteraction(player, pos, session);
     }
 
-    /**
-     * The square the player took this action's item out of.
-     *
-     * <p>Every action used to be stamped with the selected hotbar slot, including the ones recorded
-     * off-hand -- so an off-hand interaction claimed to prefer a main-hand square that had nothing
-     * to do with it, and the editor offered that square as a setting.
-     *
-     * <p>An off-hand action names no square at all. A clone's storage is a player's thirty-six
-     * squares and has no off-hand among them, so there is no honest index to record: the routine
-     * takes its item from wherever it can find one, which is what it was already doing.
-     */
+    /** A clone's storage has no off-hand square, so an off-hand action names none. */
     private static int reachedInto(ServerPlayer player, ChronoAction action) {
         return action.heldHand() == InteractionHand.OFF_HAND
                 ? ActionSettings.SlotRule.NONE
                 : player.getInventory().getSelectedSlot();
     }
 
-    /**
-     * Where this player is standing and how they are looking, in the routine's own space.
-     *
-     * <p>Taken at the moment of the action rather than interpolated from the motion track
-     * afterwards: a click happens on one tick and the track is sampled every few, and the pitch a
-     * projectile leaves at is exactly the sort of thing that is wrong in between.
-     */
     private static ActionPose poseOf(ServerPlayer player, RecordingSession session) {
         return new ActionPose(
                 session.toLocal(player.position()),
@@ -259,9 +207,6 @@ public final class RecordingCapture {
                 player.getXRot());
     }
 
-    /**
-     * True for items whose use is us, not the routine.
-     */
     private static boolean isControlInput(ItemStack stack) {
         return stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get());
     }
@@ -312,19 +257,9 @@ public final class RecordingCapture {
                         RecordedItem.of(stack)),
                 target);
 
-        // A villager's trades, a horse's saddlebags, a chest boat: if this opened a menu, the
-        // session is what happened here rather than the click that opened it.
         ContainerWatch.noteInteraction(player, event.getTarget(), session);
     }
 
-    // ------------------------------------------------------------- held-down items
-
-    /**
-     * How long each recording player has been holding an item down, keyed by player.
-     *
-     * <p>The duration a use starts with, kept so the time actually held can be worked out as the
-     * difference when they let go: the events report what is left, not what has passed.
-     */
     private static final java.util.Map<UUID, Integer> USE_STARTED_AT = new java.util.HashMap<>();
 
     @SubscribeEvent
@@ -335,21 +270,16 @@ public final class RecordingCapture {
         }
     }
 
-    /** Let go early: a bow loosed at half draw, a shield lowered. */
     @SubscribeEvent
     public static void onUseStop(LivingEntityUseItemEvent.Stop event) {
         noteHeld(event);
     }
 
-    /** Held to the end: food eaten, a potion drunk, a spyglass put away at full duration. */
     @SubscribeEvent
     public static void onUseFinish(LivingEntityUseItemEvent.Finish event) {
         noteHeld(event);
     }
 
-    /**
-     * Writes the time held onto the use that was recorded when the click arrived.
-     */
     private static void noteHeld(LivingEntityUseItemEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
@@ -359,17 +289,14 @@ public final class RecordingCapture {
         if (startedAt == null || session == null) {
             return;
         }
-        // What is left, subtracted from what there was: a bow drawn for twenty ticks reports
-        // 72000 at the start and 71980 at release.
+        // What is left, subtracted from what there was: a bow drawn for twenty ticks reports 72000
+        // at the start and 71980 at release.
         int held = startedAt - event.getDuration();
         if (held > 0) {
             session.noteHeldFor(held);
         }
     }
 
-    // ------------------------------------------------------------------ containers
-
-    /** {@link ContainerWatch} turns the collected clicks into one action on close. */
     @SubscribeEvent
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
@@ -391,7 +318,6 @@ public final class RecordingCapture {
             return;
         }
 
-        // Read before closing the watch, which clears it.
         BlockPos containerPos = ContainerWatch.openPosition(player);
         ChronoAction.UseContainer containerSession = ContainerWatch.onContainerClosed(player, session);
         if (containerPos != null && containerSession != null) {
@@ -399,13 +325,6 @@ public final class RecordingCapture {
         }
     }
 
-    // ------------------------------------------------------------------ lifecycle
-
-    /**
-     * Both maps, not just the session: a watch is dropped by the container-close event, and nothing
-     * promises that event runs before this one. A player who logs out with a chest open would
-     * otherwise leave their clicks in {@link ContainerWatch} until the server stopped.
-     */
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
@@ -418,7 +337,6 @@ public final class RecordingCapture {
 
     @SubscribeEvent
     public static void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
-        // The origin is meaningless in another dimension, so the session cannot survive the trip.
         if (event.getEntity() instanceof ServerPlayer player) {
             abandon(player);
         }
@@ -431,9 +349,6 @@ public final class RecordingCapture {
         }
     }
 
-    /**
-     * Wipes the capture maps when the server goes away.
-     */
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         RecordingSessions.clear();
@@ -443,8 +358,6 @@ public final class RecordingCapture {
         com.skilles.chronoclones.network.SkinPayloads.clear();
     }
 
-    // ------------------------------------------------------------------ helpers
-
     private static void capture(ServerPlayer player, RecordingSession session,
                                 ChronoAction action, Vec3 worldPos) {
         capture(player, session, action, worldPos, null);
@@ -452,7 +365,6 @@ public final class RecordingCapture {
 
     private static void capture(ServerPlayer player, RecordingSession session,
                                 ChronoAction action, Vec3 worldPos, @Nullable UUID target) {
-        // The slot, not just the item: a clone reaches into the square the player reached into.
         RecordingSession.StopReason stop = session.record(
                 action, worldPos, reachedInto(player, action), target);
         if (stop != null) {
@@ -460,19 +372,6 @@ public final class RecordingCapture {
         }
     }
 
-    /**
-     * Ends a session that has reached a cap, telling the player which one.
-     *
-     * <p>Package-private because {@link ContainerWatch} reaches its own cap without ever calling
-     * {@link RecordingSession#record}: a whole container session is one action, however many times
-     * it was clicked in, so the count that runs away is not one the session is counting.
-     */
-    /**
-     * Writes down an interaction that turned out to have done something.
-     *
-     * <p>Called by {@link InteractionWatch} rather than straight from an event, because the events
-     * fire before anybody knows whether there is anything to write down.
-     */
     static void commit(ServerPlayer player, RecordingSession session, ChronoAction action,
                        Vec3 worldPos) {
         capture(player, session, action, worldPos);
@@ -486,7 +385,6 @@ public final class RecordingCapture {
         }
     }
 
-    /** Ends a session and clears the stranded PROGRESS stamp from its recorder. */
     private static void abandon(ServerPlayer player) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
@@ -496,16 +394,13 @@ public final class RecordingCapture {
         ContainerWatch.forget(player);
         InteractionWatch.forget(player);
 
-        // Clear the stamp, or the item reports RECORDING for a session that no longer exists.
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder != null) {
             recorder.remove(ModDataComponents.PROGRESS.get());
         }
     }
 
-    /**
-     * The specific recorder stack this session is bound to, or null if it is gone.
-     */
+    /** The specific recorder this session is bound to, hands included, or null if it is gone. */
     public static @Nullable ItemStack findSessionRecorder(Player player, RecordingSession session) {
         Inventory inventory = player.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
@@ -514,7 +409,6 @@ public final class RecordingCapture {
                 return stack;
             }
         }
-        // Check hands explicitly so a recorder in the off-hand is still found.
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
             if (belongsTo(stack, session)) {

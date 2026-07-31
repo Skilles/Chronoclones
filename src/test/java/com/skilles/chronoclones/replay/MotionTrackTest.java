@@ -14,14 +14,8 @@ import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Replay-side counterpart to {@code MotionPathTest}. The same invariant has to hold for real
- * recordings as held for the Day 1 spike: position is a pure function of an integer tick, so a
- * clone looping indefinitely never drifts.
- */
 class MotionTrackTest {
 
-    /** Three seconds of straight-line travel, sampled every 2 ticks as capture does. */
     private static MotionTrack straightLine() {
         List<MotionSample> samples = new ArrayList<>();
         for (int tick = 0; tick <= 60; tick += MotionSample.SAMPLE_INTERVAL_TICKS) {
@@ -43,7 +37,6 @@ class MotionTrackTest {
     @DisplayName("ticks between samples interpolate rather than snapping")
     void betweenSamplesInterpolates() {
         MotionTrack track = straightLine();
-        // Tick 5 sits halfway between the samples at 4 and 6.
         assertEquals(0.5, track.localPositionAt(5).x, 1.0e-12);
         assertEquals(0.1, track.localPositionAt(1).x, 1.0e-12);
     }
@@ -96,7 +89,6 @@ class MotionTrackTest {
                 new MotionSample(0, Vec3.ZERO, 170f, 0f),
                 new MotionSample(2, Vec3.ZERO, -170f, 0f)));
 
-        // 170 -> -170 is +20 degrees across the wrap, not -340 the long way.
         float mid = track.localYawAt(1);
         assertEquals(180.0f, Math.abs(mid), 0.001f, "midpoint should be at the wrap, got " + mid);
     }
@@ -109,7 +101,6 @@ class MotionTrackTest {
 
         BlockPos anchor = BlockPos.ZERO;
 
-        // Local "3 blocks north" becomes east when the anchor faces east.
         assertEquals(new Vec3(0, 0, -3), track.worldPositionAt(0, anchor, Direction.NORTH));
         assertEquals(new Vec3(3, 0, 0), track.worldPositionAt(0, anchor, Direction.EAST));
         assertEquals(new Vec3(0, 0, 3), track.worldPositionAt(0, anchor, Direction.SOUTH));
@@ -119,7 +110,6 @@ class MotionTrackTest {
     @Test
     @DisplayName("irregular sample spacing still resolves correctly")
     void irregularSpacingWorks() {
-        // Capture can drop samples if a cap trims the tail, so spacing is not guaranteed uniform.
         MotionTrack track = new MotionTrack(List.of(
                 new MotionSample(0, new Vec3(0, 0, 0), 0f, 0f),
                 new MotionSample(10, new Vec3(10, 0, 0), 0f, 0f),

@@ -37,9 +37,6 @@ import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Replaying a container session by opening the block's real menu and clicking it.
- */
 public final class ContainerActionExecutor {
 
     private ContainerActionExecutor() {}
@@ -67,8 +64,7 @@ public final class ContainerActionExecutor {
                 return ActionResult.fail(FailureReason.NO_MENU, localBlock);
             }
             AbstractContainerMenu menu = session.menu();
-            // Slot indices mean nothing outside the menu that produced them, so a differently
-            // shaped menu would be clicked at random.
+            // Slot indices mean nothing outside the menu that produced them.
             if (menu.slots.size() != action.menuSize()) {
                 return ActionResult.fail(FailureReason.WRONG_BLOCK, localBlock);
             }
@@ -86,9 +82,8 @@ public final class ContainerActionExecutor {
                     }
                 }
             } finally {
-                // Returns whatever is on the cursor to the player, then everything the player is
-                // holding to the anchor, in a finally, because a mod's slot throwing mid-session
-                // must not leave a routine's items inside a fake player nobody can open.
+                // In a finally: a mod's slot throwing mid-session must not leave a routine's items inside
+                // a fake player nobody can open.
                 menu.removed(owner);
                 ContainerCarrier.drain(level, ctx.anchorPos(), ctx.inventory(), owner, menu);
                 session.close();
@@ -99,9 +94,6 @@ public final class ContainerActionExecutor {
         }
     }
 
-    /**
-     * An open menu, and whatever has to be let go of once it closes.
-     */
     private record Session(AbstractContainerMenu menu, Runnable release) {
 
         static Session of(AbstractContainerMenu menu) {
@@ -113,15 +105,9 @@ public final class ContainerActionExecutor {
         }
     }
 
-    /**
-     * Opens the menu the session was recorded against.
-     *
-     * <p>The menu is built directly rather than through the interaction that opened it, because a
-     * fake player's {@code openMenu} is a no-op: nothing would ever be open to click.
-     */
+    /** Built directly: a fake player's openMenu is a no-op, so nothing would be open to click. */
     private static @Nullable Session openMenu(ActionContext ctx, ChronoAction.UseContainer action,
                                               Vec3 worldPoint, FakePlayer owner) {
-
         ServerLevel level = ctx.level();
         if (action.target() instanceof MenuTarget.Entity target) {
             Entity entity = findEntity(ctx, target, worldPoint);
@@ -137,12 +123,8 @@ public final class ContainerActionExecutor {
         return menu == null ? null : Session.of(menu);
     }
 
-    /**
-     * The recorded kind of entity nearest the recorded point, else the nearest thing the rule admits.
-     */
     private static @Nullable Entity findEntity(ActionContext ctx, MenuTarget.Entity target,
                                                Vec3 worldPoint) {
-
         TargetRule rule = ctx.target();
         AABB box = Targeting.boxAround(worldPoint, rule);
         List<Entity> candidates = ctx.level().getEntitiesOfClass(Entity.class, box, entity ->
@@ -156,14 +138,8 @@ public final class ContainerActionExecutor {
                 ctx.recordedSubject());
     }
 
-    /**
-     * The menus an entity can carry: a merchant's offers, a mount's saddlebags, or anything that is
-     * its own {@link MenuProvider}, which covers chest vehicles and a mod's own entities.
-     */
     private static @Nullable Session openEntityMenu(Entity entity, FakePlayer owner) {
         if (entity instanceof Merchant merchant) {
-            // A merchant will not trade with two customers at once, and it awards its experience to
-            // whoever it thinks it is trading with.
             if (merchant.getTradingPlayer() != null) {
                 return null;
             }
@@ -183,13 +159,6 @@ public final class ContainerActionExecutor {
         return null;
     }
 
-    /**
-     * One step of a session.
-     *
-     * @return {@link FailureReason#NONE} if it ran, and otherwise why the session stops here. A step
-     *         that names a square this menu does not have means the menu is not the one recorded, so
-     *         nothing further should be clicked in it.
-     */
     private static FailureReason runStep(AbstractContainerMenu menu, FakePlayer owner,
                                          SessionStep step, ActionSettings.StepSettings rule) {
         int levels = experienceCost(menu, step);
@@ -199,31 +168,23 @@ public final class ContainerActionExecutor {
 
         return switch (step) {
             case SessionStep.Move move -> {
-                // Reachable, not merely present. An anchor's storage keeps every clone's squares in
-                // one menu and shows one page of them, so a square can be in the menu and still be
-                // somewhere nothing can be put -- a page belonging to a clone that no longer exists.
                 if (!reachable(menu, move.from()) || (!move.quick() && !reachable(menu, move.to()))) {
                     yield FailureReason.NO_SLOT;
                 }
                 yield runMove(menu, owner, move, rule)
                         ? FailureReason.NONE
-                        // A square this menu does not have means it is not the menu recorded.
                         : FailureReason.WRONG_BLOCK;
             }
             case SessionStep.RawClick raw -> {
                 if (raw.slot() >= menu.slots.size()) {
                     yield FailureReason.WRONG_BLOCK;
                 }
-                // A click outside the window is not a square at all, and drops what is held.
                 if (raw.slot() >= 0 && !reachable(menu, raw.slot())) {
                     yield FailureReason.NO_SLOT;
                 }
-                // The square the player clicked, whatever is in it now.
                 menu.clicked(raw.slot(), raw.button(), raw.input(), owner);
                 yield FailureReason.NONE;
             }
-            // A refused button is not a broken session: a menu that declines one simply does not
-            // do that thing, and the steps after it may still have work to do.
             case SessionStep.Button button -> {
                 menu.clickMenuButton(owner, button.id());
                 yield FailureReason.NONE;
@@ -239,30 +200,17 @@ public final class ContainerActionExecutor {
         };
     }
 
-    /**
-     * Whether this square can actually be clicked in the menu as it stands.
-     *
-     * <p>Every ordinary container says yes to all of its squares. An anchor is the one that does
-     * not: it holds four clones' storage in one menu and only the selected page is live, so this is
-     * what turns "the fourth clone is gone" into a diagnostic rather than into items in the wrong
-     * place.
-     */
+    /** An anchor holds every clone's storage in one menu and only the open page is live. */
     private static boolean reachable(AbstractContainerMenu menu, int index) {
         return index >= 0 && index < menu.slots.size() && menu.getSlot(index).isActive();
     }
 
-    /**
-     * What this step will charge in levels, before it is attempted.
-     *
-     * <p>Asked in advance because the menus that charge simply decline when they cannot: an
-     * enchantment the clone cannot afford does nothing at all, and nothing says why.
-     */
+    /** Asked in advance, because a menu that cannot afford the work simply declines silently. */
     private static int experienceCost(AbstractContainerMenu menu, SessionStep step) {
         if (menu instanceof EnchantmentMenu table && step instanceof SessionStep.Button button) {
             int id = button.id();
             return id >= 0 && id < table.costs.length ? table.costs[id] : 0;
         }
-        // The anvil charges when the work is taken out, not when it is set up.
         if (menu instanceof AnvilMenu anvil && step instanceof SessionStep.Move move
                 && move.from() == AnvilMenu.RESULT_SLOT) {
             return anvil.getCost();
@@ -270,12 +218,7 @@ public final class ContainerActionExecutor {
         return 0;
     }
 
-    /**
-     * Drinks bottles o' enchanting out of the clone's own stock until it can afford the work.
-     *
-     * <p>Consumed rather than thrown: a bottle that has to land somewhere would make this a thing
-     * that happens over several ticks, in the middle of an open menu.
-     */
+    /** Consumed rather than thrown: a bottle that has to land would take several ticks. */
     private static boolean drinkUpTo(FakePlayer owner, int levels) {
         while (owner.experienceLevel < levels) {
             int slot = findInInventory(owner, Items.EXPERIENCE_BOTTLE);
@@ -283,7 +226,6 @@ public final class ContainerActionExecutor {
                 return false;
             }
             owner.getInventory().removeItem(slot, 1);
-            // Vanilla's own spread for a thrown bottle: 3 to 11.
             RandomSource random = owner.level().getRandom();
             owner.giveExperiencePoints(3 + random.nextInt(5) + random.nextInt(5));
         }
@@ -300,13 +242,7 @@ public final class ContainerActionExecutor {
         return -1;
     }
 
-    /**
-     * Selects the offer the recording named, by what it offers.
-     *
-     * <p>Never by index: a villager's trades reorder as it levels, so the fifth trade of that day is
-     * not the same promise as the fifth trade today. Counts are not matched either, because a price
-     * moves with demand and reputation and the player wanted the trade, not the price.
-     */
+    /** By what the offer is, never by index: a villager reorders its trades as it levels. */
     private static FailureReason runTrade(AbstractContainerMenu menu, SessionStep.Trade trade) {
         if (!(menu instanceof MerchantMenu merchant)) {
             return FailureReason.WRONG_BLOCK;
@@ -317,8 +253,6 @@ public final class ContainerActionExecutor {
             if (!matches(offer, trade)) {
                 continue;
             }
-            // Sold out is worth saying: the payment would go in, no result would come out, and the
-            // session would look like it had simply decided not to work today.
             if (offer.isOutOfStock()) {
                 return FailureReason.OUT_OF_STOCK;
             }
@@ -326,23 +260,23 @@ public final class ContainerActionExecutor {
             merchant.tryMoveItems(index);
             return FailureReason.NONE;
         }
-        // The merchant no longer offers it, so there is nothing to buy and nothing to guess at.
         return FailureReason.NO_OFFER;
     }
 
+    /** Components on the result, so Mending is not bought as Unbreaking. Counts are ignored
+     * because a price moves with demand and the player wanted the trade, not the price. */
     private static boolean matches(MerchantOffer offer, SessionStep.Trade trade) {
         return offer.getCostA().getItem() == trade.costA().getItem()
                 && offer.getCostB().getItem() == trade.costB().getItem()
-                // Components on the result, so Mending is not bought as Unbreaking.
                 && ItemStack.isSameItemSameComponents(offer.getResult(), trade.result())
                 && offer.getResult().getCount() == trade.result().getCount();
     }
 
     /**
-     * Moves an item as the player moved it: take, put, and put back whatever was not wanted.
+     * Moves an item as the player did: take, put, and put back whatever was not wanted.
      *
-     * <p>Through {@code clicked} rather than by writing the slots, so a mod's own slot rules, its
-     * crafting result and its refusals all apply exactly as they do to a player.
+     * <p>Through {@code clicked} rather than by writing slots, so a mod's own slot rules and
+     * refusals apply exactly as they do to a player.
      */
     private static boolean runMove(AbstractContainerMenu menu, FakePlayer owner, SessionStep.Move move,
                                    ActionSettings.StepSettings rule) {
@@ -354,8 +288,6 @@ public final class ContainerActionExecutor {
         }
 
         int from = sourceFor(menu, move, rule.slot());
-        // Nothing to take: the same outcome as clicking an empty square, without the clicks. A
-        // chest that has not refilled yet is the ordinary case, not a broken routine.
         if (from < 0) {
             return true;
         }
@@ -364,7 +296,6 @@ public final class ContainerActionExecutor {
         }
 
         if (move.quick()) {
-            // A shift-click's destination and amount were always the menu's business.
             menu.clicked(from, 0, ContainerInput.QUICK_MOVE, owner);
             return true;
         }
@@ -374,7 +305,6 @@ public final class ContainerActionExecutor {
         menu.clicked(move.to(), amount == SessionStep.Amount.ONE ? 1 : 0,
                 ContainerInput.PICKUP, owner);
 
-        // What the destination would not take, or the rest of a stack the move only wanted one of.
         if (!menu.getCarried().isEmpty()) {
             menu.clicked(from, 0, ContainerInput.PICKUP, owner);
         }
@@ -382,11 +312,10 @@ public final class ContainerActionExecutor {
     }
 
     /**
-     * The square this move takes from, which is the recorded one unless told to look further.
+     * The slot this move takes from, which is the recorded one unless told to look further.
      *
-     * <p>A looser rule only ever looks on the same side of the menu: slot indices say nothing about
-     * what they belong to, so searching the whole menu for a chest's coal would happily find the
-     * clone's own.
+     * <p>A looser rule only looks on the same side of the menu: slot indices say nothing about what
+     * they belong to, so searching all of it for a chest's coal would find the clone's own.
      */
     private static int sourceFor(AbstractContainerMenu menu, SessionStep.Move move, SlotRule rule) {
         Item item = move.item().value();
@@ -398,8 +327,6 @@ public final class ContainerActionExecutor {
         }
         Container side = menu.getSlot(move.from()).container;
         for (int slot = 0; slot < menu.slots.size(); slot++) {
-            // Reachable ones only: a wider search must not reach on to a page of an anchor that
-            // is not open, where nothing could be taken from anyway.
             if (menu.getSlot(slot).container == side && menu.getSlot(slot).isActive()
                     && menu.getSlot(slot).getItem().is(item)) {
                 return slot;

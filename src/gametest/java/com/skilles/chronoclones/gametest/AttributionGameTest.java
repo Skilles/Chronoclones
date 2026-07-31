@@ -15,10 +15,6 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
-/**
- * The security-critical tests: <b>attribution must resolve from the anchor owner, never
- * from the recording author.</b>
- */
 final class AttributionGameTest {
 
     private AttributionGameTest() {}
@@ -32,7 +28,6 @@ final class AttributionGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** The identity a protection mod would see on the break event. */
     private static void attributionResolvesToOwner(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -59,7 +54,6 @@ final class AttributionGameTest {
                 .thenSucceed();
     }
 
-    /** The author must never be the actor, even though the routine is theirs. */
     private static void authorIsNeverTheActor(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -84,7 +78,6 @@ final class AttributionGameTest {
                 .thenSucceed();
     }
 
-    /** A listener that cancels the break must stop it, and the anchor must report why. */
     private static void protectionCanCancel(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -109,7 +102,6 @@ final class AttributionGameTest {
                 .thenSucceed();
     }
 
-    /** Imprinting takes ownership without rewriting who authored the routine. */
     private static void authorSurvivesImprint(GameTestHelper helper) {
         Recording recording = AnchorTestFixture.breakOneBlock(Blocks.STONE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR, recording);
@@ -129,9 +121,6 @@ final class AttributionGameTest {
         helper.succeed();
     }
 
-    /**
-     * Registers a temporary game-bus listener scoped to one absolute position.
-     */
     private static Object listenForBreakAt(BlockPos absolutePos,
                                            java.util.function.Consumer<BreakBlockEvent> handler) {
         Object listener = new Object() {

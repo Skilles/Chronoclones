@@ -10,16 +10,15 @@ import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModDataComponents {
+
     public static final DeferredRegister.DataComponents COMPONENTS =
             DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, Chronoclones.MODID);
 
-    /** The finished recording carried by a recorder in HOLDING state, or by an inscribed shard. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<Recording>> RECORDING =
             COMPONENTS.registerComponentType("recording", builder -> builder
                     .persistent(RecordingCodecs.RECORDING)
                     .networkSynchronized(RecordingCodecs.RECORDING_STREAM));
 
-    /** Separate from the recording so the large payload is not rewritten every tick. */
     public static final DeferredHolder<DataComponentType<?>, DataComponentType<RecordingProgress>> PROGRESS =
             COMPONENTS.registerComponentType("recording_progress", builder -> builder
                     .persistent(RecordingProgress.CODEC)

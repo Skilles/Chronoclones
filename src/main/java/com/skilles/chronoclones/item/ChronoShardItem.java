@@ -14,9 +14,6 @@ import net.minecraft.world.item.component.TooltipDisplay;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/**
- * The Chrono Shard: a medium that carries a recording between players.
- */
 public class ChronoShardItem extends Item {
 
     public ChronoShardItem(Properties properties) {
@@ -37,7 +34,6 @@ public class ChronoShardItem extends Item {
         return inscribed;
     }
 
-    /** Blank shards stack; inscribed ones must not, since each carries distinct data. */
     @Override
     public int getMaxStackSize(@NonNull ItemStack stack) {
         return isInscribed(stack) ? 1 : super.getMaxStackSize(stack);

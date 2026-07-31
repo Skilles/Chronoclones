@@ -24,9 +24,6 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 
-/**
- * That a clone reaches its own inventory and no other.
- */
 final class CloneInventoryGameTest {
 
     private CloneInventoryGameTest() {}
@@ -52,7 +49,6 @@ final class CloneInventoryGameTest {
                 CloneInventoryGameTest::anySlotRuleIgnoresTheRecordedSquare);
     }
 
-    /** EXACT is for a routine that sorts as it works: the named square or nothing. */
     private static void exactSlotRuleRefusesToSearch(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper,
                 new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, 4));
@@ -71,7 +67,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** ANY has no square to prefer, so it takes the first stone it finds. */
     private static void anySlotRuleIgnoresTheRecordedSquare(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper,
                 new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.ANY, 4));
@@ -91,7 +86,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** A clone picks up the way a player does: the first free square, which is the hotbar. */
     private static void minedLootFillsTheHotbarFirst(GameTestHelper helper) {
         helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
@@ -121,7 +115,6 @@ final class CloneInventoryGameTest {
         return -1;
     }
 
-    /** The recorded square is where the clone reaches, not merely somewhere the item is. */
     private static void heldSlotIsDrawnFromFirst(GameTestHelper helper) {
         int recorded = 4;
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, recorded);
@@ -140,7 +133,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** Stock rarely lands where the recording left it, so the square is a preference. */
     private static void heldSlotFallsBackToASearch(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 4);
         anchor.getCloneInventory(0).set(17, ItemResource.of(Items.STONE), 1);
@@ -154,7 +146,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** An anchor whose routine places one stone, recorded as held in {@code heldSlot}. */
     private static ChronoAnchorBlockEntity placingAnchor(GameTestHelper helper, int heldSlot) {
         return placingAnchor(helper, ActionSettings.SlotRule.prefer(heldSlot));
     }
@@ -171,7 +162,6 @@ final class CloneInventoryGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** One clone, stock in the second inventory: it must starve rather than borrow. */
     private static void cannotReachAnotherInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
         anchor.getCloneInventory(1).set(0, ItemResource.of(Items.STONE), 16);
@@ -189,7 +179,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** Two clones, stock in the second: the second is the one that can act on it. */
     private static void eachCloneDrawsFromItsOwn(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
         splitters(anchor, 1);
@@ -210,7 +199,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** Pulling the splitter is not a way to make a clone's inventory disappear. */
     private static void pulledSplitterSpills(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -218,7 +206,6 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(1).set(0, ItemResource.of(Items.DIAMOND), 5);
 
         helper.startSequence()
-                // Long enough for the anchor to have noticed the splitter before it goes away.
                 .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(0, ItemResource.EMPTY, 0))
                 .thenExecuteAfter(4, () -> {
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.DIAMOND) != 0) {
@@ -232,7 +219,6 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    /** Anchors saved before clones had inventories of their own must not lose what they held. */
     private static void legacyInventoryMigrates(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
@@ -252,7 +238,6 @@ final class CloneInventoryGameTest {
         helper.succeed();
     }
 
-    /** The anchor tag as it was written before clone inventories: one 18-slot {@code inventory}. */
     private static CompoundTag legacySave(ServerLevel level) {
         ItemStacksResourceHandler legacy = new ItemStacksResourceHandler(18);
         legacy.set(4, ItemResource.of(Items.DIAMOND), 9);

@@ -19,9 +19,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Regression cover for the session-binding rule.
- */
 class RecordingProgressTest {
 
     private static RegistryAccess.Frozen registries;

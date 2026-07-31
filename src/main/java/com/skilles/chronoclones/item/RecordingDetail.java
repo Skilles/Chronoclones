@@ -20,16 +20,11 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 
-/**
- * The step-by-step reading of a recording, shown while shift is held.
- */
 public final class RecordingDetail {
 
     private RecordingDetail() {}
 
-    /** Beyond this the tooltip is taller than the screen and stops being readable. */
     private static final int MAX_LINES = 24;
-    /** Container sessions expand too, but a long one would drown everything else. */
     private static final int MAX_STEPS = 6;
 
     public static List<Component> describe(List<TimedAction> actions) {
@@ -60,22 +55,10 @@ public final class RecordingDetail {
                 .append(describe(timed.action()));
     }
 
-    /** What one action does, for a row that has not been given a name of its own. */
     public static Component summary(ChronoAction action) {
         return describe(action);
     }
 
-    // ------------------------------------------------------------------ editor rows
-
-    /**
-     * What to call one row.
-     *
-     * <p>A name of the player's own if they gave it one, and otherwise a name read off the action
-     * and the settings together: an action narrowed to cobblestone is "Break Cobblestone", and the
-     * same action widened to anything is "Break block". The settings are half of it because the
-     * name has to keep telling the truth after the options are changed, and a name typed by hand
-     * has to survive that -- it is the one thing here nothing else may overwrite.
-     */
     public static Component title(TimedAction timed) {
         return timed.settings().hasName()
                 ? Component.literal(timed.settings().name())
@@ -107,12 +90,6 @@ public final class RecordingDetail {
         };
     }
 
-    /**
-     * Naming both halves of a use-on-block, either of which may be missing.
-     *
-     * <p>"Use Bone Meal on Wheat" while it insists on the wheat, "Use Bone Meal" once it does not,
-     * and the block alone for a bare-handed use, which is a thing people do to buttons and doors.
-     */
     private static Component useOnTitle(ChronoAction.UseOnBlock action, boolean recorded) {
         boolean holding = action.item().value() != Items.AIR;
         Optional<Holder<Block>> block = recorded ? action.expectedBlock() : Optional.empty();
@@ -128,7 +105,6 @@ public final class RecordingDetail {
                 .orElseGet(() -> empty("use_on"));
     }
 
-    /** A session is named after what it was opened on, which is not always still recorded. */
     private static Component containerTitle(ChronoAction.UseContainer session) {
         if (session.target() instanceof MenuTarget.Entity entity) {
             return name("container", entity.expectedType().value().getDescription());
@@ -139,12 +115,6 @@ public final class RecordingDetail {
         return any("container");
     }
 
-    /**
-     * The second line of a row, which says only what the title has not.
-     *
-     * <p>Not {@link #summary}: that is a whole sentence because a tooltip line has no heading over
-     * it, and under a heading it would say "Break Cobblestone" twice.
-     */
     public static Component subtitle(ChronoAction action) {
         return switch (action) {
             case ChronoAction.BreakBlock a -> at("at", a.localPos());
@@ -208,7 +178,6 @@ public final class RecordingDetail {
         };
     }
 
-    /** A session names what it worked: a square for a block, a creature for an entity. */
     private static MutableComponent containerLine(ChronoAction.UseContainer session) {
         if (session.target() instanceof MenuTarget.Entity entity) {
             return Component.translatable("tooltip.chronoclones.detail.container.entity",
@@ -218,14 +187,11 @@ public final class RecordingDetail {
                 at(session.target().localBlock()), session.steps().size());
     }
 
-    /** Nested lines for one container session: what it brings, then what it does. */
     private static int appendSession(List<Component> lines, ChronoAction.UseContainer session) {
         int added = 0;
 
         for (ChronoAction.UseContainer.CarrierSlot carried : session.carrier()) {
             lines.add(indent(Component.translatable("tooltip.chronoclones.detail.container.needs",
-                            // getHoverName, so a routine wanting a pickaxe named "Tunneler"
-                            // says so.
                             carried.stack().getCount(), name(carried.stack().getHoverName()))
                     .withStyle(ChatFormatting.DARK_AQUA)));
             added++;
@@ -244,9 +210,6 @@ public final class RecordingDetail {
         return added;
     }
 
-    /**
-     * One step in words.
-     */
     public static MutableComponent stepLine(SessionStep step) {
         return switch (step) {
             case SessionStep.Move move -> moveLine(move);
@@ -293,9 +256,6 @@ public final class RecordingDetail {
         return Component.literal("   ").append(line);
     }
 
-    /**
-     * An item's display name without building a stack.
-     */
     private static Component itemName(Item item) {
         return item == Items.AIR
                 ? Component.translatable("tooltip.chronoclones.detail.empty_hand")

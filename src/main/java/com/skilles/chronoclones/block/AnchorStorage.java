@@ -23,40 +23,26 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Everything a Chrono Anchor holds: the clones' squares and banked experience, its fuel, its
- * upgrades, and the charge it has burned them into.
- *
- * <p>Split out of the block entity because none of it is about replaying a routine. The block entity
- * is still the only thing that owns one of these, and still decides when any of it is spent.
- *
- * @see ChronoAnchorBlockEntity
- */
+/** Everything an anchor holds: clone storage, banked experience, fuel, upgrades and charge. */
 public final class AnchorStorage {
 
-    /** Shaped like a player's, so a recorded slot means the same thing on both sides. */
     public static final int CLONE_INVENTORY_SLOTS = Inventory.INVENTORY_SIZE;
 
-    /** One per possible clone, allocated up front so a splitter coming and going resizes nothing. */
     public static final int CLONE_INVENTORIES = UpgradeState.MAX_CLONES;
 
     public static final int UPGRADE_SLOTS = 3;
 
-    /** Anchors saved before clones had their own inventories held eighteen shared squares. */
     private static final int LEGACY_INVENTORY_SLOTS = 18;
 
     private final Runnable onChanged;
 
     private final List<ItemStacksResourceHandler> cloneInventories;
 
-    /** What each clone has banked: what it mines and smelts, spent on what it enchants. */
     private final List<ExperienceStore> cloneExperience =
             new ArrayList<>(Collections.nCopies(CLONE_INVENTORIES, ExperienceStore.EMPTY));
 
-    /** Every clone's inventory as one handler, for hoppers and pipes. */
     private final ResourceHandler<ItemResource> combinedInventory;
 
-    /** One fuel item at a time; charge is drawn from it as it burns. */
     private final ItemStacksResourceHandler fuelSlot;
 
     private final ItemStacksResourceHandler upgradeSlots;
@@ -83,8 +69,6 @@ public final class AnchorStorage {
             }
         };
     }
-
-    // ------------------------------------------------------------------ access
 
     public ResourceHandler<ItemResource> combined() {
         return combinedInventory;
@@ -119,8 +103,6 @@ public final class AnchorStorage {
         return upgrades;
     }
 
-    // ------------------------------------------------------------------ charge
-
     public boolean canAfford(int cost) {
         return charge.canAfford(cost);
     }
@@ -130,9 +112,6 @@ public final class AnchorStorage {
         onChanged.run();
     }
 
-    /**
-     * Burns one fuel item if there is room for the charge it would produce.
-     */
     public void consumeFuel(Level level) {
         if (charge.headroom() <= 0) {
             return;
@@ -142,7 +121,6 @@ public final class AnchorStorage {
             return;
         }
 
-        // Creative cell: top up, never consume.
         if (resource.getItem() == ModItems.CREATIVE_CHARGE_CELL.get()) {
             charge = charge.refill(charge.headroom());
             onChanged.run();
@@ -170,13 +148,7 @@ public final class AnchorStorage {
         onChanged.run();
     }
 
-    // ------------------------------------------------------------------ upgrades
-
-    /**
-     * Re-reads the upgrade slots, dropping the inventory of any clone that just went away.
-     *
-     * @return true if the number of clones changed, so the caller must rebuild its runtimes
-     */
+    /** @return true if the clone count changed, so the caller must rebuild its runtimes */
     public boolean reconcileUpgrades(ServerLevel level, BlockPos pos) {
         UpgradeState current = UpgradeState.from(upgradeSlots);
         int had = upgrades.cloneCount();
@@ -191,7 +163,6 @@ public final class AnchorStorage {
         return true;
     }
 
-    /** True if any active clone could still store something, used to clear an INVENTORY_FULL halt. */
     public boolean hasRoom() {
         for (int clone = 0; clone < upgrades.cloneCount(); clone++) {
             ItemStacksResourceHandler inventory = cloneInventories.get(clone);
@@ -206,20 +177,11 @@ public final class AnchorStorage {
         return false;
     }
 
-    // ------------------------------------------------------------------ spilling
-
-    /**
-     * Every clone's squares and banked experience, onto the ground above the anchor.
-     *
-     * <p>The storage belongs to the routine that filled it: leaving a heap of ore and a bank of
-     * experience inside an anchor that no longer does anything is a way to lose both.
-     */
     public void spillClones(Level level, BlockPos pos) {
         cloneInventories.forEach(clone -> spill(level, pos, clone));
         awardBanked(level, pos, true);
     }
 
-    /** The same, plus the fuel and upgrades, for an anchor that is being broken. */
     public void spillEverything(Level level, BlockPos pos) {
         cloneInventories.forEach(clone -> spill(level, pos, clone));
         awardBanked(level, pos, false);
@@ -227,9 +189,7 @@ public final class AnchorStorage {
         spill(level, pos, upgradeSlots);
     }
 
-    /**
-     * @param clear false when the anchor itself is going away, so there is nothing left to zero
-     */
+    /** @param clear false when the anchor itself is going away, so there is nothing to zero */
     private void awardBanked(Level level, BlockPos pos, boolean clear) {
         if (!(level instanceof ServerLevel serverLevel)) {
             return;
@@ -258,8 +218,6 @@ public final class AnchorStorage {
             handler.set(slot, ItemResource.EMPTY, 0);
         }
     }
-
-    // ------------------------------------------------------------------ persistence
 
     private static String inventoryKey(int clone) {
         return "inventory_" + clone;
@@ -295,12 +253,8 @@ public final class AnchorStorage {
         charge = input.read("charge", ChargeBuffer.CODEC).orElse(ChargeBuffer.EMPTY);
     }
 
-    /**
-     * Moves an anchor saved before clones had their own inventories into the first one.
-     */
     private void adoptLegacyInventory(ValueInput saved) {
-        // Through a handler of the old size: deserialize adopts the saved list wholesale and would
-        // otherwise shrink a clone's inventory to the 18 slots anchors used to have.
+        // Through a handler of the old size: deserialize adopts the saved list wholesale.
         ItemStacksResourceHandler legacy = new ItemStacksResourceHandler(LEGACY_INVENTORY_SLOTS);
         legacy.deserialize(saved);
 

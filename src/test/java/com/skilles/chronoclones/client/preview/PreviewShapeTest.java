@@ -25,9 +25,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/**
- * What a routine looks like before it is imprinted.
- */
 class PreviewShapeTest {
 
     private static final BlockPos ANCHOR = new BlockPos(100, 64, 100);
@@ -60,7 +57,6 @@ class PreviewShapeTest {
         assertFalse(shape.isEmpty(), "an attacking routine that previews as nothing cannot be inspected");
         assertEquals(1, shape.volumes().size());
         assertEquals(PreviewShape.Kind.ATTACK, shape.volumes().getFirst().kind());
-        // A sphere rather than a box, because the swing lands on whatever is in range, not on a square.
         assertTrue(shape.volumes().getFirst().radius() > 0.0);
         assertEquals(0, shape.marks().size(), "an attack must not claim a specific block");
     }
@@ -81,8 +77,6 @@ class PreviewShapeTest {
     @Test
     @DisplayName("a session on a villager is drawn where it stands, not at the square it rounds to")
     void entitySessionIsAVolume() {
-        // Half a block off a boundary: a cube would be drawn at the square the feet round into,
-        // which is not where the villager is and not where it will be by the time the clone runs.
         Vec3 standing = new Vec3(0.5, 0.0, -2.5);
         PreviewShape shape = PreviewShape.of(
                 of(new ChronoAction.UseContainer(
@@ -112,7 +106,6 @@ class PreviewShapeTest {
     @Test
     @DisplayName("the volume sits where the action was recorded, rotated with the anchor")
     void volumeFollowsTheAnchorFacing() {
-        // North is the identity rotation; east is one quarter-turn, so -Z becomes +X.
         Vec3 north = PreviewShape.of(of(attackAt(0, 0, -2)), ANCHOR, Direction.NORTH)
                 .volumes().getFirst().centre();
         Vec3 east = PreviewShape.of(of(attackAt(0, 0, -2)), ANCHOR, Direction.EAST)
@@ -130,7 +123,6 @@ class PreviewShapeTest {
                 ANCHOR, Direction.NORTH, new BlockPos(0, 0, -2));
 
         assertEquals(3, shape.marks().size());
-        // Flagged, not filtered: the point is seeing which of three identical breaks is stuck.
         assertFalse(shape.marks().get(0).failing());
         assertTrue(shape.marks().get(1).failing());
         assertFalse(shape.marks().get(2).failing());

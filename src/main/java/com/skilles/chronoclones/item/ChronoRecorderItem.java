@@ -31,12 +31,10 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
-/**
- * The Chrono Recorder.
- */
 public class ChronoRecorderItem extends Item {
 
     public enum State {
+
         IDLE,
         RECORDING,
         HOLDING
@@ -60,7 +58,6 @@ public class ChronoRecorderItem extends Item {
         return stack.get(ModDataComponents.RECORDING.get());
     }
 
-    /** The same recorder, now holding a recording and ready to imprint it. */
     public static ItemStack holding(ItemStack stack, Recording recording) {
         stack.set(ModDataComponents.RECORDING.get(), recording);
         stack.remove(ModDataComponents.PROGRESS.get());
@@ -72,17 +69,6 @@ public class ChronoRecorderItem extends Item {
         stack.remove(ModDataComponents.PROGRESS.get());
     }
 
-    /**
-     * Crouching onto an imprinted anchor with a blank recorder takes the recording back out.
-     *
-     * <p>Here rather than on the anchor, where every other recorder interaction lives, because
-     * vanilla skips a block's {@code useItemOn} entirely for a crouching player holding anything --
-     * that is what makes crouch-and-place put a block against a chest instead of opening it. The
-     * block never saw this interaction, so it did nothing at all.
-     *
-     * <p>Not crouching is left alone: the anchor consumes that one to open its screen, so this is
-     * never reached for it.
-     */
     @Override
     public @NonNull InteractionResult useOn(UseOnContext context) {
         Player player = context.getPlayer();
@@ -120,15 +106,12 @@ public class ChronoRecorderItem extends Item {
             if (state == State.IDLE) {
                 return InteractionResult.PASS;
             }
-            // A finished routine is the one thing worth opening rather than throwing away.
             if (state == State.HOLDING) {
                 PacketDistributor.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
                         RoutinePayloads.Source.ofHand(hand),
                         stack.get(ModDataComponents.RECORDING.get())));
                 return InteractionResult.SUCCESS;
             }
-            // Only if THIS recorder owns the session; another may be capturing in the same
-            // inventory.
             RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
             RecordingSession active = RecordingSessions.get(serverPlayer);
             if (stamp != null && active != null && stamp.sessionId().equals(active.sessionId())) {
@@ -143,7 +126,6 @@ public class ChronoRecorderItem extends Item {
         return switch (state) {
             case IDLE -> beginRecording(serverPlayer, stack);
             case RECORDING -> stopRecording(serverPlayer, stack, RecordingSession.StopReason.MANUAL);
-            // Imprinting is handled by the block; clicking air must not discard the recording.
             case HOLDING -> {
                 feedback(serverPlayer, "message.chronoclones.recorder.holding", ChatFormatting.AQUA);
                 yield InteractionResult.SUCCESS;
@@ -152,7 +134,6 @@ public class ChronoRecorderItem extends Item {
     }
 
     private InteractionResult beginRecording(ServerPlayer player, ItemStack stack) {
-        // Sessions are keyed by player, so a second capture would strand the first recorder.
         if (RecordingSessions.isRecording(player)) {
             feedback(player, "message.chronoclones.recorder.already_recording", ChatFormatting.RED);
             return InteractionResult.SUCCESS;
@@ -170,11 +151,8 @@ public class ChronoRecorderItem extends Item {
         return InteractionResult.SUCCESS;
     }
 
-    /** Also called by the tick handler when a cap is reached, hence the explicit reason. */
     public static InteractionResult stopRecording(ServerPlayer player, ItemStack stack,
                                                   RecordingSession.StopReason reason) {
-        // Only the recorder that started the session may end it; a stale stamp would otherwise
-        // write somebody else's recording onto this item.
         RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
         RecordingSession active = RecordingSessions.get(player);
         if (stamp != null && active != null && !stamp.sessionId().equals(active.sessionId())) {
@@ -186,11 +164,9 @@ public class ChronoRecorderItem extends Item {
         }
 
         RecordingSession session = RecordingSessions.end(player);
-        // A recording can stop with a chest still open, and Close will find no session.
         ContainerWatch.forget(player);
         stack.remove(ModDataComponents.PROGRESS.get());
 
-        // "Session vanished" and "session captured nothing" are different failures.
         if (session == null) {
             ChronoRecorderItem.clear(stack);
             Chronoclones.LOGGER.warn("Recorder stopped for {} but no capture session existed: "
@@ -225,7 +201,6 @@ public class ChronoRecorderItem extends Item {
         player.sendOverlayMessage(Component.translatable(key,
                 recording.lengthSeconds(), recording.actions().size()).withStyle(ChatFormatting.AQUA));
 
-        // A distinct sound for auto-stop, so hitting a cap is not mistaken for a manual stop.
         playSound(player, reason == RecordingSession.StopReason.MANUAL
                 ? SoundEvents.BEACON_DEACTIVATE
                 : SoundEvents.NOTE_BLOCK_DIDGERIDOO.value(), 1.0f);
@@ -267,7 +242,6 @@ public class ChronoRecorderItem extends Item {
         player.level().playSound(null, player.blockPosition(), sound, SoundSource.PLAYERS, 0.6f, pitch);
     }
 
-    /** Exposed for the shard, which shows the same summary. */
     public static List<Component> describe(Recording recording) {
         return RecordingTooltips.describe(recording);
     }

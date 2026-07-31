@@ -24,14 +24,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * Placements that depend on how they were clicked.
- *
- * <p>A placement used to keep where the block landed and nothing else, and replay clicked the centre
- * of that square with a fake player facing north and looking level. Every question vanilla asks
- * while deciding a block state got the same wrong answer, so a routine that built a staircase built
- * a wall of identical north-facing stairs instead.
- */
 final class PlacementGameTest {
 
     private PlacementGameTest() {}
@@ -45,7 +37,6 @@ final class PlacementGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** Clicking the underside of a block gives top-half stairs; the recording has to know that. */
     private static void keepsTheClickThatMadeIt(GameTestHelper helper) {
         Recorded recorded = recordAStair(helper);
         if (recorded == null) {
@@ -61,7 +52,6 @@ final class PlacementGameTest {
             helper.fail("the recorded placement forgot which hand placed it");
             return;
         }
-        // Upper-half stairs are the whole point: nothing but the hit position produces them.
         if (recorded.action().expectedResult().getValue(BlockStateProperties.HALF) != Half.TOP) {
             helper.fail("this test meant to record top-half stairs and recorded "
                     + recorded.action().expectedResult());
@@ -69,9 +59,6 @@ final class PlacementGameTest {
         helper.succeed();
     }
 
-    /**
-     * The end of it: what the routine builds is what the player built.
-     */
     private static void replaysTheStateItRecorded(GameTestHelper helper) {
         Recorded recorded = recordAStair(helper);
         if (recorded == null) {
@@ -79,7 +66,6 @@ final class PlacementGameTest {
         }
         BlockState wanted = recorded.action().expectedResult();
 
-        // Take the stairs away again, leaving the support they were placed against.
         helper.setBlock(recorded.placedAt(), Blocks.AIR);
 
         ChronoAnchorBlockEntity anchor =
@@ -103,30 +89,17 @@ final class PlacementGameTest {
                 .thenSucceed();
     }
 
-    // ---------------------------------------------------------------------- fixtures
-
-    /** A captured placement, and where in the plot it landed. */
     private record Recorded(Recording recording, ChronoAction.PlaceBlock action, BlockPos placedAt) {}
 
-    /**
-     * Places a stair the awkward way -- against the underside of an overhang, from the south --
-     * and hands back what the recorder made of it.
-     */
     private static @org.jspecify.annotations.Nullable Recorded recordAStair(GameTestHelper helper) {
-        // A ceiling to click the underside of, and the empty square beneath it for the stair.
         BlockPos support = ANCHOR.above(3);
         BlockPos placedAt = support.below();
         helper.setBlock(support, Blocks.STONE);
         helper.setBlock(placedAt, Blocks.AIR);
 
-        // Standing on the anchor's own square, so the routine's origin is the anchor's, and the
-        // local coordinates it records land back where they started when it is replayed there.
         BlockPos absoluteAnchor = helper.absolutePos(ANCHOR);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
         player.snapTo(absoluteAnchor.getX() + 0.5, absoluteAnchor.getY(), absoluteAnchor.getZ() + 0.5);
-        // Facing north, because the fixture's anchor faces north: a routine recorded facing one
-        // way and replayed on an anchor facing another is rotated to suit, quite correctly, and
-        // this test is about the click rather than about rotation.
         player.setYRot(180.0f);
         player.setXRot(0.0f);
 

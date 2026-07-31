@@ -14,22 +14,18 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Server-side state of one in-progress recording.
- */
+/** A recording in progress. */
 public final class RecordingSession {
 
-    /** Why a session stopped, so the item can play the right sound and tell the player. */
     public enum StopReason {
+
         MANUAL,
         LENGTH_CAP,
         ACTION_CAP,
-        /** One container session collected more clicks than a session may hold. */
         STEP_CAP,
         ABANDONED
     }
 
-    /** Identifies which recorder stack this session owns. See {@code RecordingProgress}. */
     private final UUID sessionId = UUID.randomUUID();
 
     private final UUID authorId;
@@ -41,7 +37,6 @@ public final class RecordingSession {
     private final List<MotionSample> motion = new ArrayList<>();
     private final List<AttackIntent.Swing> actions = new ArrayList<>();
 
-    /** Everything that died while this was recording, which is how a swing learns it was a kill. */
     private final Set<UUID> killed = new HashSet<>();
 
     private int tick;
@@ -51,10 +46,7 @@ public final class RecordingSession {
         this.authorId = player.getUUID();
         this.authorName = player.getGameProfile().name();
         this.origin = player.blockPosition();
-        // Snapping to a cardinal is mandatory; see LocalSpace for why arbitrary yaw cannot work.
         this.originFacing = LocalSpace.snapToCardinal(player.getYRot());
-        // Captured at the start: switching to survival to stop the recorder should not
-        // retroactively make an instant-break routine into a mining one.
         this.creative = player.isCreative();
     }
 
@@ -82,7 +74,6 @@ public final class RecordingSession {
         return outOfRangeWarning;
     }
 
-    /** Cleared once the client has been shown the warning, so it flashes rather than sticks. */
     public void clearOutOfRangeWarning() {
         outOfRangeWarning = false;
     }
@@ -91,11 +82,6 @@ public final class RecordingSession {
         return ChronoclonesConfig.MAX_RADIUS.getAsInt();
     }
 
-    /**
-     * Advances one tick and samples motion on the sampling interval.
-     *
-     * @return the cap that was hit, or null to keep going
-     */
     public StopReason tickAndSample(ServerPlayer player) {
         if (tick % MotionSample.SAMPLE_INTERVAL_TICKS == 0) {
             Vec3 local = LocalSpace.toLocal(player.position(), origin, originFacing);
@@ -111,18 +97,10 @@ public final class RecordingSession {
         return null;
     }
 
-    /**
-     * Records an action if it is within range and under the action cap.
-     *
-     * @return the cap that was hit, or null
-     */
     public StopReason record(ChronoAction action, Vec3 worldPos, int heldSlot) {
         return record(action, worldPos, heldSlot, null);
     }
 
-    /**
-     * The same, naming the entity a swing was aimed at so {@link AttackIntent} can read the run.
-     */
     public StopReason record(ChronoAction action, Vec3 worldPos, int heldSlot, @Nullable UUID target) {
         if (!withinRadius(worldPos)) {
             outOfRangeWarning = true;
@@ -137,13 +115,10 @@ public final class RecordingSession {
     }
 
     /**
-     * Gives the most recent use the time the player actually held it down.
+     * Gives the most recent use the time it was actually held.
      *
-     * <p>A use is recorded when the click arrives, which is before anybody knows how long it will
-     * last: drawing a bow, eating, and throwing a snowball are the same event, and only letting go
-     * tells them apart. So the action is written instantly and its duration filled in afterwards.
-     *
-     * @return true if there was a use to amend
+     * <p>A use is recorded when the click arrives, before anyone knows how long it will last:
+     * drawing a bow, eating, and throwing a snowball are the same event until it ends.
      */
     public boolean noteHeldFor(int ticks) {
         for (int index = actions.size() - 1; index >= 0; index--) {
@@ -160,14 +135,10 @@ public final class RecordingSession {
         return false;
     }
 
-    /** Index the next recorded action will land at, for {@link #dropActionAt}. */
     public int nextActionIndex() {
         return actions.size();
     }
 
-    /**
-     * Retracts an action that turned out not to be one.
-     */
     public void dropActionAt(int index) {
         if (index >= 0 && index < actions.size()) {
             actions.remove(index);
@@ -182,7 +153,6 @@ public final class RecordingSession {
         return dx * dx + dy * dy + dz * dz <= (double) r * r;
     }
 
-    /** World -> local, for callers building actions. */
     public BlockPos toLocal(BlockPos worldPos) {
         return LocalSpace.toLocal(worldPos, origin, originFacing);
     }
@@ -195,7 +165,6 @@ public final class RecordingSession {
         return LocalSpace.toLocal(worldFacing, originFacing);
     }
 
-    /** Something died while the player was recording; a swing at it was a kill. */
     public void noteDeath(UUID entityId) {
         killed.add(entityId);
     }

@@ -10,14 +10,8 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Server → client: which slots of the open container the recording has picked up so far.
- *
- * @param containerId the menu these refer to, so a highlight cannot outlive the screen it describes
- */
 public record RecordingHighlightPayload(int containerId, List<Integer> touched, List<Integer> carried)
         implements CustomPacketPayload {
-
     public static final CustomPacketPayload.Type<RecordingHighlightPayload> TYPE =
             new CustomPacketPayload.Type<>(Chronoclones.id("recording_highlight"));
 

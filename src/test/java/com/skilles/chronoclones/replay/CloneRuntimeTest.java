@@ -9,11 +9,6 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Phase-offset distribution is the visual showpiece: several clones strung out along
- * one route like a bucket brigade. It only reads that way if the offsets are genuinely even, so the
- * maths gets asserted rather than eyeballed.
- */
 class CloneRuntimeTest {
 
     @Test

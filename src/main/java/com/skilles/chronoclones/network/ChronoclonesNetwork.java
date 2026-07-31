@@ -9,30 +9,19 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-/**
- * Payload registration.
- *
- * <p>The client handlers are settable because naming a client class here would put it in the
- * bytecode of a class the dedicated server loads.
- */
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ChronoclonesNetwork {
 
     private ChronoclonesNetwork() {}
 
-    /** Installed by the client entrypoint. Stays a no-op on a dedicated server. */
     public static volatile Consumer<AnchorPreviewPayloads.Reply> clientReplyHandler = reply -> { };
 
-    /** Likewise, for the slot highlights drawn over an open container while recording. */
     public static volatile Consumer<RecordingHighlightPayload> clientHighlightHandler = highlight -> { };
 
-    /** And for the anchors the goggles reveal. */
     public static volatile Consumer<GogglePayloads.Reply> clientGoggleHandler = reply -> { };
 
-    /** And for a routine arriving to be edited. */
     public static volatile Consumer<RoutinePayloads.Open> clientRoutineHandler = open -> { };
 
-    /** And for the face of whoever wrote a routine running nearby. */
     public static volatile Consumer<SkinPayloads.Reply> clientSkinHandler = reply -> { };
 
     @SubscribeEvent

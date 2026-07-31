@@ -22,10 +22,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * The caps that bound a recording's size, which is what stands between a traded shard and a save
- * file nobody can load.
- */
 class RecordingLimitsTest {
 
     private static RegistryAccess.Frozen registries;
@@ -68,12 +64,10 @@ class RecordingLimitsTest {
     @DisplayName("an oversized recording does not decode, so it can never come back off a save")
     void oversizedDoesNotDecode() {
         int cap = ChronoclonesConfig.maxContainerSteps();
-        // Encoded through a codec that does not check, then offered to the one that does.
         DataResult<com.google.gson.JsonElement> written = RecordingCodecs.RECORDING
                 .encodeStart(registries.createSerializationContext(JsonOps.INSTANCE),
                         recordingWithSteps(cap + 1));
 
-        // Encoding is refused too: a recording this large should not be written out either.
         assertTrue(written.isError(), "an oversized recording should not encode");
     }
 
@@ -87,9 +81,6 @@ class RecordingLimitsTest {
                 + large + " against " + small);
     }
 
-    // ------------------------------------------------------------------ fixtures
-
-    /** One container session carrying {@code steps} clicks, which is the thing that grows. */
     private static Recording recordingWithSteps(int steps) {
         List<SessionStep> clicks = new ArrayList<>(steps);
         for (int i = 0; i < steps; i++) {

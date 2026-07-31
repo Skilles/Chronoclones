@@ -19,9 +19,6 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
-/**
- * Transferring a routine, and the attribution property that matters most about it.
- */
 final class ShardGameTest {
 
     private ShardGameTest() {}
@@ -34,11 +31,9 @@ final class ShardGameTest {
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
 
-    /** A second player's UUID, distinct from both the author and the original owner. */
     private static final UUID SECOND_OWNER_ID = UUID.fromString("c0000000-0000-0000-0000-00000000000c");
     private static final String SECOND_OWNER_NAME = "SecondOwner";
 
-    /** Inscribing copies the routine without relabelling who wrote it. */
     private static void shardPreservesAuthor(GameTestHelper helper) {
         Recording original = AnchorTestFixture.breakOneBlock(Blocks.STONE);
         ItemStack shard = ChronoShardItem.inscribe(new ItemStack(ModItems.CHRONO_SHARD.get()), original);
@@ -60,7 +55,6 @@ final class ShardGameTest {
         helper.succeed();
     }
 
-    /** A routine authored by one player and imprinted by another acts as the imprinter. */
     private static void shardImprintUsesNewOwner(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
@@ -68,7 +62,6 @@ final class ShardGameTest {
         ServerLevel level = helper.getLevel();
         Recording authored = AnchorTestFixture.breakOneBlock(Blocks.STONE);
 
-        // Scoped to this test's target: game tests share a world and run concurrently.
         BlockPos absoluteTarget = helper.absolutePos(target);
         AtomicReference<UUID> observed = new AtomicReference<>();
         Object listener = new Object() {
@@ -81,7 +74,6 @@ final class ShardGameTest {
         };
         NeoForge.EVENT_BUS.register(listener);
 
-        // Imprint as a completely different player from both the author and the usual fixture owner.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR, authored);
         anchor.imprint(authored, FakePlayerFactory.get(level,
                 new GameProfile(SECOND_OWNER_ID, SECOND_OWNER_NAME)));
@@ -107,7 +99,6 @@ final class ShardGameTest {
                 .thenSucceed();
     }
 
-    /** One shard can seed many anchors, so imprinting must not consume it. */
     private static void shardIsNotConsumed(GameTestHelper helper) {
         Recording recording = AnchorTestFixture.breakOneBlock(Blocks.STONE);
         ItemStack shard = ChronoShardItem.inscribe(new ItemStack(ModItems.CHRONO_SHARD.get()), recording);

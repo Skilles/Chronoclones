@@ -10,13 +10,9 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 
-/**
- * Live HUD counters for a recorder in RECORDING state.
- */
+/** The stamp a running recorder carries, so the item can show its own progress. */
 public record RecordingProgress(UUID sessionId, int elapsedTicks, int actionCount,
                                 boolean outOfRangeWarning) {
-
-    /** Placeholder for display defaults only; never written to an item. */
     public static final RecordingProgress EMPTY =
             new RecordingProgress(new UUID(0L, 0L), 0, 0, false);
 

@@ -13,9 +13,6 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
 
-/**
- * Right-clicking a block, run through the server's own entry point.
- */
 public final class UseBlockActionExecutor {
 
     private UseBlockActionExecutor() {}
@@ -30,14 +27,10 @@ public final class UseBlockActionExecutor {
         if (!level.isLoaded(worldPos)) {
             return ActionResult.fail(FailureReason.UNLOADED, action.localPos());
         }
-        // An anchor must never operate another anchor: that is how a routine
-        // reconfigures its neighbours.
         if (level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
             return ActionResult.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
-        // The block it was used on, when one was recorded and nobody has widened it: a hoe told to
-        // till dirt should say so rather than striking whatever is standing there now.
         if (ctx.recordedSubject() && action.expectedBlock().isPresent()
                 && level.getBlockState(worldPos).getBlock() != action.expectedBlock().get().value()) {
             return ActionResult.fail(FailureReason.WRONG_BLOCK, action.localPos());
@@ -49,8 +42,6 @@ public final class UseBlockActionExecutor {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
         }
 
-        // The sub-block hit point rotates with the anchor, as the block position does, so a
-        // rotated routine still clicks the same corner of the same face.
         Direction face = ctx.placement().toWorld(action.localFace());
         Vec3 hit = Vec3.atCenterOf(worldPos)
                 .add(LocalSpace.rotateY(action.localHitOffset(),

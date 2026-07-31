@@ -32,16 +32,6 @@ import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import org.jspecify.annotations.NonNull;
 
-/**
- * Every configurable action in a routine, and what to make of each one.
- *
- * <p>Not a container screen: there are no slots, and going through a menu would buy nothing but
- * ceremony. The routine arrives whole and every change is sent back one action at a time, so the
- * server never has to trust what this screen thinks the rest of the routine says.
- *
- * <p>A container session is a list of steps rather than one thing, so the list is a tree: the
- * selected session opens to show its steps, each addressable on its own.
- */
 public class RoutineEditorScreen extends Screen {
 
     private static final int WIDTH = 340;
@@ -59,13 +49,11 @@ public class RoutineEditorScreen extends Screen {
     private static final int LIST_WIDTH = 150;
     private static final int ROW_HEIGHT = 22;
     private static final int ROWS_Y = PANEL_Y + 5;
-    /** How far a step's row is pushed in from its session's, so the tree reads as one. */
     private static final int STEP_INDENT = 10;
 
     private static final int PANE_X = MARGIN + LIST_WIDTH + 6;
     private static final int PANE_WIDTH = WIDTH - MARGIN - PANE_X;
 
-    /** The details pane: a two-line header, then rows of label + control. */
     private static final int HEADER_HEIGHT = 27;
     private static final int CONTROL_WIDTH = 100;
     private static final int CONTROL_HEIGHT = 16;
@@ -74,14 +62,12 @@ public class RoutineEditorScreen extends Screen {
     private static final int BAR_Y = HEIGHT - 28;
     private static final int BAR_HEIGHT = 18;
 
-    /** The discard control, beside the title: small, because the bottom bar is for the routine. */
     private static final int DISCARD_WIDTH = 92;
 
     private final RoutinePayloads.Source source;
 
     private Recording routine;
 
-    /** The selected row. A negative step means the action itself rather than one of its steps. */
     private int selected;
     private int selectedStep = -1;
     private int scroll;
@@ -89,17 +75,8 @@ public class RoutineEditorScreen extends Screen {
     private int left;
     private int top;
 
-    /**
-     * Typing is applied locally and sent when the name is done being typed - on selection change or
-     * close - rather than one packet per keystroke. Any other control's edit carries the current
-     * name with it, so pressing one also settles the debt.
-     */
     private boolean nameDirty;
 
-    /**
-     * A discard is one click from losing a performance nobody can record again, so the button asks
-     * once. Cleared whenever the selection moves, so an armed button cannot be forgotten about.
-     */
     private boolean discardArmed;
 
     public RoutineEditorScreen(RoutinePayloads.Source source, Recording routine) {
@@ -124,11 +101,6 @@ public class RoutineEditorScreen extends Screen {
         rebuildControls();
     }
 
-    // ------------------------------------------------------------------ the tree
-
-    /**
-     * One line of the list: an action, or one step of it.
-     */
     private record Row(int action, int step) {
 
         boolean isStep() {
@@ -136,12 +108,6 @@ public class RoutineEditorScreen extends Screen {
         }
     }
 
-    /**
-     * The visible lines, with the selected session opened out.
-     *
-     * <p>Only the selected one: a session of forty clicks would otherwise bury every action after it,
-     * and expanding what you just selected needs no state of its own to remember.
-     */
     private List<Row> rows() {
         List<Row> rows = new ArrayList<>();
         for (int index = 0; index < actions().size(); index++) {
@@ -155,7 +121,6 @@ public class RoutineEditorScreen extends Screen {
         return rows;
     }
 
-    /** The steps of an action, or null if it is not a session. */
     private @org.jspecify.annotations.Nullable List<SessionStep> steps(int index) {
         return actions().get(index).action() instanceof ChronoAction.UseContainer session
                 ? session.steps()
@@ -166,13 +131,6 @@ public class RoutineEditorScreen extends Screen {
         return new Row(Math.clamp(selected, 0, Math.max(0, actions().size() - 1)), selectedStep);
     }
 
-    /**
-     * Brings the selection into view and keeps the scroll inside the list it is scrolling.
-     *
-     * <p>Selecting a session opens its steps and selecting another closes them again, so the number
-     * of rows changes under the scroll. Left alone, a scroll that made sense for the longer list
-     * strands the shorter one below its own end, which reads as scrolling having stopped working.
-     */
     private void revealSelection() {
         List<Row> rows = rows();
         int index = rows.indexOf(selectedRow());
@@ -181,7 +139,6 @@ public class RoutineEditorScreen extends Screen {
             if (index < scroll) {
                 scroll = index;
             }
-            // Show as much of an opened session as fits, without pushing its own row off the top.
             List<SessionStep> steps = selectedRow().isStep() ? null : steps(selectedRow().action());
             int last = index + (steps == null ? 0 : steps.size());
             if (last >= scroll + rowsVisible()) {
@@ -191,12 +148,6 @@ public class RoutineEditorScreen extends Screen {
         scroll = Math.clamp(scroll, 0, Math.max(0, rows.size() - rowsVisible()));
     }
 
-    // ------------------------------------------------------------------ controls
-
-    /**
-     * The pane is rebuilt whenever the selection moves, because which controls belong there is a
-     * question about the selected row rather than about the screen.
-     */
     private void rebuildControls() {
         revealSelection();
         clearWidgets();
@@ -224,8 +175,6 @@ public class RoutineEditorScreen extends Screen {
 
         int row = 1;
         if (swingsSomething()) {
-            // Above the slot, which it can take away: the tool is the question and the square is
-            // only where to look for the answer.
             addControl(row++, "tool", "tool", toolLabel(),
                     () -> apply(settings().withTool(nextTool(settings().tool()))));
         }
@@ -234,8 +183,6 @@ public class RoutineEditorScreen extends Screen {
                     () -> apply(settings().withSlot(cycled(settings().slot()))));
         }
         if (carriesComponents()) {
-            // Only where the recorded item has something on it worth insisting on. A plain
-            // cobblestone has no components, so the control would be two names for one behaviour.
             addControl(row++, "components", "components", componentsLabel(),
                     () -> apply(settings().withItem(
                             settings().item() == ActionSettings.ItemRule.EXACT
@@ -243,13 +190,10 @@ public class RoutineEditorScreen extends Screen {
                                     : ActionSettings.ItemRule.EXACT)));
         }
         if (hasASubject()) {
-            // Named for what it decides, which differs by action: a break and a use pick what they
-            // act on, a placement picks what it builds from, and a swing picks what it swings at.
             addControl(row++, subjectOption(), subjectOption(), subjectValue(),
                     () -> apply(settings().withRecordedSubject(!settings().recordedSubject())));
         }
         if (action() instanceof ChronoAction.AttackEntity) {
-            // Only a swing can be told to finish something off. Nothing else has a "dead" to reach.
             addControl(row++, "finish", "finish", completionLabel(), () -> {
                 TargetRule rule = settings().target();
                 apply(settings().withTarget(rule.withCompletion(
@@ -272,12 +216,6 @@ public class RoutineEditorScreen extends Screen {
         }
     }
 
-    /**
-     * What a session may bring in with it, and how much of it.
-     *
-     * <p>Only when it brings anything: a session that empties a chest into the anchor lends nothing,
-     * so telling it what it may lend is a control with nothing behind it.
-     */
     private int addCarrierControls(ChronoAction.UseContainer session, int firstRow) {
         if (session.carrier().isEmpty()) {
             return firstRow;
@@ -287,8 +225,6 @@ public class RoutineEditorScreen extends Screen {
             apply(settings().withTransfer(rule.withItems(
                     rule.items().isEmpty() ? carriedItems(session) : List.of())));
         });
-        // Labelled "Amount" like a move's, but a different question: a ceiling on what the session
-        // may carry in, not how much of one square a click takes.
         addSlider(firstRow + 1, "quantity", "quantity", new QuantitySlider(font, controlX(),
                 controlRowY(firstRow + 1), CONTROL_WIDTH, CONTROL_HEIGHT,
                 settings().transfer().quantity(),
@@ -297,49 +233,26 @@ public class RoutineEditorScreen extends Screen {
         return firstRow + 2;
     }
 
-    /**
-     * True for the actions whose subject is a block, and so can be widened to any block.
-     *
-     * <p>A use-on-block only when one was recorded: a routine saved before the block was captured
-     * has nothing to narrow to, and an option whose two settings do the same thing is a lie.
-     */
     private boolean hasASubject() {
         return action() instanceof ChronoAction.BreakBlock
                 || action() instanceof ChronoAction.PlaceBlock
                 || action() instanceof ChronoAction.UseOnBlock use
                         && use.expectedBlock().isPresent()
-                // The creatures, which ask the same question of a mob that a break asks of a block.
                 || action() instanceof ChronoAction.AttackEntity
                 || action() instanceof ChronoAction.InteractEntity
                 || action() instanceof ChronoAction.UseContainer session
                         && session.target() instanceof MenuTarget.Entity;
     }
 
-    /**
-     * False once the anchor is picking the tool, where naming a square would answer nothing.
-     *
-     * <p>The setting is kept rather than cleared, so going back to the recorded tool finds the
-     * square it was told about still waiting.
-     */
     private boolean choosesItsOwnSquare() {
         return !swingsSomething() || settings().tool() == ActionSettings.ToolRule.EXACT;
     }
 
-    /**
-     * True for the actions that reach for something and hit with it, which is the pair that get to
-     * be told to pick for themselves.
-     *
-     * <p>A swing is a tool question exactly as a dig is: one asks what breaks the block fastest and
-     * the other what hits hardest, and both are answered out of the clone's own squares.
-     */
     private boolean swingsSomething() {
         return action() instanceof ChronoAction.BreakBlock
                 || action() instanceof ChronoAction.AttackEntity;
     }
 
-    /**
-     * Whether the recorded item has anything on it that "the same item" would throw away.
-     */
     private boolean carriesComponents() {
         return switch (action()) {
             case ChronoAction.UseOnBlock a -> !a.itemTemplate().components().isEmpty();
@@ -356,18 +269,11 @@ public class RoutineEditorScreen extends Screen {
                 : "gui.chronoclones.editor.components.same_item");
     }
 
-    /** Cycles the tool modes, of which there will be more than two. */
     private static ActionSettings.ToolRule nextTool(ActionSettings.ToolRule rule) {
         ActionSettings.ToolRule[] rules = ActionSettings.ToolRule.values();
         return rules[(rule.ordinal() + 1) % rules.length];
     }
 
-    /**
-     * A square of a clone's storage, named the way the inventory screen is laid out.
-     *
-     * <p>A clone holds a player's thirty-six squares: nine on the hotbar and three rows of nine
-     * above them. The raw index is an implementation detail nobody has to see.
-     */
     private static Component slotName(int slot) {
         if (slot < 0) {
             return Component.translatable("gui.chronoclones.editor.slot.unrecorded");
@@ -380,15 +286,8 @@ public class RoutineEditorScreen extends Screen {
                 stored / HOTBAR_SIZE + 1, stored % HOTBAR_SIZE + 1);
     }
 
-    /** A row of the inventory, which is also the whole of the hotbar. */
     private static final int HOTBAR_SIZE = 9;
 
-    /**
-     * Which sentence explains the slot control here.
-     *
-     * <p>Every one of these is a square of the clone's own inventory; what comes out of it is what
-     * differs, and "the item" is not what anybody calls the pickaxe they are swinging.
-     */
     private String slotHelp() {
         if (action() instanceof ChronoAction.BreakBlock) {
             return "slot.tool";
@@ -396,7 +295,6 @@ public class RoutineEditorScreen extends Screen {
         return action() instanceof ChronoAction.AttackEntity ? "slot.weapon" : "slot.item";
     }
 
-    /** True for the actions that reach into the clone's inventory for something to hold. */
     private boolean takesAnItem() {
         return switch (action()) {
             case ChronoAction.BreakBlock ignored -> true;
@@ -405,20 +303,10 @@ public class RoutineEditorScreen extends Screen {
             case ChronoAction.UseItem ignored -> true;
             case ChronoAction.InteractEntity ignored -> true;
             case ChronoAction.AttackEntity ignored -> true;
-            // A session lends whole squares rather than holding one item, which the carrier
-            // controls describe and a held-item square does not.
             case ChronoAction.UseContainer ignored -> false;
         };
     }
 
-    /** True for the actions that have to find something again rather than reach a square. */
-    /**
-     * Whether the target lock is worth offering here.
-     *
-     * <p>Only a swing reads it, so only a swing shows it -- and not even then while the action is
-     * set to finish its target off, because that already implies staying on the one it chose and a
-     * control that cannot be turned off is not a control.
-     */
     private boolean locksItsTarget() {
         return action() instanceof ChronoAction.AttackEntity
                 && settings().target().completion() == TargetRule.Completion.ONCE;
@@ -431,7 +319,6 @@ public class RoutineEditorScreen extends Screen {
                         && session.target() instanceof MenuTarget.Entity;
     }
 
-    /** The items the session was recorded carrying, which is what "only these" means. */
     private static List<Holder<Item>> carriedItems(ChronoAction.UseContainer session) {
         return session.carrier().stream()
                 .map(carried -> carried.stack().getItem())
@@ -440,19 +327,12 @@ public class RoutineEditorScreen extends Screen {
                 .toList();
     }
 
-    /**
-     * A step answers only what its kind can be asked: a move has squares and amounts, a trade or a
-     * rename is one indivisible thing, and a click nobody could name has nothing to say at all.
-     */
     private void addStepControls() {
         StepSettings step = stepSettings();
         addCheckbox(0, "gui.chronoclones.editor.label.enabled", step.enabled(),
                 on -> applyStep(stepSettings().withEnabled(on)));
 
         if (!(selectedStep() instanceof SessionStep.Move move)) {
-            // Raw clicks included. They are the steps a reader can make least sense of -- a slot
-            // number and a button -- so they are the ones a name helps most, and they were the only
-            // kind that could not be given one.
             addName(step.name(), this::renameStep);
             return;
         }
@@ -461,18 +341,10 @@ public class RoutineEditorScreen extends Screen {
                 () -> applyStep(stepSettings().withSlot(cycled(stepSettings().slot()))));
         addControl(2, "item", "item", stepItemsLabel(step), () -> applyStep(stepSettings().withItems(
                 stepSettings().items().isEmpty() ? List.of(move.item()) : List.of())));
-        // How much, not how many: a move takes all of a square, half of it, or one off the top.
         addControl(3, "amount", "amount", amountLabel(step, move),
                 () -> applyStep(stepSettings().withAmount(nextAmount(stepSettings().amount()))));
     }
 
-    /**
-     * Cycles all, half, one and back to what the recording did.
-     *
-     * <p>Deferring to the recording is a position of its own rather than a fourth value copied out
-     * of it: once you have picked one of the three there has to be a way back, and a copy would
-     * stop following the recording the moment it was taken again.
-     */
     private static Optional<SessionStep.Amount> nextAmount(Optional<SessionStep.Amount> amount) {
         SessionStep.Amount[] amounts = SessionStep.Amount.values();
         if (amount.isEmpty()) {
@@ -502,18 +374,10 @@ public class RoutineEditorScreen extends Screen {
         addRenderableWidget(nameBox);
     }
 
-    /** A step's first row is its switch, so its name sits below; an action's name comes first. */
     private int nameRow() {
         return selectedRow().isStep() ? 1 : 0;
     }
 
-    /**
-     * Cycling buttons rebuild the whole pane, so every label rereads the settings it shows.
-     *
-     * <p>The help key is separate from the option because one label can ask more than one question:
-     * "Slot" means a square of the clone's own inventory on an action and a square inside the open
-     * container on a step, and one sentence cannot honestly describe both.
-     */
     private void addControl(int row, String option, String help, Component label, Runnable onPress) {
         FlatButton button = new FlatButton(font, controlX(), controlRowY(row), CONTROL_WIDTH,
                 CONTROL_HEIGHT, label, () -> {
@@ -544,22 +408,10 @@ public class RoutineEditorScreen extends Screen {
         rows.add(new Labelled(row, "gui.chronoclones.editor.label." + option, option));
     }
 
-    /**
-     * What one option does, in words, on hover.
-     *
-     * <p>Every control gets one: a routine is a machine somebody has to reason about, and "Prefer 3"
-     * is not a sentence anybody can act on without being told what preferring a square means.
-     */
     private static Tooltip explain(String option) {
         return Tooltip.create(Component.translatable("gui.chronoclones.editor.help." + option));
     }
 
-    /**
-     * A control's row and the name beside it, collected as the pane is built.
-     *
-     * <p>The labels used to be listed a second time in the drawing code, which is how a control and
-     * its name came to disagree about which row they were on.
-     */
     private record Labelled(int row, String labelKey, String option) {}
 
     private final List<Labelled> rows = new ArrayList<>();
@@ -573,9 +425,6 @@ public class RoutineEditorScreen extends Screen {
         return new SlotRule(modes[(rule.mode().ordinal() + 1) % modes.length], rule.slot());
     }
 
-    /**
-     * Discarding the whole routine sits beside the title, away from the bar that acts on one action.
-     */
     private void addTitleBar() {
         addRenderableWidget(new FlatButton(font, left + WIDTH - MARGIN - DISCARD_WIDTH,
                 top + TITLE_Y - 4, DISCARD_WIDTH, CONTROL_HEIGHT - 2, discardLabel(), () -> {
@@ -589,13 +438,6 @@ public class RoutineEditorScreen extends Screen {
         }, true));
     }
 
-    /**
-     * The bar that acts on the selected action.
-     *
-     * <p>It used to carry greyed +, ^ and v buttons holding a place for reordering. Reordering is
-     * still not built, and three permanently dead controls read as a broken screen rather than as a
-     * promise, so they are gone until there is something behind them.
-     */
     private void addBottomBar() {
         FlatButton delete = new FlatButton(font, left + WIDTH - MARGIN - 110, top + BAR_Y,
                 110, BAR_HEIGHT, Component.translatable("gui.chronoclones.editor.delete"), () -> {
@@ -608,14 +450,9 @@ public class RoutineEditorScreen extends Screen {
             scroll = 0;
             rebuildControls();
         });
-        // Nothing to delete, and nothing to select either.
-        // Greyed rather than hidden while a step is selected: it only ever removes whole actions,
-        // and a button that vanishes as the selection moves is harder to trust than one that dims.
         delete.active = !actions().isEmpty() && !selectedRow().isStep();
         addRenderableWidget(delete);
     }
-
-    // ------------------------------------------------------------------ the selected row
 
     private TimedAction selectedAction() {
         return actions().get(selectedRow().action());
@@ -637,10 +474,6 @@ public class RoutineEditorScreen extends Screen {
         return settings().step(selectedRow().step());
     }
 
-
-    /**
-     * Applies a change locally and tells the server, which re-checks it rather than trusting us.
-     */
     private void apply(ActionSettings settings) {
         routine = routine.withSettings(selectedRow().action(), settings);
         nameDirty = false;
@@ -648,7 +481,6 @@ public class RoutineEditorScreen extends Screen {
                 new RoutinePayloads.EditAction(source, selectedRow().action(), settings));
     }
 
-    /** The same, for one step: the whole action's settings still travel, with the step inside. */
     private void applyStep(StepSettings step) {
         apply(settings().withStep(selectedRow().step(), step));
     }
@@ -676,8 +508,6 @@ public class RoutineEditorScreen extends Screen {
         super.onClose();
     }
 
-    // ------------------------------------------------------------------ drawing
-
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                   float partialTick) {
@@ -687,8 +517,6 @@ public class RoutineEditorScreen extends Screen {
         g.fill(left, top, left + WIDTH, top + HEIGHT, AnchorPanels.WINDOW);
 
         g.text(font, title, left + MARGIN, top + TITLE_Y, AnchorPanels.TEXT);
-        // Singular and plural, as the step counts already are: "1 actions" is the sort of thing
-        // that makes a screen look unfinished.
         String count = Component.translatable(
                 actions().size() == 1
                         ? "gui.chronoclones.editor.count.one"
@@ -703,10 +531,6 @@ public class RoutineEditorScreen extends Screen {
         timelineTooltip(g, mouseX, mouseY);
     }
 
-    /**
-     * What the mark under the pointer is, since a diamond on a ruler says only that something
-     * happens there.
-     */
     private void timelineTooltip(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         int index = markAt(mouseX, mouseY);
         if (index < 0) {
@@ -720,23 +544,14 @@ public class RoutineEditorScreen extends Screen {
                 mouseX, mouseY);
     }
 
-    /** A tick count as seconds, to one decimal, which is how every other surface reads it. */
     private static String seconds(int ticks) {
         return String.format(java.util.Locale.ROOT, "%.1f", ticks / 20.0f);
     }
 
-    /** How near the pointer has to be to a mark to be asking about it. */
     private static final int MARK_REACH = 5;
 
-    /** Big enough to tell a chest from a villager, small enough that a dozen fit on the ruler. */
     private static final int MARK_SIZE = 10;
 
-    /**
-     * The action whose mark is under the pointer, or -1.
-     *
-     * <p>Nearest wins: marks crowd together on a long recording, and several within reach of one
-     * another is the ordinary case rather than the exception.
-     */
     private int markAt(int mouseX, int mouseY) {
         int trackY = top + TIMELINE_Y + TIMELINE_HEIGHT - 9;
         if (mouseY < trackY - MARK_REACH || mouseY > trackY + MARK_REACH + 1) {
@@ -755,7 +570,6 @@ public class RoutineEditorScreen extends Screen {
         return nearest;
     }
 
-    /** Where one action's mark sits along the ruler. */
     private int markX(int index) {
         int x = left + MARGIN + 7;
         int width = WIDTH - MARGIN * 2 - 14;
@@ -763,9 +577,6 @@ public class RoutineEditorScreen extends Screen {
         return x + (width - 1) * Math.clamp(actions().get(index).tick(), 0, length) / length;
     }
 
-    /**
-     * The whole routine as a ruler: second marks, a label every few, a diamond per action.
-     */
     private void timeline(GuiGraphicsExtractor g) {
         AnchorPanels.panel(g, left + MARGIN, top + TIMELINE_Y, WIDTH - MARGIN * 2, TIMELINE_HEIGHT);
 
@@ -796,8 +607,6 @@ public class RoutineEditorScreen extends Screen {
             int at = markX(i);
 
             if (current) {
-                // A ring rather than a bigger picture, so the selected mark stands out without
-                // changing size and shuffling its neighbours.
                 AnchorPanels.outline(g, at - MARK_SIZE / 2 - 1, trackY + 1 - MARK_SIZE / 2 - 1,
                         MARK_SIZE + 2, MARK_SIZE + 2, AnchorPanels.TEXT);
             }
@@ -854,16 +663,9 @@ public class RoutineEditorScreen extends Screen {
         drawActionCard(g, timed, x, y, width, current);
     }
 
-    /** How wide the coloured end of a card is, with the time written on it. */
     private static final int CARD_STRIP = 26;
     private static final int CARD_ICON = 16;
 
-    /**
-     * One action as a card: its kind in the colour, its subject in the picture.
-     *
-     * <p>A wash across the whole card rather than a mark on it, because the kind is what the card is
-     * rather than one more thing written on it.
-     */
     private void drawActionCard(GuiGraphicsExtractor g, TimedAction timed, int x, int y, int width,
                                 boolean current) {
         int colour = kindColour(timed.action());
@@ -873,8 +675,6 @@ public class RoutineEditorScreen extends Screen {
         g.fill(x + 3, top, x + width - 3, bottom, AnchorPanels.wash(colour, current ? 42 : 26));
         g.fill(x + 3, top, x + 3 + CARD_STRIP, bottom, AnchorPanels.wash(colour, 90));
 
-        // The same reading as the timeline tooltip and the item detail. A card that said 1s
-        // beside a tooltip saying 1.9s looked like two different actions.
         String at = seconds(timed.tick()) + "s";
         g.text(font, at, x + 3 + (CARD_STRIP - font.width(at)) / 2, y + 7, AnchorPanels.TEXT);
 
@@ -896,7 +696,6 @@ public class RoutineEditorScreen extends Screen {
         SessionStep step = steps(row.action()).get(row.step());
         StepSettings rule = timed.settings().step(row.step());
 
-        // The tree's elbow, so a step reads as belonging to the session above it.
         g.fill(x - 5, y + 1, x - 4, y + ROW_HEIGHT - 2, AnchorPanels.SLOT_EDGE);
         g.fill(x - 5, y + 10, x, y + 11, AnchorPanels.SLOT_EDGE);
 
@@ -943,7 +742,6 @@ public class RoutineEditorScreen extends Screen {
         }
     }
 
-    /** The recess a name is typed into, which an EditBox does not draw for itself. */
     private void nameTrack(GuiGraphicsExtractor g, int row) {
         AnchorPanels.track(g, controlX(), controlRowY(row), CONTROL_WIDTH, CONTROL_HEIGHT);
     }
@@ -954,7 +752,6 @@ public class RoutineEditorScreen extends Screen {
                 AnchorPanels.MUTED);
     }
 
-    /** A small diamond, the timeline's and the list's shared mark for one action. */
     private static void diamond(GuiGraphicsExtractor g, int cx, int cy, int size, int colour) {
         for (int row = 0; row < size; row++) {
             g.fill(cx - row, cy - size + 1 + row, cx + row + 1, cy - size + 2 + row, colour);
@@ -969,8 +766,6 @@ public class RoutineEditorScreen extends Screen {
             default -> AnchorPanels.TEXT;
         };
     }
-
-    // ------------------------------------------------------------------ input
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
@@ -988,7 +783,6 @@ public class RoutineEditorScreen extends Screen {
         return super.mouseClicked(event, doubled);
     }
 
-    /** Moves the selection, settling any half-typed name on the way out of the old one. */
     private void select(Row row) {
         if (row.equals(selectedRow())) {
             return;
@@ -1010,7 +804,6 @@ public class RoutineEditorScreen extends Screen {
         return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
 
-    /** Which row a screen coordinate lands on, or null. */
     private @org.jspecify.annotations.Nullable Row rowAt(int x, int y) {
         if (x < left + MARGIN || x >= left + MARGIN + LIST_WIDTH || y < top + ROWS_Y) {
             return null;
@@ -1021,17 +814,6 @@ public class RoutineEditorScreen extends Screen {
         return line < rowsVisible() && index < rows.size() ? rows.get(index) : null;
     }
 
-    /**
-     * The inventory key goes back to the anchor; escape leaves the screens entirely.
-     *
-     * <p>The editor is reached from the anchor's own screen, so the key that would close an
-     * inventory should hand it back rather than dropping the player into the world, which is a
-     * click on the block away from where they were.
-     *
-     * <p>Unless a name is being typed, where the inventory key is a letter like any other. A screen
-     * that vanished mid-word because the action was going to be called "Rake" is a screen that
-     * cannot be used.
-     */
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (minecraft != null && minecraft.options.keyInventory.matches(event)
@@ -1045,7 +827,6 @@ public class RoutineEditorScreen extends Screen {
         return super.keyPressed(event);
     }
 
-    /** Whether a keystroke belongs to the name box rather than to the screen. */
     private boolean isTyping() {
         return getFocused() instanceof EditBox box && box.canConsumeInput();
     }
@@ -1055,14 +836,10 @@ public class RoutineEditorScreen extends Screen {
         return false;
     }
 
-    // ------------------------------------------------------------------ labels
-
-    /** The player's name for the action, or one read off the action and its settings. */
     private String rowTitle(TimedAction timed) {
         return RecordingDetail.title(timed).getString();
     }
 
-    /** The player's name for the step, or the short name of its kind. */
     private String stepTitle(SessionStep step, StepSettings rule) {
         return rule.hasName()
                 ? rule.name()
@@ -1070,7 +847,6 @@ public class RoutineEditorScreen extends Screen {
                         + step.kind().getSerializedName()).getString();
     }
 
-    /** The line under the title, which says only what the title has left out. */
     private String summaryOf(TimedAction timed) {
         return RecordingDetail.subtitle(timed.action()).getString();
     }
@@ -1080,8 +856,6 @@ public class RoutineEditorScreen extends Screen {
             return Component.translatable("gui.chronoclones.editor.slot.any");
         }
         if (rule.slot() < 0) {
-            // A step's square comes from the move rather than from the rule, so there is no number
-            // to show; the mode is still the whole question.
             return Component.translatable(rule.mode() == SlotRule.Mode.EXACT
                     ? "gui.chronoclones.editor.slot.recorded_only"
                     : "gui.chronoclones.editor.slot.recorded_first");
@@ -1091,9 +865,6 @@ public class RoutineEditorScreen extends Screen {
                 : "gui.chronoclones.editor.slot.prefer", slotName(rule.slot()));
     }
 
-    /**
-     * The recorded tool by name, so "Exact" reads as the thing rather than as a policy.
-     */
     private Component toolLabel() {
         if (settings().tool() != ActionSettings.ToolRule.EXACT) {
             return Component.translatable(
@@ -1109,14 +880,6 @@ public class RoutineEditorScreen extends Screen {
                 : recorded.getHoverName();
     }
 
-    /** The recorded block, or the word for having stopped caring which block it is. */
-    /**
-     * Which question this row's subject control is asking.
-     *
-     * <p>One setting, three questions. A break and a use-on choose what to act on; a placement
-     * chooses what to build out of, which is the opposite direction entirely and was described with
-     * the same sentence as the other two; a swing chooses what to swing at.
-     */
     private String subjectOption() {
         return switch (action()) {
             case ChronoAction.PlaceBlock ignored -> "material";
@@ -1127,13 +890,6 @@ public class RoutineEditorScreen extends Screen {
         };
     }
 
-    /**
-     * What this row will act on, or build from, said the way replay actually behaves.
-     *
-     * <p>A widened creature action is not indifferent: it still prefers the kind that was recorded
-     * and only settles for something else when none is about. "Prefer Cow" says that; "Anything"
-     * said the recorded kind counted for nothing.
-     */
     private Component subjectValue() {
         Component recorded = recordedSubjectName();
         if (settings().recordedSubject()) {
@@ -1146,7 +902,6 @@ public class RoutineEditorScreen extends Screen {
                 : Component.translatable("gui.chronoclones.editor.subject.any_block");
     }
 
-    /** The thing this action was recorded against, by name. */
     private Component recordedSubjectName() {
         return switch (action()) {
             case ChronoAction.BreakBlock a -> a.expectedBlock().value().getName();
@@ -1162,7 +917,6 @@ public class RoutineEditorScreen extends Screen {
         };
     }
 
-    /** True for the actions whose subject is a creature rather than a block. */
     private boolean picksACreature() {
         return action() instanceof ChronoAction.AttackEntity
                 || action() instanceof ChronoAction.InteractEntity
@@ -1188,9 +942,6 @@ public class RoutineEditorScreen extends Screen {
                 : Component.translatable(items.getFirst().value().getDescriptionId());
     }
 
-    /**
-     * How much this move takes, which starts at how much the player took.
-     */
     private Component amountLabel(StepSettings step, SessionStep.Move move) {
         return step.amount()
                 .map(RoutineEditorScreen::amountName)
@@ -1203,7 +954,6 @@ public class RoutineEditorScreen extends Screen {
                 "gui.chronoclones.editor.amount." + amount.getSerializedName());
     }
 
-    /** A ticked box reads as the thing being on, so the label says what being on means. */
     private static String checkboxKey(String option, boolean value) {
         return "gui.chronoclones.editor." + option + (value ? ".on" : ".off");
     }

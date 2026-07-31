@@ -20,14 +20,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 
-/**
- * Routines that stock another anchor.
- *
- * <p>An anchor's own menu used to be excluded from recording outright, so a player filling one
- * while a recorder ran captured nothing and the routine they were building quietly had a hole in
- * it. Chaining anchors -- one routine feeding the storage another works out of -- is the obvious
- * thing to want and could not be recorded at all.
- */
 final class AnchorSessionGameTest {
 
     private AnchorSessionGameTest() {}
@@ -42,7 +34,6 @@ final class AnchorSessionGameTest {
     private static final BlockPos RUNNER = new BlockPos(8, 1, 8);
     private static final BlockPos TARGET = new BlockPos(8, 1, 5);
 
-    /** What a player put into an anchor, a clone puts into it too. */
     private static void stocksAnotherAnchor(GameTestHelper helper) {
         ChronoAnchorBlockEntity target = AnchorTestFixture.placeAndImprint(
                 helper, TARGET, idleRoutine());
@@ -52,7 +43,6 @@ final class AnchorSessionGameTest {
         if (recording == null) {
             return;
         }
-        // Recording it put real diamonds in there. Take them out, or this measures the player.
         emptyOut(target);
 
         ChronoAnchorBlockEntity runner =
@@ -71,13 +61,6 @@ final class AnchorSessionGameTest {
                 .thenSucceed();
     }
 
-    /**
-     * A page that is not there is said so, rather than the items going somewhere else.
-     *
-     * <p>A blank anchor's squares are unreachable for the same reason a missing clone's are: the
-     * storage belongs to the routine that fills it, and one with nothing to run has nowhere to put
-     * anything.
-     */
     private static void saysSoWhenThePageIsGone(GameTestHelper helper) {
         ChronoAnchorBlockEntity target = AnchorTestFixture.placeAndImprint(
                 helper, TARGET, idleRoutine());
@@ -89,7 +72,6 @@ final class AnchorSessionGameTest {
         }
 
         emptyOut(target);
-        // Take the target's routine away, which takes its storage with it.
         target.clearRecording();
 
         ChronoAnchorBlockEntity runner =
@@ -111,17 +93,10 @@ final class AnchorSessionGameTest {
                 .thenSucceed();
     }
 
-    // ---------------------------------------------------------------------- fixtures
-
-    /**
-     * Records a player moving a diamond out of their own inventory into {@code target}'s storage.
-     */
     private static @org.jspecify.annotations.Nullable Recording recordStocking(
             GameTestHelper helper, ChronoAnchorBlockEntity target) {
-
         BlockPos absoluteRunner = helper.absolutePos(RUNNER);
         ServerPlayer player = helper.makeMockServerPlayerInLevel();
-        // Standing where the routine will run, so its local coordinates land back on the target.
         player.snapTo(absoluteRunner.getX() + 0.5, absoluteRunner.getY(), absoluteRunner.getZ() + 0.5);
         player.setYRot(180.0f);
 
@@ -133,14 +108,10 @@ final class AnchorSessionGameTest {
             BlockPos absoluteTarget = helper.absolutePos(TARGET);
             ContainerWatch.noteInteraction(player, absoluteTarget, session);
 
-            // Built rather than opened through the block: opening an anchor sends its timeline as
-            // extra screen data, and a mock player has no connection that will take it. The watch
-            // reads whatever menu the player has, which is the part being tested.
             player.containerMenu = new ChronoAnchorMenu(
                     1, player.getInventory(), target, target.getContainerData());
             ContainerWatch.onContainerOpened(player, session);
 
-            // The player's hotbar slot, into the first clone's first square.
             int hotbar = player.containerMenu.slots.size() - 9;
             click(player, hotbar);
             click(player, 0);
@@ -150,8 +121,6 @@ final class AnchorSessionGameTest {
                 helper.fail("clicking inside an anchor recorded no session");
                 return null;
             }
-            // What RecordingCapture does when the close event fires: the watch hands back the
-            // session, and the session is what goes into the recording.
             session.record(recorded, Vec3.atCenterOf(absoluteTarget), 0);
             return session.finish();
         } finally {
@@ -160,7 +129,6 @@ final class AnchorSessionGameTest {
         }
     }
 
-    /** What a routine turned out to contain, for a failure message worth reading. */
     private static String describe(Recording recording) {
         StringBuilder out = new StringBuilder();
         for (var timed : recording.actions()) {
@@ -176,18 +144,11 @@ final class AnchorSessionGameTest {
         return out.toString();
     }
 
-    /**
-     * One click, made for real.
-     *
-     * <p>Nothing is told to the watch by hand: the mixin on {@code clicked} is what records a click
-     * in the game, and calling the watch as well recorded every click twice, which left the
-     * interpreter a run of unpairable clicks instead of one move.
-     */
+    /** Nothing is told to the watch by hand: the mixin on clicked is what records a click. */
     private static void click(ServerPlayer player, int slot) {
         player.containerMenu.clicked(slot, 0, ContainerInput.PICKUP, player);
     }
 
-    /** A routine that does nothing, which is enough to give an anchor usable storage. */
     private static Recording idleRoutine() {
         return new Recording(
                 List.of(new com.skilles.chronoclones.recording.MotionSample(
@@ -196,7 +157,6 @@ final class AnchorSessionGameTest {
                 40, AnchorTestFixture.AUTHOR_NAME, AnchorTestFixture.AUTHOR_ID);
     }
 
-    /** The fixture stocks recorded tools; this test is about what the routine moves. */
     private static void emptyOut(ChronoAnchorBlockEntity anchor) {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);

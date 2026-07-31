@@ -8,12 +8,6 @@ import com.skilles.chronoclones.recording.ActionSettings.TargetRule;
 import net.minecraft.client.gui.Font;
 import net.minecraft.network.chat.Component;
 
-/**
- * How far an action looks for something to act on, in blocks.
- *
- * <p>The top of the scale is the anchor's own reach, because a setting that could exceed it would be
- * clamped at replay and the slider would be lying.
- */
 final class RadiusSlider extends FlatSlider {
 
     private final DoubleConsumer onChange;
@@ -29,7 +23,6 @@ final class RadiusSlider extends FlatSlider {
     }
 
     private double radius() {
-        // Half-block steps: finer than that is not a distinction anything in the world can tell.
         return Math.round(value * maxRadius * 2.0) / 2.0;
     }
 
