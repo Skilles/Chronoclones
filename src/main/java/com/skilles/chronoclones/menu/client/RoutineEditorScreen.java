@@ -580,7 +580,7 @@ public class RoutineEditorScreen extends Screen {
     private void timeline(GuiGraphicsExtractor g) {
         AnchorPanels.panel(g, left + MARGIN, top + TIMELINE_Y, WIDTH - MARGIN * 2, TIMELINE_HEIGHT);
 
-        int x = left + MARGIN + 7;
+        int x = left + MARGIN + 10;
         int width = WIDTH - MARGIN * 2 - 14;
         int trackY = top + TIMELINE_Y + TIMELINE_HEIGHT - 9;
 
