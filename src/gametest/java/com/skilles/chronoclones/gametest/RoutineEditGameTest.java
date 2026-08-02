@@ -68,6 +68,38 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::blankAnchorHasNoStorage);
         ChronoclonesGameTests.add("a_blank_recorder_takes_a_recording_back_out",
                 RoutineEditGameTest::blankRecorderTakesTheRecordingBack);
+        ChronoclonesGameTests.add("every_change_to_the_routine_bumps_its_revision",
+                RoutineEditGameTest::everyChangeBumpsTheRevision);
+    }
+
+    /** The revision is how a stale editor is told apart from a current one, so every path
+     * that changes what an edit's indices mean has to move it. */
+    private static void everyChangeBumpsTheRevision(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        int afterImprint = anchor.getRevision();
+        anchor.reinterpret(anchor.getRecording().withSettings(0,
+                ActionSettings.DEFAULT.withName("renamed")));
+        if (anchor.getRevision() == afterImprint) {
+            helper.fail("reinterpreting left the revision alone");
+            return;
+        }
+
+        int afterEdit = anchor.getRevision();
+        anchor.nudgeOrigin(new BlockPos(1, 0, 0));
+        if (anchor.getRevision() == afterEdit) {
+            helper.fail("nudging the origin left the revision alone");
+            return;
+        }
+
+        int afterNudge = anchor.getRevision();
+        anchor.clearRecording();
+        if (anchor.getRevision() == afterNudge) {
+            helper.fail("discarding the routine left the revision alone");
+            return;
+        }
+        helper.succeed();
     }
 
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {

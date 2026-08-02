@@ -45,7 +45,7 @@ public class ChronoclonesClient {
 
     private static void openRoutineEditor(com.skilles.chronoclones.network.RoutinePayloads.Open open) {
         Minecraft.getInstance().setScreenAndShow(
-                new RoutineEditorScreen(open.source(), open.recording()));
+                new RoutineEditorScreen(open.source(), open.recording(), open.revision()));
     }
 
     @SubscribeEvent

@@ -60,7 +60,8 @@ public final class RoutinePayloads {
         }
     }
 
-    public record Open(Source source, Recording recording) implements CustomPacketPayload {
+    public record Open(Source source, Recording recording, int revision)
+            implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Open> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("open_routine_editor"));
@@ -69,6 +70,7 @@ public final class RoutinePayloads {
                 StreamCodec.composite(
                         Source.STREAM_CODEC, Open::source,
                         RecordingCodecs.RECORDING_STREAM, Open::recording,
+                        ByteBufCodecs.VAR_INT, Open::revision,
                         Open::new);
 
         @Override
@@ -77,7 +79,7 @@ public final class RoutinePayloads {
         }
     }
 
-    public record EditAction(Source source, int index, ActionSettings settings)
+    public record EditAction(Source source, int index, ActionSettings settings, int revision)
             implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<EditAction> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("edit_action"));
@@ -87,6 +89,7 @@ public final class RoutinePayloads {
                         Source.STREAM_CODEC, EditAction::source,
                         ByteBufCodecs.VAR_INT, EditAction::index,
                         RecordingCodecs.ACTION_SETTINGS_STREAM, EditAction::settings,
+                        ByteBufCodecs.VAR_INT, EditAction::revision,
                         EditAction::new);
 
         @Override
@@ -95,7 +98,8 @@ public final class RoutinePayloads {
         }
     }
 
-    public record RemoveAction(Source source, int index) implements CustomPacketPayload {
+    public record RemoveAction(Source source, int index, int revision)
+            implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<RemoveAction> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("remove_action"));
@@ -104,6 +108,7 @@ public final class RoutinePayloads {
                 StreamCodec.composite(
                         Source.STREAM_CODEC, RemoveAction::source,
                         ByteBufCodecs.VAR_INT, RemoveAction::index,
+                        ByteBufCodecs.VAR_INT, RemoveAction::revision,
                         RemoveAction::new);
 
         @Override
@@ -126,13 +131,16 @@ public final class RoutinePayloads {
         }
     }
 
-    public record Discard(Source source) implements CustomPacketPayload {
+    public record Discard(Source source, int revision) implements CustomPacketPayload {
 
         public static final CustomPacketPayload.Type<Discard> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("discard_routine"));
 
         public static final StreamCodec<RegistryFriendlyByteBuf, Discard> STREAM_CODEC =
-                StreamCodec.composite(Source.STREAM_CODEC, Discard::source, Discard::new);
+                StreamCodec.composite(
+                        Source.STREAM_CODEC, Discard::source,
+                        ByteBufCodecs.VAR_INT, Discard::revision,
+                        Discard::new);
 
         @Override
         public CustomPacketPayload.@NonNull Type<? extends CustomPacketPayload> type() {
@@ -146,12 +154,15 @@ public final class RoutinePayloads {
         }
         Recording routine = read(player, request.source());
         if (routine != null && RecordingLimits.accepts(routine, player.registryAccess())) {
-            context.reply(new Open(request.source(), routine));
+            context.reply(new Open(request.source(), routine, revisionOf(player, request.source())));
         }
     }
 
     public static void handleEdit(EditAction edit, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (resyncIfStale(player, edit.source(), edit.revision(), context)) {
             return;
         }
         Recording routine = read(player, edit.source());
@@ -179,6 +190,9 @@ public final class RoutinePayloads {
         if (!(context.player() instanceof ServerPlayer player)) {
             return;
         }
+        if (resyncIfStale(player, remove.source(), remove.revision(), context)) {
+            return;
+        }
         Recording routine = read(player, remove.source());
         if (routine == null || remove.index() < 0 || remove.index() >= routine.actions().size()) {
             return;
@@ -188,6 +202,9 @@ public final class RoutinePayloads {
 
     public static void handleDiscard(Discard discard, IPayloadContext context) {
         if (!(context.player() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (resyncIfStale(player, discard.source(), discard.revision(), context)) {
             return;
         }
         if (read(player, discard.source()) == null) {
@@ -202,6 +219,33 @@ public final class RoutinePayloads {
         if (anchor != null) {
             anchor.clearRecording();
         }
+    }
+
+    private static int revisionOf(ServerPlayer player, Source source) {
+        if (source.anchor().isEmpty()) {
+            return 0;
+        }
+        ChronoAnchorBlockEntity anchor = anchorFor(player, source.anchor().get());
+        return anchor == null ? 0 : anchor.getRevision();
+    }
+
+    /** An edit made against a routine that has changed since would land on the wrong action.
+     * The stale editor is handed the current routine instead of a silent mis-edit. A hand
+     * routine has one editor, so it never goes stale. */
+    private static boolean resyncIfStale(ServerPlayer player, Source source, int revision,
+                                         IPayloadContext context) {
+        if (source.anchor().isEmpty()) {
+            return false;
+        }
+        ChronoAnchorBlockEntity anchor = anchorFor(player, source.anchor().get());
+        if (anchor == null || revision == anchor.getRevision()) {
+            return false;
+        }
+        Recording routine = anchor.getRecording();
+        if (routine != null && RecordingLimits.accepts(routine, player.registryAccess())) {
+            context.reply(new Open(source, routine, anchor.getRevision()));
+        }
+        return true;
     }
 
     private static @Nullable Recording read(ServerPlayer player, Source source) {

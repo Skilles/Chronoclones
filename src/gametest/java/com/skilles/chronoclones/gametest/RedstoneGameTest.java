@@ -34,6 +34,47 @@ final class RedstoneGameTest {
                 RedstoneGameTest::windDownReadsBelowFull);
         ChronoclonesGameTests.add("a_rising_edge_resumes_a_paused_anchor",
                 RedstoneGameTest::risingEdgeResumesFromPause);
+        ChronoclonesGameTests.add("a_real_comparator_hears_about_the_wind_down",
+                RedstoneGameTest::realComparatorHearsTheWindDown);
+    }
+
+    /** Through an actual comparator block, not getAnalogOutputSignal: a direct read cannot
+     * tell whether the anchor remembered to announce the change. */
+    private static void realComparatorHearsTheWindDown(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = obedientStoppedAnchor(helper);
+        // North of the anchor is the routine's target; power sits east, so the comparator
+        // reads from the west with its facing pointed at the anchor.
+        BlockPos comparatorPos = ANCHOR.west();
+        // A diode pops without sturdy ground, whatever the plot floor happens to be.
+        helper.setBlock(comparatorPos.below(), Blocks.STONE);
+        helper.setBlock(comparatorPos, Blocks.COMPARATOR.defaultBlockState()
+                .setValue(net.minecraft.world.level.block.ComparatorBlock.FACING, Direction.EAST));
+
+        helper.startSequence()
+                .thenExecuteAfter(1, () -> power(helper, true))
+                .thenExecuteAfter(4, () -> {
+                    if (comparatorOutput(helper, comparatorPos) != RedstoneStatus.RUNNING) {
+                        helper.fail("a comparator beside a running anchor outputs "
+                                + comparatorOutput(helper, comparatorPos)
+                                + " instead of " + RedstoneStatus.RUNNING);
+                    }
+                })
+                .thenExecuteAfter(1, () -> power(helper, false))
+                .thenExecuteAfter(4, () -> {
+                    if (comparatorOutput(helper, comparatorPos) != RedstoneStatus.FINISHING) {
+                        helper.fail("the anchor began its farewell cycle and the comparator"
+                                + " still outputs " + comparatorOutput(helper, comparatorPos)
+                                + ": the wind-down was never announced");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static int comparatorOutput(GameTestHelper helper, BlockPos relative) {
+        return helper.getLevel().getBlockEntity(helper.absolutePos(relative))
+                instanceof net.minecraft.world.level.block.entity.ComparatorBlockEntity comparator
+                ? comparator.getOutputSignal()
+                : -1;
     }
 
     private static ChronoAnchorBlockEntity reloaded(GameTestHelper helper,

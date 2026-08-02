@@ -100,6 +100,9 @@ public final class PreviewCache {
     public static void nudged(BlockPos delta) {
         cachedOffset = delta.equals(BlockPos.ZERO) ? BlockPos.ZERO : cachedOffset.offset(delta);
         LEDGER.nudged();
+        // The goggle overlay draws the same anchor from its own cache, and would otherwise show
+        // the old origin until its interval came round.
+        GoggleCache.refreshSoon();
     }
 
     public static void forget() {

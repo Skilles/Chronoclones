@@ -109,7 +109,7 @@ public class ChronoRecorderItem extends Item {
             if (state == State.HOLDING) {
                 PacketDistributor.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
                         RoutinePayloads.Source.ofHand(hand),
-                        stack.get(ModDataComponents.RECORDING.get())));
+                        stack.get(ModDataComponents.RECORDING.get()), 0));
                 return InteractionResult.SUCCESS;
             }
             RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());

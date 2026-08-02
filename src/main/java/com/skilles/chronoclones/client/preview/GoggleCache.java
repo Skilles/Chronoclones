@@ -52,6 +52,11 @@ public final class GoggleCache {
         truncated = reply.truncated();
     }
 
+    /** The next look re-asks at once instead of waiting out the interval. */
+    public static void refreshSoon() {
+        CLOCK.reset();
+    }
+
     public static void forget() {
         anchors = List.of();
         truncated = false;

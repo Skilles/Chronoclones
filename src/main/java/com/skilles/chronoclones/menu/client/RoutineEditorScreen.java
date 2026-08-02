@@ -79,10 +79,16 @@ public class RoutineEditorScreen extends Screen {
 
     private boolean discardArmed;
 
-    public RoutineEditorScreen(RoutinePayloads.Source source, Recording routine) {
+    // Counted up in step with the server: each accepted edit bumps both ends by one, so a
+    // mismatch means somebody else changed the routine and this editor is talking about the
+    // wrong actions. The server refuses such edits and re-opens the editor on current state.
+    private int revision;
+
+    public RoutineEditorScreen(RoutinePayloads.Source source, Recording routine, int revision) {
         super(Component.translatable("gui.chronoclones.editor.title"));
         this.source = source;
         this.routine = routine;
+        this.revision = revision;
     }
 
     private List<TimedAction> actions() {
@@ -433,7 +439,7 @@ public class RoutineEditorScreen extends Screen {
                 rebuildControls();
                 return;
             }
-            ClientPacketDistributor.sendToServer(new RoutinePayloads.Discard(source));
+            ClientPacketDistributor.sendToServer(new RoutinePayloads.Discard(source, revision));
             onClose();
         }, true));
     }
@@ -443,7 +449,9 @@ public class RoutineEditorScreen extends Screen {
                 110, BAR_HEIGHT, Component.translatable("gui.chronoclones.editor.delete"), () -> {
             flushName();
             int index = selectedRow().action();
-            ClientPacketDistributor.sendToServer(new RoutinePayloads.RemoveAction(source, index));
+            ClientPacketDistributor.sendToServer(
+                    new RoutinePayloads.RemoveAction(source, index, revision));
+            revision++;
             routine = routine.without(index);
             selected = Math.clamp(index, 0, Math.max(0, actions().size() - 1));
             selectedStep = -1;
@@ -478,7 +486,8 @@ public class RoutineEditorScreen extends Screen {
         routine = routine.withSettings(selectedRow().action(), settings);
         nameDirty = false;
         ClientPacketDistributor.sendToServer(
-                new RoutinePayloads.EditAction(source, selectedRow().action(), settings));
+                new RoutinePayloads.EditAction(source, selectedRow().action(), settings, revision));
+        revision++;
     }
 
     private void applyStep(StepSettings step) {

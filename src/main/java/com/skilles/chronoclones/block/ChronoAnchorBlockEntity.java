@@ -83,6 +83,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     // Not saved: the routine loops, so a fresh report fills back in within one cycle.
     private final RunReport report = new RunReport();
 
+    // Not saved either: it orders edits within one session, and every editor re-asks on open.
+    // An edit made against a routine that has changed since would land on the wrong action.
+    private int revision;
+
     private boolean obeysRedstone;
     // Persisted so a reload does not read the world's standing power as a fresh edge.
     private boolean redstonePowered;
@@ -195,6 +199,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return report;
     }
 
+    public int getRevision() {
+        return revision;
+    }
+
+    private void bumpRevision() {
+        revision++;
+    }
+
     public RunState getRunState() {
         return runState;
     }
@@ -206,7 +218,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         runState = state;
         finishing = false;
         setChanged();
-        notifyComparators();
     }
 
     public boolean obeysRedstone() {
@@ -235,8 +246,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (powered) {
             setRunState(RunState.RUNNING);
         } else if (runState == RunState.RUNNING) {
-            finishing = true;
-            setChanged();
+            setFinishing(true);
         }
     }
 
@@ -244,10 +254,18 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return RedstoneStatus.signalOf(runState, recording != null, lastFailure.halts(), finishing);
     }
 
-    private void notifyComparators() {
-        if (level != null) {
-            level.updateNeighbourForOutputSignal(worldPosition, getBlockState().getBlock());
-        }
+    // Every field the comparator reads moves through a setter that calls setChanged(), which
+    // is what tells comparators to look again. A bare assignment compiles just as happily and
+    // leaves them reading yesterday's signal.
+
+    private void setLastFailure(DiagnosticState state) {
+        lastFailure = state;
+        setChanged();
+    }
+
+    private void setFinishing(boolean value) {
+        finishing = value;
+        setChanged();
     }
 
     public BlockPos getOriginOffset() {
@@ -265,11 +283,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 Math.clamp(originOffset.getX() + delta.getX(), -limit, limit),
                 Math.clamp(originOffset.getY() + delta.getY(), -limit, limit),
                 Math.clamp(originOffset.getZ() + delta.getZ(), -limit, limit));
+        bumpRevision();
         setChanged();
     }
 
     public void resetOrigin() {
         originOffset = BlockPos.ZERO;
+        bumpRevision();
         setChanged();
     }
 
@@ -278,8 +298,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         this.motionTrack = new MotionTrack(recording.motion());
         this.ownerId = imprinter.getUUID();
         this.ownerName = imprinter.getGameProfile().name();
-        this.lastFailure = DiagnosticState.NONE;
+        setLastFailure(DiagnosticState.NONE);
         report.resize(recording.actions().size());
+        bumpRevision();
 
         rebuildRuntimes();
         setChanged();
@@ -288,7 +309,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     public void adopt(ServerPlayer placer) {
         this.ownerId = placer.getUUID();
         this.ownerName = placer.getGameProfile().name();
-        this.lastFailure = DiagnosticState.NONE;
+        setLastFailure(DiagnosticState.NONE);
         setChanged();
     }
 
@@ -296,6 +317,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     public void reinterpret(Recording routine) {
         this.recording = routine;
         report.resize(routine.actions().size());
+        bumpRevision();
         setChanged();
     }
 
@@ -305,8 +327,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         runtimes.clear();
         recording = null;
         motionTrack = null;
-        lastFailure = DiagnosticState.NONE;
+        setLastFailure(DiagnosticState.NONE);
         report.resize(0);
+        bumpRevision();
         if (level != null) {
             storage.spillClones(level, worldPosition);
         }
@@ -371,9 +394,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 setActive(false);
                 return;
             }
-            lastFailure = DiagnosticState.NONE;
-            setChanged();
-            notifyComparators();
+            setLastFailure(DiagnosticState.NONE);
         }
 
         if (runtimes.isEmpty()) {
@@ -608,9 +629,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                     return;
                 }
             } else if (lastFailure.isFailure()) {
-                lastFailure = DiagnosticState.NONE;
-                setChanged();
-                notifyComparators();
+                setLastFailure(DiagnosticState.NONE);
             }
         }
     }
@@ -650,9 +669,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private void recordFailure(ServerLevel serverLevel, FailureReason reason, BlockPos localPos,
                                int tick, Direction facing) {
         boolean wasRunning = !lastFailure.halts();
-        lastFailure = DiagnosticState.of(reason, localPos, tick);
-        setChanged();
-        notifyComparators();
+        setLastFailure(DiagnosticState.of(reason, localPos, tick));
 
         ClonePresentation.failureParticles(serverLevel, placement().toWorld(localPos));
 
@@ -711,6 +728,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             this.recording = carried;
             this.motionTrack = new MotionTrack(carried.motion());
             report.resize(carried.actions().size());
+            bumpRevision();
             rebuildRuntimes();
         }
     }
