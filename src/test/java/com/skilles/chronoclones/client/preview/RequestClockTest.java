@@ -41,6 +41,17 @@ class RequestClockTest {
     }
 
     @Test
+    @DisplayName("a world clock that jumps backwards reopens it")
+    void backwardsClockReopens() {
+        RequestClock clock = new RequestClock();
+        clock.claim(1_000_000, INTERVAL);
+
+        assertTrue(clock.claim(500, INTERVAL),
+                "a second world starts its clock over, and waiting out the first one is hours");
+        assertFalse(clock.claim(501, INTERVAL), "and the throttle then runs on the new clock");
+    }
+
+    @Test
     @DisplayName("resetting reopens it immediately")
     void resetReopens() {
         RequestClock clock = new RequestClock();

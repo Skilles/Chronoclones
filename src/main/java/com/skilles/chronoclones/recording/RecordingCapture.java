@@ -172,23 +172,25 @@ public final class RecordingCapture {
 
         BlockPos pos = event.getPos();
         ItemStack stack = event.getItemStack();
-        if (isControlInput(stack)) {
-            return;
+
+        // A control item's own click is not part of the routine, but what the click opens is: the
+        // chest does not care what the player was holding.
+        if (!isControlInput(stack)) {
+            BlockHitResult hit = event.getHitVec();
+            Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
+
+            InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseOnBlock(
+                            session.toLocal(pos),
+                            session.toLocal(hit.getDirection()),
+                            LocalSpace.rotateY(offset,
+                                    -LocalSpace.stepsFromNorth(session.originFacing())),
+                            hit.isInside(),
+                            event.getHand(),
+                            RecordedItem.of(stack),
+                            Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
+                                    player.level().getBlockState(pos).getBlock()))),
+                    Vec3.atCenterOf(pos));
         }
-
-        BlockHitResult hit = event.getHitVec();
-        Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
-
-        InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseOnBlock(
-                        session.toLocal(pos),
-                        session.toLocal(hit.getDirection()),
-                        LocalSpace.rotateY(offset, -LocalSpace.stepsFromNorth(session.originFacing())),
-                        hit.isInside(),
-                        event.getHand(),
-                        RecordedItem.of(stack),
-                        Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
-                                player.level().getBlockState(pos).getBlock()))),
-                Vec3.atCenterOf(pos));
 
         ContainerWatch.noteInteraction(player, pos, session);
     }
@@ -245,17 +247,16 @@ public final class RecordingCapture {
         }
 
         ItemStack stack = event.getItemStack();
-        if (isControlInput(stack)) {
-            return;
-        }
-
         Vec3 target = event.getTarget().position();
-        InteractionWatch.arm(player, event.getHand(), new ChronoAction.InteractEntity(
-                        session.toLocal(target),
-                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
-                        event.getHand(),
-                        RecordedItem.of(stack)),
-                target);
+
+        if (!isControlInput(stack)) {
+            InteractionWatch.arm(player, event.getHand(), new ChronoAction.InteractEntity(
+                            session.toLocal(target),
+                            BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
+                            event.getHand(),
+                            RecordedItem.of(stack)),
+                    target);
+        }
 
         ContainerWatch.noteInteraction(player, event.getTarget(), session);
     }

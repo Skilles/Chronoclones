@@ -58,8 +58,11 @@ public final class PreviewCache {
         Direction facing = state.getValue(ChronoAnchorBlock.FACING);
 
         long now = minecraft.level.getGameTime();
+        // Stamped in the future means a different world, and a difference that stays negative would
+        // read as fresh forever: nothing drawn, nothing asked for, until the anchor is looked away
+        // from.
         boolean fresh = pos.equals(cachedFor) && cachedAtTick != Long.MIN_VALUE
-                && now - cachedAtTick <= TTL_TICKS;
+                && now >= cachedAtTick && now - cachedAtTick <= TTL_TICKS;
         if (!fresh && CLOCK.claim(now, REQUEST_INTERVAL_TICKS)) {
             ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }

@@ -6,7 +6,10 @@ public final class RequestClock {
     private long nextAllowed = Long.MIN_VALUE;
 
     public boolean claim(long now, long intervalTicks) {
-        if (now < nextAllowed) {
+        // A world clock only ever runs forward within one world, so a time before the last claim is
+        // a different world, not a request too soon. Waiting for the old clock to catch up would be
+        // a wait of hours.
+        if (now < nextAllowed && now >= nextAllowed - intervalTicks) {
             return false;
         }
         nextAllowed = now + intervalTicks;

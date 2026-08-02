@@ -7,6 +7,7 @@ import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
 import com.skilles.chronoclones.recording.TimedAction;
+import com.skilles.chronoclones.registry.ModItems;
 
 import java.util.List;
 
@@ -43,6 +44,35 @@ final class CaptureGameTest {
                 CaptureGameTest::refusedItemUseRecordsNothing);
         ChronoclonesGameTests.add("a_passing_main_hand_does_not_shadow_the_off_hand",
                 CaptureGameTest::passingMainHandDoesNotShadowTheOffHand);
+        ChronoclonesGameTests.add("a_container_opened_with_the_recorder_in_hand_is_still_watched",
+                CaptureGameTest::containerOpensWithTheRecorderInHand);
+    }
+
+    private static void containerOpensWithTheRecorderInHand(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target, Blocks.CHEST);
+
+        BlockPos absolute = helper.absolutePos(target);
+        ServerPlayer player = recordingPlayerAt(helper, absolute);
+        RecordingSession session = RecordingSessions.start(player);
+        try {
+            player.setItemInHand(InteractionHand.MAIN_HAND,
+                    new ItemStack(ModItems.CHRONO_RECORDER.get()));
+            player.gameMode.useItemOn(player, helper.getLevel(), player.getMainHandItem(),
+                    InteractionHand.MAIN_HAND,
+                    new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false));
+
+            ContainerWatch.onContainerOpened(player, session);
+            if (ContainerWatch.openPosition(player) == null) {
+                helper.fail("opening a chest with the recorder in hand watched nothing, so the "
+                        + "session would never be recorded");
+                return;
+            }
+            helper.succeed();
+        } finally {
+            RecordingSessions.discard(player);
+            ContainerWatch.forget(player);
+        }
     }
 
     private static void refusedInteractionRecordsNothing(GameTestHelper helper) {

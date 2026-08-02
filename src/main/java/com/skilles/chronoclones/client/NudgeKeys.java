@@ -58,11 +58,11 @@ public final class NudgeKeys {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         PreviewCache.Target target = PreviewCache.current();
-        if (target == null) {
-            return;
-        }
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) {
+        if (target == null || client.player == null) {
+            // Presses queue up until something consumes them, and would then all arrive at once on
+            // the next anchor looked at.
+            drain();
             return;
         }
 
@@ -76,6 +76,17 @@ public final class NudgeKeys {
         }
         while (reset != null && reset.consumeClick()) {
             send(target.anchorPos(), BlockPos.ZERO);
+        }
+    }
+
+    private static void drain() {
+        for (KeyMapping mapping : KEYS.values()) {
+            while (mapping.consumeClick()) {
+                // discarded
+            }
+        }
+        while (reset != null && reset.consumeClick()) {
+            // discarded
         }
     }
 
