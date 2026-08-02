@@ -23,6 +23,33 @@ class RecordingLogicTest {
     }
 
     @Test
+    @DisplayName("deleting an action leaves the others where they were")
+    void deletingAnActionKeepsTheRest() {
+        List<TimedAction> timed = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            timed.add(new TimedAction(1 + i, new ChronoAction.UseOnBlock(
+                    new net.minecraft.core.BlockPos(0, 0, -1 - i),
+                    net.minecraft.core.Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
+                    net.minecraft.world.InteractionHand.MAIN_HAND,
+                    net.minecraft.core.registries.BuiltInRegistries.ITEM.wrapAsHolder(
+                            net.minecraft.world.item.Items.AIR))));
+        }
+        Recording before = new Recording(
+                List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),
+                List.copyOf(timed), 20, "Author", UUID.randomUUID());
+
+        Recording after = before.without(1);
+
+        assertEquals(2, after.actions().size());
+        assertEquals(before.lengthTicks(), after.lengthTicks(),
+                "deleting an action shortened the routine");
+        assertEquals(before.actions().get(0).tick(), after.actions().get(0).tick(),
+                "the surviving actions were re-timed by the deletion");
+        assertEquals(before.actions().get(2).tick(), after.actions().get(1).tick(),
+                "the surviving actions were re-timed by the deletion");
+    }
+
+    @Test
     @DisplayName("action type serialises by name, so reordering the enum cannot reinterpret saved data")
     void actionTypeIsSerialisedByName() {
         for (ChronoActionType type : ChronoActionType.values()) {

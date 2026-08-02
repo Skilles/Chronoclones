@@ -21,6 +21,40 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RecordingDetailTest {
 
+    @Test
+    @DisplayName("a row names itself after its options")
+    void rowsNameThemselvesAfterTheirOptions() {
+        // ItemStack.EMPTY, not a real tool: unit tests run before item components are bound,
+        // and the title only reads the block anyway.
+        TimedAction breaking = new TimedAction(1, new ChronoAction.BreakBlock(
+                new BlockPos(0, 0, -1),
+                BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.COBBLESTONE),
+                net.minecraft.world.item.ItemStack.EMPTY));
+        assertEquals("gui.chronoclones.editor.name.break",
+                keyOf(RecordingDetail.title(breaking)),
+                "a break recorded on cobblestone was not named after it");
+
+        TimedAction widened = breaking.withSettings(
+                com.skilles.chronoclones.recording.ActionSettings.DEFAULT
+                        .withRecordedSubject(false));
+        assertEquals("gui.chronoclones.editor.name.break.any",
+                keyOf(RecordingDetail.title(widened)),
+                "a break widened to any block kept the name of one");
+
+        TimedAction named = breaking.withSettings(
+                com.skilles.chronoclones.recording.ActionSettings.DEFAULT
+                        .withName("Cobble farm").withRecordedSubject(false));
+        assertEquals("Cobble farm", RecordingDetail.title(named).getString(),
+                "changing an option overwrote a name the player typed");
+    }
+
+    private static String keyOf(Component component) {
+        return component.getContents()
+                instanceof net.minecraft.network.chat.contents.TranslatableContents translatable
+                ? translatable.getKey()
+                : component.getString();
+    }
+
     private static String keysOf(List<Component> lines) {
         StringBuilder all = new StringBuilder();
         for (Component line : lines) {

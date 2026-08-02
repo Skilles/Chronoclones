@@ -50,8 +50,6 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::reinterpretingDoesNotRestartClones);
         ChronoclonesGameTests.add("discarding_leaves_the_anchor_blank",
                 RoutineEditGameTest::discardingLeavesTheAnchorBlank);
-        ChronoclonesGameTests.add("deleting_an_action_leaves_the_others_where_they_were",
-                RoutineEditGameTest::deletingAnActionKeepsTheRest);
         ChronoclonesGameTests.add("a_skipped_step_moves_nothing_and_its_neighbours_still_run",
                 RoutineEditGameTest::skippedStepMovesNothing);
         ChronoclonesGameTests.add("a_step_carries_only_what_it_is_told_to",
@@ -70,8 +68,6 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::blankAnchorHasNoStorage);
         ChronoclonesGameTests.add("a_blank_recorder_takes_a_recording_back_out",
                 RoutineEditGameTest::blankRecorderTakesTheRecordingBack);
-        ChronoclonesGameTests.add("a_row_names_itself_after_its_options",
-                RoutineEditGameTest::rowsNameThemselvesAfterTheirOptions);
     }
 
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
@@ -107,42 +103,6 @@ final class RoutineEditGameTest {
         } finally {
             player.getInventory().clearContent();
         }
-    }
-
-    private static void rowsNameThemselvesAfterTheirOptions(GameTestHelper helper) {
-        TimedAction breaking = new TimedAction(1, new ChronoAction.BreakBlock(
-                new BlockPos(0, 0, -1),
-                BuiltInRegistries.BLOCK.wrapAsHolder(Blocks.COBBLESTONE),
-                new ItemStack(Items.NETHERITE_PICKAXE)));
-
-        if (!keyOf(RecordingDetail.title(breaking)).equals("gui.chronoclones.editor.name.break")) {
-            helper.fail("a break recorded on cobblestone was not named after it: "
-                    + keyOf(RecordingDetail.title(breaking)));
-            return;
-        }
-
-        TimedAction widened = breaking.withSettings(
-                ActionSettings.DEFAULT.withRecordedSubject(false));
-        if (!keyOf(RecordingDetail.title(widened)).equals("gui.chronoclones.editor.name.break.any")) {
-            helper.fail("a break widened to any block kept the name of one: "
-                    + keyOf(RecordingDetail.title(widened)));
-            return;
-        }
-
-        TimedAction named = breaking.withSettings(
-                ActionSettings.DEFAULT.withName("Cobble farm").withRecordedSubject(false));
-        if (!RecordingDetail.title(named).getString().equals("Cobble farm")) {
-            helper.fail("changing an option overwrote a name the player typed: "
-                    + RecordingDetail.title(named).getString());
-            return;
-        }
-        helper.succeed();
-    }
-
-    private static String keyOf(Component component) {
-        return component.getContents() instanceof TranslatableContents translatable
-                ? translatable.getKey()
-                : component.getString();
     }
 
     private static void crouchOnto(GameTestHelper helper, FakePlayer player, ItemStack held,
@@ -227,6 +187,8 @@ final class RoutineEditGameTest {
         helper.succeed();
     }
 
+    /** Component lookups, so it cannot be a unit test: spawn eggs are found by scanning
+     * item components, which are only bound once the game is fully up. */
     private static void creatureActionsArePicturedAsCreatures(GameTestHelper helper) {
         assertIcon(helper, new ChronoAction.InteractEntity(
                         Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
@@ -350,30 +312,6 @@ final class RoutineEditGameTest {
         }
     }
 
-    private static void deletingAnActionKeepsTheRest(GameTestHelper helper) {
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
-                AnchorTestFixture.routine(List.of(
-                        useOn(new BlockPos(0, 0, -1)),
-                        useOn(new BlockPos(0, 0, -2)),
-                        useOn(new BlockPos(0, 0, -3)))));
-
-        Recording before = anchor.getRecording();
-        Recording after = before.without(1);
-
-        if (after.actions().size() != 2) {
-            helper.fail("expected two actions left of three, got " + after.actions().size());
-        }
-        if (after.lengthTicks() != before.lengthTicks()) {
-            helper.fail("deleting an action shortened the routine from " + before.lengthTicks()
-                    + " to " + after.lengthTicks() + " ticks");
-        }
-        if (after.actions().get(0).tick() != before.actions().get(0).tick()
-                || after.actions().get(1).tick() != before.actions().get(2).tick()) {
-            helper.fail("the surviving actions were re-timed by the deletion");
-        }
-        helper.succeed();
-    }
-
     private static void skippedStepMovesNothing(GameTestHelper helper) {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.BARREL);
@@ -409,11 +347,6 @@ final class RoutineEditGameTest {
     private static SessionStep send(int from, net.minecraft.world.item.Item item) {
         return new SessionStep.Move(from, SessionStep.Move.ELSEWHERE,
                 BuiltInRegistries.ITEM.wrapAsHolder(item), SessionStep.Amount.ALL);
-    }
-
-    private static ChronoAction useOn(BlockPos localPos) {
-        return new ChronoAction.UseOnBlock(localPos, Direction.UP, new Vec3(0.0, 0.5, 0.0), false,
-                InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.AIR));
     }
 
     private static void stock(ServerLevel level, BlockPos absolutePos, int slot,
