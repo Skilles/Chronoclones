@@ -20,8 +20,9 @@ public final class AnchorData {
     public static final int RUN_STATE = 10;
     public static final int REPORT_OK = 11;
     public static final int REPORT_SKIPPED = 12;
+    public static final int REDSTONE_MODE = 13;
 
-    public static final int PLAYHEAD = 13;
+    public static final int PLAYHEAD = 14;
 
     public static int playhead(int clone) {
         return PLAYHEAD + clone;

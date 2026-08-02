@@ -151,6 +151,9 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     @Override
     public boolean clickMenuButton(@NonNull Player player, int buttonId) {
+        if (buttonId == REDSTONE_BUTTON) {
+            return toggleRedstone(player);
+        }
         if (buttonId >= RUN_STATE_BUTTON) {
             return setRunState(player, buttonId - RUN_STATE_BUTTON);
         }
@@ -164,6 +167,21 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     }
 
     public static final int RUN_STATE_BUTTON = 16;
+
+    public static final int REDSTONE_BUTTON = RUN_STATE_BUTTON + 3;
+
+    private boolean toggleRedstone(Player player) {
+        if (player.isFakePlayer()
+                || !AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
+            return false;
+        }
+        anchor.setObeysRedstone(!anchor.obeysRedstone());
+        return true;
+    }
+
+    public boolean isObeyingRedstone() {
+        return data.get(AnchorData.REDSTONE_MODE) != 0;
+    }
 
     private boolean setRunState(Player player, int ordinal) {
         // A clone acts under its owner's name, so the ownership check below would pass it.
@@ -268,7 +286,9 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         public static final int TRANSPORT_X = WIDTH - MARGIN - TRANSPORT_WIDTH;
         public static final int TRANSPORT_Y = TIMELINE_Y - (TRANSPORT_SIZE - TIMELINE_HEIGHT) / 2 - 1;
 
-        public static final int TIMELINE_WIDTH = TRANSPORT_X - MARGIN - 6;
+        public static final int REDSTONE_X = TRANSPORT_X - TRANSPORT_SIZE - 6;
+
+        public static final int TIMELINE_WIDTH = REDSTONE_X - MARGIN - 6;
 
         public static int transportX(int index) {
             return TRANSPORT_X + index * (TRANSPORT_SIZE + TRANSPORT_GAP);

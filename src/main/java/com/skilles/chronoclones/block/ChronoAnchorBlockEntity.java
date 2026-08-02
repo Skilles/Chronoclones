@@ -113,6 +113,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case AnchorData.REPORT_OK -> report.count(RunReport.Outcome.OK);
                 case AnchorData.REPORT_SKIPPED -> report.count(RunReport.Outcome.SKIPPED)
                         + report.count(RunReport.Outcome.HALTED);
+                case AnchorData.REDSTONE_MODE -> obeysRedstone ? 1 : 0;
                 default -> 0;
             };
         }

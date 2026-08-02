@@ -56,6 +56,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         int yo = topPos;
 
         hoveredTransport = transportAt(mouseX, mouseY);
+        hoveredRedstone = redstoneAt(mouseX, mouseY);
 
         AnchorPanels.panel(extractor, xo - 2, yo - 2, imageWidth + 4, imageHeight + 4);
         extractor.fill(xo, yo, xo + imageWidth, yo + imageHeight, AnchorPanels.WINDOW);
@@ -113,9 +114,14 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                     xo + Layout.transportX(index), yo + Layout.TRANSPORT_Y, Layout.TRANSPORT_SIZE,
                     RunState.byOrdinal(index) == state, index == hoveredTransport);
         }
+
+        AnchorPanels.transport(extractor, AnchorPanels.Kind.REDSTONE,
+                xo + Layout.REDSTONE_X, yo + Layout.TRANSPORT_Y, Layout.TRANSPORT_SIZE,
+                menu.isObeyingRedstone(), hoveredRedstone);
     }
 
     private int hoveredTransport = -1;
+    private boolean hoveredRedstone;
 
     private int transportAt(int mouseX, int mouseY) {
         for (int index = 0; index < TRANSPORT.length; index++) {
@@ -125,6 +131,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             }
         }
         return -1;
+    }
+
+    private boolean redstoneAt(int mouseX, int mouseY) {
+        return within(mouseX, mouseY, Layout.REDSTONE_X, Layout.TRANSPORT_Y,
+                Layout.TRANSPORT_SIZE, Layout.TRANSPORT_SIZE);
     }
 
     private void pills(GuiGraphicsExtractor extractor, int xo, int yo) {
@@ -321,6 +332,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                     ChronoAnchorMenu.RUN_STATE_BUTTON + control);
             return true;
         }
+        if (redstoneAt((int) event.x(), (int) event.y())
+                && minecraft != null && minecraft.gameMode != null) {
+            minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
+                    ChronoAnchorMenu.REDSTONE_BUTTON);
+            return true;
+        }
 
         int tabs = CloneTabs.count(menu.getActiveClones());
         int tab = CloneTabs.at((int) event.x() - leftPos, (int) event.y() - topPos, tabs,
@@ -372,6 +389,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             int control = transportAt(mouseX, mouseY);
             tooltip(extractor, mouseX, mouseY,
                     Component.translatable(RunState.byOrdinal(control).translationKey()));
+        } else if (redstoneAt(mouseX, mouseY)) {
+            tooltip(extractor, mouseX, mouseY, java.util.List.of(
+                    Component.translatable(menu.isObeyingRedstone()
+                            ? "gui.chronoclones.anchor.redstone.obey"
+                            : "gui.chronoclones.anchor.redstone.ignore"),
+                    Component.translatable("gui.chronoclones.anchor.redstone.tip")));
         } else if (within(mouseX, mouseY, Layout.MARGIN, Layout.TIMELINE_Y,
                 Layout.TIMELINE_WIDTH, Layout.TIMELINE_HEIGHT) && menu.getLengthTicks() > 0) {
             tooltip(extractor, mouseX, mouseY, java.util.List.of(

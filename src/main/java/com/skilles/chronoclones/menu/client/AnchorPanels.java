@@ -119,6 +119,14 @@ final class AnchorPanels {
                 g.fill(left + span - 2, top, left + span, top + span, tint);
             }
             case STOP -> g.fill(left, top, left + span, top + span, tint);
+            // A dust-diamond, the shape redstone draws on the ground.
+            case REDSTONE -> {
+                for (int row = 0; row < span; row++) {
+                    int width = 2 * (Math.min(row, span - 1 - row) + 1);
+                    g.fill(left + (span - width) / 2, top + row,
+                            left + (span - width) / 2 + width, top + row + 1, tint);
+                }
+            }
         }
     }
 
@@ -126,7 +134,8 @@ final class AnchorPanels {
 
         PLAY,
         PAUSE,
-        STOP
+        STOP,
+        REDSTONE
     }
 
     static int wash(int colour, int alpha) {
