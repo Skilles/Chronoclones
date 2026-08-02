@@ -83,6 +83,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     // Not saved: the routine loops, so a fresh report fills back in within one cycle.
     private final RunReport report = new RunReport();
 
+    private boolean obeysRedstone;
+    // Persisted so a reload does not read the world's standing power as a fresh edge.
+    private boolean redstonePowered;
+    private boolean finishing;
+
     private final ContainerData data = new ContainerData() {
         @Override
         public int get(int index) {
@@ -190,7 +195,50 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             return;
         }
         runState = state;
+        finishing = false;
         setChanged();
+        notifyComparators();
+    }
+
+    public boolean obeysRedstone() {
+        return obeysRedstone;
+    }
+
+    public void setObeysRedstone(boolean obeys) {
+        if (obeysRedstone == obeys) {
+            return;
+        }
+        obeysRedstone = obeys;
+        setChanged();
+    }
+
+    /** A rising edge starts the routine; losing the signal lets the cycle finish first. */
+    public void onRedstoneSignal(boolean powered) {
+        boolean was = redstonePowered;
+        redstonePowered = powered;
+        if (powered == was) {
+            return;
+        }
+        setChanged();
+        if (!obeysRedstone) {
+            return;
+        }
+        if (powered) {
+            setRunState(RunState.RUNNING);
+        } else if (runState == RunState.RUNNING) {
+            finishing = true;
+            setChanged();
+        }
+    }
+
+    public int comparatorSignal() {
+        return RedstoneStatus.signalOf(runState, recording != null, lastFailure.halts(), finishing);
+    }
+
+    private void notifyComparators() {
+        if (level != null) {
+            level.updateNeighbourForOutputSignal(worldPosition, getBlockState().getBlock());
+        }
     }
 
     public BlockPos getOriginOffset() {
@@ -316,6 +364,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             }
             lastFailure = DiagnosticState.NONE;
             setChanged();
+            notifyComparators();
         }
 
         if (runtimes.isEmpty()) {
@@ -329,9 +378,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         int length = Math.max(recording.lengthTicks(), 1);
 
         for (CloneRuntime runtime : runtimes) {
+            if (runtime.finished()) {
+                continue;
+            }
             runtime.advance(storage.upgrades().ticksPerStep());
         // Looping mid-use would reset the cursor and strand the borrowed item.
             if (runtime.playhead() >= length && !runtime.isUsing()) {
+                if (finishing) {
+                    runtime.finish();
+                    continue;
+                }
                 runtime.loop(length);
             }
 
@@ -341,6 +397,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             if (lastFailure.halts()) {
                 return;
             }
+        }
+
+        if (finishing && runtimes.stream().allMatch(CloneRuntime::finished)) {
+            setRunState(RunState.STOPPED);
         }
     }
 
@@ -541,6 +601,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             } else if (lastFailure.isFailure()) {
                 lastFailure = DiagnosticState.NONE;
                 setChanged();
+                notifyComparators();
             }
         }
     }
@@ -582,6 +643,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         boolean wasRunning = !lastFailure.halts();
         lastFailure = DiagnosticState.of(reason, localPos, tick);
         setChanged();
+        notifyComparators();
 
         ClonePresentation.failureParticles(serverLevel, placement().toWorld(localPos));
 
@@ -666,6 +728,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             output.store("origin_offset", BlockPos.CODEC, originOffset);
         }
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
+        output.putBoolean("obeys_redstone", obeysRedstone);
+        output.putBoolean("redstone_powered", redstonePowered);
+        output.putBoolean("finishing", finishing);
     }
 
     @Override
@@ -686,6 +751,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         : RunState.STOPPED);
         originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
+        obeysRedstone = input.getBooleanOr("obeys_redstone", false);
+        redstonePowered = input.getBooleanOr("redstone_powered", false);
+        finishing = input.getBooleanOr("finishing", false);
 
         runtimes.clear();
     }

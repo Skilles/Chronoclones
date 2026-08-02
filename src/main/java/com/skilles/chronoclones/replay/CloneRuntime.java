@@ -151,6 +151,18 @@ public final class CloneRuntime {
         targetTicks = 0;
     }
 
+    private boolean finished;
+
+    public boolean finished() {
+        return finished;
+    }
+
+    /** The clone has played its last pass and takes its bow. */
+    public void finish() {
+        finished = true;
+        discardClone();
+    }
+
     public void loop(int lengthTicks) {
         if (lengthTicks <= 0) {
             playhead = 0;

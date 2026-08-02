@@ -35,6 +35,7 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -78,10 +79,36 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     public void setPlacedBy(@NonNull Level level, @NonNull BlockPos pos, @NonNull BlockState state, @Nullable LivingEntity placer,
                             @NonNull ItemStack stack) {
         super.setPlacedBy(level, pos, state, placer, stack);
-        if (placer instanceof ServerPlayer player
-                && level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
-            anchor.adopt(player);
+        if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
+            if (placer instanceof ServerPlayer player) {
+                anchor.adopt(player);
+            }
+            // Seeded so power already standing at placement does not read as a rising edge later.
+            anchor.onRedstoneSignal(level.hasNeighborSignal(pos));
         }
+    }
+
+    @Override
+    protected void neighborChanged(@NonNull BlockState state, Level level, @NonNull BlockPos pos,
+                                   @NonNull Block neighborBlock, @Nullable Orientation orientation,
+                                   boolean movedByPiston) {
+        if (!level.isClientSide()
+                && level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
+            anchor.onRedstoneSignal(level.hasNeighborSignal(pos));
+        }
+    }
+
+    @Override
+    protected boolean hasAnalogOutputSignal(@NonNull BlockState state) {
+        return true;
+    }
+
+    @Override
+    protected int getAnalogOutputSignal(@NonNull BlockState state, Level level, @NonNull BlockPos pos,
+                                        @NonNull Direction direction) {
+        return level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor
+                ? anchor.comparatorSignal()
+                : 0;
     }
 
     @Override
