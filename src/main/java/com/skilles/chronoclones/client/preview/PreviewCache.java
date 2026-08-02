@@ -31,6 +31,7 @@ public final class PreviewCache {
     private static BlockPos cachedOffset = BlockPos.ZERO;
     private static long cachedAtTick = Long.MIN_VALUE;
     private static final RequestClock CLOCK = new RequestClock();
+    private static final NudgeLedger LEDGER = new NudgeLedger();
 
     public record Target(BlockPos anchorPos, Direction facing, Recording recording, boolean fromHand,
                          DiagnosticState failure, BlockPos originOffset) {
@@ -64,10 +65,13 @@ public final class PreviewCache {
         boolean fresh = pos.equals(cachedFor) && cachedAtTick != Long.MIN_VALUE
                 && now >= cachedAtTick && now - cachedAtTick <= TTL_TICKS;
         if (!fresh && CLOCK.claim(now, REQUEST_INTERVAL_TICKS)) {
+            LEDGER.asked();
             ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }
 
-        BlockPos offset = fresh ? cachedOffset : BlockPos.ZERO;
+        // The last known offset, even gone stale, beats flashing back to the origin for the
+        // frames a refresh takes.
+        BlockPos offset = pos.equals(cachedFor) ? cachedOffset : BlockPos.ZERO;
 
         Recording held = heldRecording(minecraft.player);
         if (held != null) {
@@ -83,15 +87,19 @@ public final class PreviewCache {
 
     public static void accept(AnchorPreviewPayloads.Reply reply) {
         Minecraft minecraft = Minecraft.getInstance();
+        boolean nudgedSinceAsked = reply.pos().equals(cachedFor) && !LEDGER.replyKnowsTheOrigin();
         cachedFor = reply.pos();
         cached = reply.recording().orElse(null);
         cachedFailure = reply.failure();
-        cachedOffset = reply.originOffset();
+        if (!nudgedSinceAsked) {
+            cachedOffset = reply.originOffset();
+        }
         cachedAtTick = minecraft.level == null ? Long.MIN_VALUE : minecraft.level.getGameTime();
     }
 
     public static void nudged(BlockPos delta) {
         cachedOffset = delta.equals(BlockPos.ZERO) ? BlockPos.ZERO : cachedOffset.offset(delta);
+        LEDGER.nudged();
     }
 
     public static void forget() {
