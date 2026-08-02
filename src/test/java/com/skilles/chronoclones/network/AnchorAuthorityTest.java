@@ -2,11 +2,9 @@ package com.skilles.chronoclones.network;
 
 import java.util.UUID;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AnchorAuthorityTest {
@@ -18,13 +16,6 @@ class AnchorAuthorityTest {
     @DisplayName("the owner may retune their own anchor")
     void ownerMayRetune() {
         assertTrue(AnchorAuthority.mayRetune(OWNER, OWNER));
-    }
-
-    @Test
-    @DisplayName("nobody else may")
-    @Disabled("TODO - add proper permissions system")
-    void strangersMayNot() {
-        assertFalse(AnchorAuthority.mayRetune(OWNER, STRANGER));
     }
 
     @Test

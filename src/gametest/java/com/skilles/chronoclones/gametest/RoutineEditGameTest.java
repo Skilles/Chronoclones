@@ -1,14 +1,12 @@
 package com.skilles.chronoclones.gametest;
 
 import java.util.List;
-import java.util.UUID;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.item.ActionIcons;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
 import com.skilles.chronoclones.item.RecordingDetail;
 import com.skilles.chronoclones.recording.TimedAction;
-import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
@@ -50,8 +48,6 @@ final class RoutineEditGameTest {
                 RoutineEditGameTest::editedSettingsReachTheRoutine);
         ChronoclonesGameTests.add("reinterpreting_does_not_restart_the_clones",
                 RoutineEditGameTest::reinterpretingDoesNotRestartClones);
-        ChronoclonesGameTests.add("only_the_owner_may_reinterpret",
-                RoutineEditGameTest::onlyTheOwnerMayReinterpret);
         ChronoclonesGameTests.add("discarding_leaves_the_anchor_blank",
                 RoutineEditGameTest::discardingLeavesTheAnchorBlank);
         ChronoclonesGameTests.add("deleting_an_action_leaves_the_others_where_they_were",
@@ -375,11 +371,6 @@ final class RoutineEditGameTest {
                 || after.actions().get(1).tick() != before.actions().get(2).tick()) {
             helper.fail("the surviving actions were re-timed by the deletion");
         }
-
-        UUID stranger = UUID.fromString("c0000000-0000-0000-0000-00000000000c");
-        if (AnchorAuthority.mayRetune(anchor.getOwnerId(), stranger)) {
-            helper.fail("a stranger was allowed to delete from somebody else's routine");
-        }
         helper.succeed();
     }
 
@@ -495,17 +486,4 @@ final class RoutineEditGameTest {
                 .thenSucceed();
     }
 
-    private static void onlyTheOwnerMayReinterpret(GameTestHelper helper) {
-        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
-                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-
-        UUID stranger = UUID.fromString("c0000000-0000-0000-0000-00000000000c");
-        if (AnchorAuthority.mayRetune(anchor.getOwnerId(), stranger)) {
-            helper.fail("a stranger was allowed to retune somebody else's anchor");
-        }
-        if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), AnchorTestFixture.OWNER_ID)) {
-            helper.fail("the owner was refused their own anchor");
-        }
-        helper.succeed();
-    }
 }

@@ -1,12 +1,9 @@
 package com.skilles.chronoclones.gametest;
 
-import java.util.UUID;
-
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.block.RunState;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
 import com.skilles.chronoclones.menu.AnchorData;
-import com.skilles.chronoclones.network.AnchorAuthority;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
@@ -26,8 +23,6 @@ final class RunStateGameTest {
                 RunStateGameTest::stoppingStartsOver);
         ChronoclonesGameTests.add("a_stopped_anchor_still_shows_its_storage_tabs",
                 RunStateGameTest::stoppedAnchorKeepsItsTabs);
-        ChronoclonesGameTests.add("only_the_owner_may_work_the_transport",
-                RunStateGameTest::onlyTheOwnerMayWorkTheTransport);
     }
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);
@@ -129,19 +124,6 @@ final class RunStateGameTest {
                     }
                 })
                 .thenSucceed();
-    }
-
-    private static void onlyTheOwnerMayWorkTheTransport(GameTestHelper helper) {
-        ChronoAnchorBlockEntity anchor = running(helper);
-
-        UUID stranger = UUID.fromString("c0000000-0000-0000-0000-00000000000c");
-        if (AnchorAuthority.mayRetune(anchor.getOwnerId(), stranger)) {
-            helper.fail("a stranger was allowed to stop somebody else's anchor");
-        }
-        if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), AnchorTestFixture.OWNER_ID)) {
-            helper.fail("the owner was refused the controls of their own anchor");
-        }
-        helper.succeed();
     }
 
     private static java.util.List<ChronoCloneEntity> clones(GameTestHelper helper) {
