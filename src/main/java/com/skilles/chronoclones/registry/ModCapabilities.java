@@ -18,6 +18,6 @@ public final class ModCapabilities {
         event.registerBlockEntity(
                 Capabilities.Item.BLOCK,
                 ModBlockEntities.CHRONO_ANCHOR.get(),
-                (anchor, side) -> anchor.getInventory());
+                (anchor, side) -> anchor.getExternalInventory());
     }
 }

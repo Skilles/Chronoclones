@@ -135,6 +135,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return storage.combined();
     }
 
+    private final GatedInventory externalInventory =
+            new GatedInventory(storage.combined(), () -> recording != null);
+
+    /** What hoppers and pipes reach. */
+    public ResourceHandler<ItemResource> getExternalInventory() {
+        return externalInventory;
+    }
+
     public ItemStacksResourceHandler getCloneInventory(int clone) {
         return storage.cloneInventory(clone);
     }

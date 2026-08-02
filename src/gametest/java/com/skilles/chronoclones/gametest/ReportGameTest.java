@@ -29,6 +29,33 @@ final class ReportGameTest {
                 ReportGameTest::haltLeavesTheRestPending);
         ChronoclonesGameTests.add("a_container_step_that_fails_names_its_step",
                 ReportGameTest::failingStepNamesItself);
+        ChronoclonesGameTests.add("the_report_names_the_clone_that_tried",
+                ReportGameTest::reportNamesTheClone);
+    }
+
+    private static void reportNamesTheClone(GameTestHelper helper) {
+        // No stone at the target, so every clone that reaches the break records the same skip.
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+        anchor.getUpgradeHandler().set(0, net.neoforged.neoforge.transfer.item.ItemResource.of(
+                com.skilles.chronoclones.registry.ModItems.CHRONO_SPLITTER.get()), 1);
+        anchor.serverTick();
+
+        helper.startSequence()
+                .thenExecuteAfter(25, () -> {
+                    RunReport.Entry entry = anchor.getRunReport().entry(0);
+                    if (entry.outcome() != RunReport.Outcome.SKIPPED) {
+                        helper.fail("two clones ran a cycle and the report still says "
+                                + entry.outcome());
+                        return;
+                    }
+                    int clones = anchor.getUpgrades().cloneCount();
+                    if (entry.cloneIndex() < 0 || entry.cloneIndex() >= clones) {
+                        helper.fail("the report blames clone " + entry.cloneIndex()
+                                + " of " + clones);
+                    }
+                })
+                .thenSucceed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);

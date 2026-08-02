@@ -24,6 +24,118 @@ final class RedstoneGameTest {
                 RedstoneGameTest::ignoringAnchorIgnores);
         ChronoclonesGameTests.add("a_comparator_reads_running_and_stopped_apart",
                 RedstoneGameTest::comparatorReadsState);
+        ChronoclonesGameTests.add("the_redstone_mode_and_latch_survive_a_reload",
+                RedstoneGameTest::latchSurvivesAReload);
+        ChronoclonesGameTests.add("standing_power_read_again_after_a_reload_is_not_an_edge",
+                RedstoneGameTest::standingPowerIsNotAnEdge);
+        ChronoclonesGameTests.add("a_starved_anchor_reads_stalled_on_a_comparator",
+                RedstoneGameTest::starvedAnchorReadsStalled);
+        ChronoclonesGameTests.add("a_wind_down_reads_below_full_on_a_comparator",
+                RedstoneGameTest::windDownReadsBelowFull);
+        ChronoclonesGameTests.add("a_rising_edge_resumes_a_paused_anchor",
+                RedstoneGameTest::risingEdgeResumesFromPause);
+    }
+
+    private static ChronoAnchorBlockEntity reloaded(GameTestHelper helper,
+                                                    ChronoAnchorBlockEntity anchor) {
+        net.minecraft.world.level.storage.TagValueOutput output =
+                net.minecraft.world.level.storage.TagValueOutput.createWithContext(
+                        net.minecraft.util.ProblemReporter.DISCARDING,
+                        helper.getLevel().registryAccess());
+        anchor.saveWithoutMetadata(output);
+
+        ChronoAnchorBlockEntity fresh = new ChronoAnchorBlockEntity(
+                anchor.getBlockPos(), anchor.getBlockState());
+        fresh.loadWithComponents(net.minecraft.world.level.storage.TagValueInput.create(
+                net.minecraft.util.ProblemReporter.DISCARDING,
+                helper.getLevel().registryAccess(), output.buildResult()));
+        return fresh;
+    }
+
+    private static void latchSurvivesAReload(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = obedientStoppedAnchor(helper);
+        anchor.onRedstoneSignal(true);
+        anchor.onRedstoneSignal(false);
+
+        ChronoAnchorBlockEntity loaded = reloaded(helper, anchor);
+        if (!loaded.obeysRedstone()) {
+            helper.fail("the redstone mode did not survive the reload");
+            return;
+        }
+        if (loaded.comparatorSignal() != RedstoneStatus.FINISHING) {
+            helper.fail("the farewell cycle read " + loaded.comparatorSignal()
+                    + " after a reload instead of " + RedstoneStatus.FINISHING
+                    + ": the finishing latch was lost and the routine would loop forever");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static void standingPowerIsNotAnEdge(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = obedientStoppedAnchor(helper);
+        anchor.onRedstoneSignal(true);
+        anchor.setRunState(RunState.STOPPED);
+
+        ChronoAnchorBlockEntity loaded = reloaded(helper, anchor);
+        loaded.onRedstoneSignal(true);
+        if (loaded.getRunState() != RunState.STOPPED) {
+            helper.fail("power that never went away started the routine again after a reload");
+            return;
+        }
+
+        loaded.onRedstoneSignal(false);
+        loaded.onRedstoneSignal(true);
+        if (loaded.getRunState() != RunState.RUNNING) {
+            helper.fail("a genuine fresh edge after the reload was ignored");
+            return;
+        }
+        helper.succeed();
+    }
+
+    private static void starvedAnchorReadsStalled(GameTestHelper helper) {
+        helper.setBlock(AnchorTestFixture.targetOf(ANCHOR), Blocks.STONE);
+        AnchorTestFixture.placeAndImprintUnfueled(
+                helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
+
+        helper.startSequence()
+                .thenExecuteAfter(10, () -> {
+                    if (signal(helper) != RedstoneStatus.STALLED) {
+                        helper.fail("an anchor with no charge reads " + signal(helper)
+                                + " instead of " + RedstoneStatus.STALLED);
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void windDownReadsBelowFull(GameTestHelper helper) {
+        obedientStoppedAnchor(helper);
+
+        helper.startSequence()
+                .thenExecuteAfter(1, () -> power(helper, true))
+                .thenExecuteAfter(3, () -> power(helper, false))
+                .thenExecuteAfter(2, () -> {
+                    if (signal(helper) != RedstoneStatus.FINISHING) {
+                        helper.fail("an anchor playing its farewell cycle reads " + signal(helper)
+                                + " instead of " + RedstoneStatus.FINISHING);
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void risingEdgeResumesFromPause(GameTestHelper helper) {
+        ChronoAnchorBlockEntity anchor = obedientStoppedAnchor(helper);
+
+        helper.startSequence()
+                .thenExecuteAfter(1, () -> power(helper, true))
+                .thenExecuteAfter(2, () -> anchor.setRunState(RunState.PAUSED))
+                .thenExecuteAfter(2, () -> power(helper, false))
+                .thenExecuteAfter(2, () -> power(helper, true))
+                .thenExecuteAfter(2, () -> {
+                    if (anchor.getRunState() != RunState.RUNNING) {
+                        helper.fail("a fresh edge left a paused anchor " + anchor.getRunState());
+                    }
+                })
+                .thenSucceed();
     }
 
     private static final BlockPos ANCHOR = new BlockPos(8, 1, 8);

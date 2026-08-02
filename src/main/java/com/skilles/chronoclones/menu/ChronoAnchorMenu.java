@@ -103,12 +103,22 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
 
         ItemStacksResourceHandler fuel = anchor.getFuelHandler();
-        addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, Layout.FUEL_X, Layout.MODULE_Y));
+        addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, Layout.FUEL_X, Layout.MODULE_Y) {
+            @Override
+            public boolean mayPlace(@NonNull ItemStack stack) {
+                return isAnchorFuel(playerInventory.player.level(), stack) && super.mayPlace(stack);
+            }
+        });
 
         ItemStacksResourceHandler upgrades = anchor.getUpgradeHandler();
         for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
             addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i,
-                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18));
+                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18) {
+                @Override
+                public boolean mayPlace(@NonNull ItemStack stack) {
+                    return UpgradeState.isUpgrade(stack.getItem()) && super.mayPlace(stack);
+                }
+            });
         }
 
         addPlayerInventory(playerInventory);
@@ -142,6 +152,12 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     public boolean hasStorage() {
         return getLengthTicks() > 0;
+    }
+
+    /** What consumeFuel will actually take: burnables, or the creative cell. */
+    public static boolean isAnchorFuel(net.minecraft.world.level.Level level, ItemStack stack) {
+        return stack.is(com.skilles.chronoclones.registry.ModItems.CREATIVE_CHARGE_CELL.get())
+                || stack.getBurnTime(null, level.fuelValues()) > 0;
     }
 
     /** Clamped on read, so a clone going away takes its page with it. */
