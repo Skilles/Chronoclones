@@ -93,9 +93,9 @@ public final class RecordingHud {
         int gap = 4;
         int barY = top + 12;
         meter(graphics, centre - barWidth - gap / 2, barY, barWidth,
-                RecordingHudState.fraction(STATE.elapsedTicks(), ChronoclonesConfig.MAX_RECORDING_TICKS.getAsInt()));
+                RecordingHudState.fraction(STATE.elapsedTicks(), ChronoclonesConfig.maxRecordingTicks()));
         meter(graphics, centre + gap / 2, barY, barWidth,
-                RecordingHudState.fraction(STATE.actionCount(), ChronoclonesConfig.MAX_ACTIONS.getAsInt()));
+                RecordingHudState.fraction(STATE.actionCount(), ChronoclonesConfig.maxActions()));
 
         if (warning) {
             graphics.centeredText(client.font,

@@ -61,6 +61,18 @@ public final class ChronoclonesConfig {
         return orDefault(MAX_CONTAINER_STEPS, 256);
     }
 
+    public static int maxRecordingTicks() {
+        return orDefault(MAX_RECORDING_TICKS, 1200);
+    }
+
+    public static int maxActions() {
+        return orDefault(MAX_ACTIONS, 256);
+    }
+
+    public static int maxRadius() {
+        return orDefault(MAX_RADIUS, 24);
+    }
+
     public static int maxRecordingBytes() {
         return orDefault(MAX_RECORDING_BYTES, 262_144);
     }

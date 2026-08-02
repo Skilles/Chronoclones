@@ -16,9 +16,9 @@ final class RadiusSlider extends FlatSlider {
     RadiusSlider(Font font, int x, int y, int width, int height, TargetRule rule,
                  DoubleConsumer onChange) {
         super(font, x, y, width, height,
-                Math.clamp(rule.radius() / (double) ChronoclonesConfig.MAX_RADIUS.getAsInt(), 0.0, 1.0));
+                Math.clamp(rule.radius() / (double) ChronoclonesConfig.maxRadius(), 0.0, 1.0));
         this.onChange = onChange;
-        this.maxRadius = ChronoclonesConfig.MAX_RADIUS.getAsInt();
+        this.maxRadius = ChronoclonesConfig.maxRadius();
         updateMessage();
     }
 

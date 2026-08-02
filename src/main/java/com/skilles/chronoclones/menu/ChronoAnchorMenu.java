@@ -9,6 +9,7 @@ import com.skilles.chronoclones.network.AnchorAuthority;
 import com.skilles.chronoclones.block.UpgradeState;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.TimedAction;
+import com.skilles.chronoclones.registry.ModBlocks;
 import com.skilles.chronoclones.registry.ModMenus;
 
 import net.minecraft.core.BlockPos;
@@ -118,7 +119,10 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         if (playerInventory.player.level().getBlockEntity(pos) instanceof ChronoAnchorBlockEntity be) {
             return be;
         }
-        throw new IllegalStateException("No clone anchor at " + pos);
+        // The open packet can outrun the chunk on a dedicated server. A detached stand-in gives
+        // the slots somewhere to live; the server's copies fill them over normal slot sync.
+        return new ChronoAnchorBlockEntity(pos,
+                ModBlocks.CHRONO_ANCHOR.get().defaultBlockState());
     }
 
     private void addPlayerInventory(Inventory playerInventory) {
