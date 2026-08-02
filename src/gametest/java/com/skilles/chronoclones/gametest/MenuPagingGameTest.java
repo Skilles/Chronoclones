@@ -25,6 +25,39 @@ final class MenuPagingGameTest {
                 MenuPagingGameTest::refusesAPageWithNoClone);
         ChronoclonesGameTests.add("menu_selection_needs_only_synced_data",
                 MenuPagingGameTest::selectionNeedsOnlySyncedData);
+        ChronoclonesGameTests.add("an_unimprinted_anchor_refuses_a_shift_click",
+                MenuPagingGameTest::unimprintedAnchorRefusesAShiftClick);
+    }
+
+    private static void unimprintedAnchorRefusesAShiftClick(GameTestHelper helper) {
+        helper.setBlock(ANCHOR, com.skilles.chronoclones.registry.ModBlocks.CHRONO_ANCHOR.get()
+                .defaultBlockState());
+        if (!(helper.getLevel().getBlockEntity(helper.absolutePos(ANCHOR))
+                instanceof ChronoAnchorBlockEntity anchor)) {
+            helper.fail("anchor block entity missing");
+            return;
+        }
+
+        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        player.getInventory().clearContent();
+        player.getInventory().setItem(9, new ItemStack(Items.DIAMOND, 12));
+
+        ChronoAnchorMenu menu = new ChronoAnchorMenu(1, player.getInventory(), anchor,
+                anchor.getContainerData());
+        menu.quickMoveStack(player, PLAYER_SLOTS_START);
+
+        if (player.getInventory().getItem(9).getCount() != 12) {
+            helper.fail("a shift-click into a blank anchor took the stack: its storage is hidden,"
+                    + " so whatever it swallows looks lost until an imprint reveals it");
+            return;
+        }
+        for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
+            if (AnchorTestFixture.countIn(anchor.getCloneInventory(clone), Items.DIAMOND) != 0) {
+                helper.fail("clone " + clone + " swallowed the diamonds before any imprint");
+                return;
+            }
+        }
+        helper.succeed();
     }
 
     private static void selectionNeedsOnlySyncedData(GameTestHelper helper) {

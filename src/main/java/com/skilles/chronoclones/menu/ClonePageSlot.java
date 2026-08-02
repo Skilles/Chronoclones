@@ -3,7 +3,9 @@ package com.skilles.chronoclones.menu;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.transfer.IndexModifier;
+import org.jspecify.annotations.NonNull;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
@@ -27,5 +29,12 @@ public class ClonePageSlot extends ResourceHandlerSlot {
     @Override
     public boolean isActive() {
         return usable.getAsBoolean() && clone == selected.getAsInt();
+    }
+
+    /** A hidden square still takes a shift-click, and what it swallows looks lost until an
+     * imprint reveals the storage again. */
+    @Override
+    public boolean mayPlace(@NonNull ItemStack stack) {
+        return isActive() && super.mayPlace(stack);
     }
 }
