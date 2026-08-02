@@ -229,6 +229,14 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
                 data.get(AnchorData.FAILURE_Z));
     }
 
+    public int getReportOk() {
+        return data.get(AnchorData.REPORT_OK);
+    }
+
+    public int getReportSkipped() {
+        return data.get(AnchorData.REPORT_SKIPPED);
+    }
+
     public static final class Layout {
 
         public static final int WIDTH = 230;

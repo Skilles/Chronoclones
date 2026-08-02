@@ -105,6 +105,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 case AnchorData.FAILURE_X -> lastFailure.localPos().getX();
                 case AnchorData.FAILURE_Y -> lastFailure.localPos().getY();
                 case AnchorData.FAILURE_Z -> lastFailure.localPos().getZ();
+                case AnchorData.REPORT_OK -> report.count(RunReport.Outcome.OK);
+                case AnchorData.REPORT_SKIPPED -> report.count(RunReport.Outcome.SKIPPED)
+                        + report.count(RunReport.Outcome.HALTED);
                 default -> 0;
             };
         }

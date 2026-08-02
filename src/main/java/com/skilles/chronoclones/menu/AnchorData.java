@@ -18,8 +18,10 @@ public final class AnchorData {
     public static final int FAILURE_Y = 8;
     public static final int FAILURE_Z = 9;
     public static final int RUN_STATE = 10;
+    public static final int REPORT_OK = 11;
+    public static final int REPORT_SKIPPED = 12;
 
-    public static final int PLAYHEAD = 11;
+    public static final int PLAYHEAD = 13;
 
     public static int playhead(int clone) {
         return PLAYHEAD + clone;

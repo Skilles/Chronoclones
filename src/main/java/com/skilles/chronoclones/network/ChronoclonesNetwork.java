@@ -24,6 +24,8 @@ public final class ChronoclonesNetwork {
 
     public static volatile Consumer<SkinPayloads.Reply> clientSkinHandler = reply -> { };
 
+    public static volatile Consumer<ReportPayloads.Reply> clientReportHandler = reply -> { };
+
     @SubscribeEvent
     public static void register(RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar("1");
@@ -83,5 +85,13 @@ public final class ChronoclonesNetwork {
         registrar.playToClient(SkinPayloads.Reply.TYPE,
                 SkinPayloads.Reply.STREAM_CODEC,
                 (payload, context) -> clientSkinHandler.accept(payload));
+
+        registrar.playToServer(ReportPayloads.Request.TYPE,
+                ReportPayloads.Request.STREAM_CODEC,
+                ReportPayloads::handleRequest);
+
+        registrar.playToClient(ReportPayloads.Reply.TYPE,
+                ReportPayloads.Reply.STREAM_CODEC,
+                (payload, context) -> clientReportHandler.accept(payload));
     }
 }

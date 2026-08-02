@@ -363,23 +363,36 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
                 AnchorPanels.ICON_SIZE, AnchorPanels.ICON_SIZE)
                 && reasonOf(menu.getFailureOrdinal()) != DiagnosticState.FailureReason.NONE) {
             BlockPos at = menu.getFailurePos();
-            tooltip(extractor, mouseX, mouseY, Component.translatable(
-                    reasonOf(menu.getFailureOrdinal()).translationKey(),
-                    String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ())));
+            tooltip(extractor, mouseX, mouseY, java.util.List.of(
+                    Component.translatable(
+                            reasonOf(menu.getFailureOrdinal()).translationKey(),
+                            String.format("%+d, %+d, %+d", at.getX(), at.getY(), at.getZ())),
+                    reportSummary()));
         } else if (transportAt(mouseX, mouseY) >= 0) {
             int control = transportAt(mouseX, mouseY);
             tooltip(extractor, mouseX, mouseY,
                     Component.translatable(RunState.byOrdinal(control).translationKey()));
         } else if (within(mouseX, mouseY, Layout.MARGIN, Layout.TIMELINE_Y,
                 Layout.TIMELINE_WIDTH, Layout.TIMELINE_HEIGHT) && menu.getLengthTicks() > 0) {
-            tooltip(extractor, mouseX, mouseY, Component.translatable(
-                    "gui.chronoclones.anchor.timeline.tip",
-                    menu.getLengthTicks() / 20, menu.getActionCount()));
+            tooltip(extractor, mouseX, mouseY, java.util.List.of(
+                    Component.translatable("gui.chronoclones.anchor.timeline.tip",
+                            menu.getLengthTicks() / 20, menu.getActionCount()),
+                    reportSummary()));
         }
+    }
+
+    private Component reportSummary() {
+        return Component.translatable("gui.chronoclones.anchor.report.summary",
+                menu.getReportOk(), menu.getReportSkipped());
     }
 
     private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY, Component text) {
         extractor.setTooltipForNextFrame(font, text, mouseX, mouseY);
+    }
+
+    private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
+                         java.util.List<Component> lines) {
+        extractor.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
     }
 
     private boolean within(int mouseX, int mouseY, int x, int y, int width, int height) {
