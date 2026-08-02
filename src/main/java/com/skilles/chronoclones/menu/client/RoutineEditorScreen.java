@@ -5,9 +5,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.skilles.chronoclones.item.RecordingDetail;
-import com.skilles.chronoclones.network.ReportPayloads;
 import com.skilles.chronoclones.network.RoutinePayloads;
-import com.skilles.chronoclones.replay.RunReport;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ActionSettings.QuantityRule;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
@@ -81,85 +79,10 @@ public class RoutineEditorScreen extends Screen {
 
     private boolean discardArmed;
 
-    private List<RunReport.Entry> report = List.of();
-    private long reportNow;
-    private int reportPollTicks;
-
     public RoutineEditorScreen(RoutinePayloads.Source source, Recording routine) {
         super(Component.translatable("gui.chronoclones.editor.title"));
         this.source = source;
         this.routine = routine;
-    }
-
-    /** Only an anchor runs a routine, so only an anchor has anything to report. */
-    public void acceptReport(ReportPayloads.Reply reply) {
-        if (source.anchor().filter(reply.anchor()::equals).isPresent()) {
-            report = reply.entries();
-            reportNow = reply.now();
-        }
-    }
-
-    private static final int REPORT_POLL_TICKS = 20;
-
-    @Override
-    public void tick() {
-        super.tick();
-        if (source.anchor().isEmpty()) {
-            return;
-        }
-        if (reportPollTicks-- <= 0) {
-            reportPollTicks = REPORT_POLL_TICKS;
-            ClientPacketDistributor.sendToServer(new ReportPayloads.Request(source.anchor().get()));
-        }
-    }
-
-    private RunReport.Entry reportEntry(int action) {
-        return action >= 0 && action < report.size() ? report.get(action) : RunReport.Entry.PENDING;
-    }
-
-    private static int outcomeColour(RunReport.Entry entry) {
-        return switch (entry.outcome()) {
-            case OK -> AnchorPanels.ACCENT;
-            case SKIPPED -> AnchorPanels.WARNING;
-            case HALTED -> AnchorPanels.HALTED;
-            case PENDING -> AnchorPanels.MUTED;
-        };
-    }
-
-    private String outcomeBadge(RunReport.Entry entry) {
-        String outcome = Component.translatable("gui.chronoclones.report."
-                + entry.outcome().name().toLowerCase(java.util.Locale.ROOT)).getString();
-        if (entry.outcome() == RunReport.Outcome.SKIPPED
-                || entry.outcome() == RunReport.Outcome.HALTED) {
-            return outcome + " · "
-                    + Component.translatable(entry.reason().translationKey()).getString();
-        }
-        return outcome;
-    }
-
-    private String outcomeLine(RunReport.Entry entry) {
-        String outcome = Component.translatable("gui.chronoclones.report."
-                + entry.outcome().name().toLowerCase(java.util.Locale.ROOT)).getString();
-        if (entry.outcome() == RunReport.Outcome.PENDING) {
-            return outcome;
-        }
-
-        StringBuilder line = new StringBuilder(outcome);
-        if (entry.reason() != com.skilles.chronoclones.block.DiagnosticState.FailureReason.NONE) {
-            line.append(" · ").append(Component.translatable(
-                    entry.reason().translationKey()).getString());
-        }
-        if (entry.step() >= 0) {
-            line.append(" · ").append(Component.translatable(
-                    "gui.chronoclones.report.step", entry.step() + 1).getString());
-        }
-        if (entry.cloneIndex() >= 0) {
-            line.append(" · ").append(Component.translatable(
-                    "gui.chronoclones.report.clone", entry.cloneIndex() + 1).getString());
-        }
-        line.append(" · ").append(Component.translatable("gui.chronoclones.report.ago",
-                seconds((int) Math.max(reportNow - entry.gameTime(), 0L))).getString());
-        return line.toString();
     }
 
     private List<TimedAction> actions() {
@@ -614,14 +537,11 @@ public class RoutineEditorScreen extends Screen {
             return;
         }
         TimedAction timed = actions().get(index);
-        List<Component> lines = new ArrayList<>(List.of(
+        g.setComponentTooltipForNextFrame(font, List.of(
                 Component.literal(rowTitle(timed)),
                 Component.literal(summaryOf(timed)),
-                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick()))));
-        if (!report.isEmpty()) {
-            lines.add(Component.literal(outcomeLine(reportEntry(index))));
-        }
-        g.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick()))),
+                mouseX, mouseY);
     }
 
     private static String seconds(int ticks) {
@@ -695,9 +615,6 @@ public class RoutineEditorScreen extends Screen {
                 diamond(g, at, trackY + 1, current ? 4 : 3,
                         current ? AnchorPanels.TEXT : kindColour(action));
             }
-            if (!report.isEmpty()) {
-                g.fill(at - 1, trackY + 7, at + 2, trackY + 9, outcomeColour(reportEntry(i)));
-            }
         }
     }
 
@@ -743,14 +660,14 @@ public class RoutineEditorScreen extends Screen {
             drawStepRow(g, row, timed, x, y, width, current);
             return;
         }
-        drawActionCard(g, timed, x, y, width, current, row.action());
+        drawActionCard(g, timed, x, y, width, current);
     }
 
     private static final int CARD_STRIP = 26;
     private static final int CARD_ICON = 16;
 
     private void drawActionCard(GuiGraphicsExtractor g, TimedAction timed, int x, int y, int width,
-                                boolean current, int actionIndex) {
+                                boolean current) {
         int colour = kindColour(timed.action());
         int top = y + 1;
         int bottom = y + ROW_HEIGHT - 2;
@@ -766,18 +683,12 @@ public class RoutineEditorScreen extends Screen {
             diamond(g, iconX + CARD_ICON / 2, y + ROW_HEIGHT / 2, 3, colour);
         }
 
-        int dotWidth = report.isEmpty() ? 0 : 8;
         int textX = iconX + CARD_ICON + 4;
-        int textWidth = x + width - 5 - dotWidth - textX;
+        int textWidth = x + width - 5 - textX;
         g.text(font, font.plainSubstrByWidth(rowTitle(timed), textWidth), textX, y + 3,
                 current ? AnchorPanels.TEXT : colour);
         g.text(font, font.plainSubstrByWidth(summaryOf(timed), textWidth), textX, y + 12,
                 AnchorPanels.MUTED);
-
-        if (!report.isEmpty()) {
-            g.fill(x + width - 9, y + ROW_HEIGHT / 2 - 3, x + width - 5, y + ROW_HEIGHT / 2 + 1,
-                    outcomeColour(reportEntry(actionIndex)));
-        }
     }
 
     private void drawStepRow(GuiGraphicsExtractor g, Row row, TimedAction timed,
@@ -819,16 +730,7 @@ public class RoutineEditorScreen extends Screen {
                 ? RecordingDetail.stepLine(selectedStep()).getString()
                 : summaryOf(selectedAction());
 
-        int headingWidth = inner;
-        if (!isStep && !report.isEmpty()) {
-            RunReport.Entry entry = reportEntry(selected);
-            String badge = outcomeBadge(entry);
-            int badgeWidth = font.width(badge);
-            g.text(font, badge, x + inner - badgeWidth, y, outcomeColour(entry));
-            headingWidth = inner - badgeWidth - 6;
-        }
-
-        g.text(font, font.plainSubstrByWidth(heading, headingWidth), x, y, AnchorPanels.ACCENT);
+        g.text(font, font.plainSubstrByWidth(heading, inner), x, y, AnchorPanels.ACCENT);
         g.text(font, font.plainSubstrByWidth(detail, inner), x, y + 10, AnchorPanels.MUTED);
         g.fill(x, y + 21, x + inner, y + 22, AnchorPanels.SLOT_EDGE);
 

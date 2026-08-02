@@ -1,15 +1,14 @@
 
-![Chronoclones banner](https://media.forgecdn.net/attachments/1831/865/chronoclones-banner-png.png)
-![CurseForge Version](https://img.shields.io/curseforge/v/1625743?style=for-the-badge&logo=curseforge&label=curseforge&color=%23F16436&link=https%3A%2F%2Fwww.curseforge.com%2Fminecraft%2Fmc-mods%2Fchronoclones)
-![Modrinth Version](https://img.shields.io/modrinth/v/MJ6ISH7f?style=for-the-badge&logo=modrinth&label=modrinth&color=%2300AF5C&link=https%3A%2F%2Fmodrinth.com%2Fproject%2Fchronoclones)
+![Chronoclones banner](https://media.forgecdn.net/attachments/1831/865/chronoclones-banner-png.png) 
+[![CurseForge Game Versions](https://img.shields.io/curseforge/game-versions/1625743?style=for-the-badge&logo=curseforge&label=%20&color=black)](https://www.curseforge.com/minecraft/mc-mods/chronoclones)
+[![Modrinth Game Versions](https://img.shields.io/modrinth/game-versions/MJ6ISH7f?style=for-the-badge&logo=modrinth&label=%20&color=rgb(25%2025%2035))](https://modrinth.com/mod/chronoclones)
 ![GitHub Release](https://img.shields.io/github/v/release/Skilles/Chronoclones?include_prereleases&sort=semver&display_name=tag&style=for-the-badge&logo=github&color=%232088FF&link=https%3A%2F%2Fgithub.com%2FSkilles%2FChronoclones%2Freleases)
 
 
 Record yourself moving items, killing mobs, breaking blocks, building a house, or pretty much anything. Then have an army of clones do it time and time again.
 
-![Chronoclones showcase](https://media.forgecdn.net/attachments/1834/97/chronoclones-showcase-png.png)
-
 ![Chronoclones demo](https://media.forgecdn.net/attachments/1832/283/chronoclones-demo-web-gif.gif)
+![Chronoclones showcase](https://media.forgecdn.net/attachments/1834/97/chronoclones-showcase-png.png)
 
 ***
 
@@ -21,7 +20,7 @@ This mod adds a single block and several items to the game. To start, you'll wan
 *   **Chrono Anchor** — where your recording plays from
 *   **Chrono Goggles** — see previews of nearby recordings
 
-![recipes](https://media.forgecdn.net/attachments/1832/331/chronoclones-recipes-png.png)
+![recipes](https://media.forgecdn.net/attachments/1834/297/chronoclones-recipes-png.png)
 
 ## **Supported Interactions**
 
@@ -59,13 +58,12 @@ If I find an interaction isn't supported, I'll probably add it!
 
 **Currently only NeoForge Minecraft 26.2**
 
-**Warning**:
-Since these clones mimic real players, expect weird behavior or rejections when multiple clones are interacting with the same thing. Not yet tested on dedicated servers.
+**Warning**: Since these clones mimic real players, expect weird behavior or rejections when multiple clones are interacting with the same thing. Not yet tested on dedicated servers.
 
 ## **Roadmap**
 
 *   Better upgrade system
-*   Redstone support
+*   ~~Redstone support~~
 *   Improved editor
 *   Improved visuals (most are placeholders)
 *   More interactions and controls

@@ -36,11 +36,6 @@ public class ChronoclonesClient {
         ChronoclonesNetwork.clientGoggleHandler = GoggleCache::accept;
         ChronoclonesNetwork.clientRoutineHandler = ChronoclonesClient::openRoutineEditor;
         ChronoclonesNetwork.clientSkinHandler = AuthorSkins::accept;
-        ChronoclonesNetwork.clientReportHandler = reply -> {
-            if (Minecraft.getInstance().gui.screen() instanceof RoutineEditorScreen editor) {
-                editor.acceptReport(reply);
-            }
-        };
         RecordingTooltips.detailRequested = () -> {
             var window = Minecraft.getInstance().getWindow();
             return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
