@@ -29,6 +29,7 @@ import com.skilles.chronoclones.replay.LevelActionBudget;
 import com.skilles.chronoclones.replay.MotionTrack;
 import com.skilles.chronoclones.replay.PlaceActionExecutor;
 import com.skilles.chronoclones.replay.Placement;
+import com.skilles.chronoclones.replay.RunReport;
 import com.skilles.chronoclones.replay.UseBlockActionExecutor;
 import com.skilles.chronoclones.replay.UseItemActionExecutor;
 
@@ -78,6 +79,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private BlockPos originOffset = BlockPos.ZERO;
     private RunState runState = RunState.RUNNING;
     private DiagnosticState lastFailure = DiagnosticState.NONE;
+
+    // Not saved: the routine loops, so a fresh report fills back in within one cycle.
+    private final RunReport report = new RunReport();
 
     private final ContainerData data = new ContainerData() {
         @Override
@@ -170,6 +174,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return lastFailure;
     }
 
+    public RunReport getRunReport() {
+        return report;
+    }
+
     public RunState getRunState() {
         return runState;
     }
@@ -211,6 +219,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         this.ownerId = imprinter.getUUID();
         this.ownerName = imprinter.getGameProfile().name();
         this.lastFailure = DiagnosticState.NONE;
+        report.resize(recording.actions().size());
 
         rebuildRuntimes();
         setChanged();
@@ -226,6 +235,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     /** Swaps in the same performance read differently, leaving the clones mid-stride. */
     public void reinterpret(Recording routine) {
         this.recording = routine;
+        report.resize(routine.actions().size());
         setChanged();
     }
 
@@ -236,6 +246,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         recording = null;
         motionTrack = null;
         lastFailure = DiagnosticState.NONE;
+        report.resize(0);
         if (level != null) {
             storage.spillClones(level, worldPosition);
         }
@@ -333,11 +344,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private boolean mineOneTick(ServerLevel serverLevel, CloneRuntime runtime,
                                 ChronoAction.BreakBlock action, ActionSettings settings,
                                 Placement placement, Direction facing, int cost) {
+        int actionIndex = runtime.actionCursor();
         ActionContext probe = contextFor(serverLevel, runtime, placement, settings);
         ActionResult refusal = BreakActionExecutor.canBreak(probe, action);
         if (refusal != null) {
             ClonePresentation.stopMining(serverLevel, runtime, worldPosition);
             runtime.consumeAction();
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), refusal);
             recordFailure(serverLevel, refusal.reason(), refusal.localPos(), runtime.playhead(), facing);
             return true;
         }
@@ -363,6 +376,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         ActionContext ctx = contextFor(serverLevel, runtime, placement, settings);
         ActionResult result = BreakActionExecutor.finish(ctx, action);
         settle(runtime, ctx.operator());
+        report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), result);
         if (result.succeeded()) {
             storage.spendCharge(cost);
         } else {
@@ -374,6 +388,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private boolean attackOneTick(ServerLevel serverLevel, CloneRuntime runtime,
                                   ChronoAction.AttackEntity action, ActionSettings settings,
                                   Placement placement, Direction facing, int cost) {
+        int actionIndex = runtime.actionCursor();
         ActionSettings.TargetRule rule = settings.target();
         LivingEntity sticky = rule.locksTarget() ? runtime.target(serverLevel) : null;
 
@@ -397,11 +412,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         runtime.consumeAction();
 
         if (!attack.result().succeeded()) {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), attack.result());
             recordFailure(serverLevel, attack.result().reason(), attack.result().localPos(),
                     runtime.playhead(), facing);
         } else if (unfinished) {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(),
+                    ActionResult.fail(FailureReason.UNFINISHED, BlockPos.containing(action.localPos())));
             recordFailure(serverLevel, FailureReason.UNFINISHED,
                     BlockPos.containing(action.localPos()), runtime.playhead(), facing);
+        } else {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), ActionResult.OK);
         }
         return true;
     }
@@ -409,6 +429,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     private boolean useOneTick(ServerLevel serverLevel, CloneRuntime runtime,
                                ChronoAction.UseItem action, ActionSettings settings,
                                Placement placement, Direction facing, int cost) {
+        int actionIndex = runtime.actionCursor();
         ActionContext ctx = contextFor(serverLevel, runtime, placement, settings);
         UseItemActionExecutor.Progress progress = UseItemActionExecutor.tick(ctx, action, runtime);
         settle(runtime, ctx.operator());
@@ -422,11 +443,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         runtime.consumeAction();
 
         if (progress.result().succeeded() && !outOfPatience) {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), ActionResult.OK);
             storage.spendCharge(cost);
         } else if (outOfPatience) {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(),
+                    ActionResult.fail(FailureReason.UNFINISHED, BlockPos.ZERO));
             recordFailure(serverLevel, FailureReason.UNFINISHED, BlockPos.ZERO,
                     runtime.playhead(), facing);
         } else {
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), progress.result());
             recordFailure(serverLevel, progress.result().reason(), progress.result().localPos(),
                     runtime.playhead(), facing);
         }
@@ -453,6 +478,8 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
             int cost = action.chargeCost();
             if (!storage.canAfford(cost)) {
+                report.record(runtime.actionCursor(), runtime.index(), serverLevel.getGameTime(),
+                        ActionResult.fail(FailureReason.NO_CHARGE, localPosOf(action)));
                 recordFailure(serverLevel, FailureReason.NO_CHARGE, localPosOf(action),
                         runtime.playhead(), facing);
                 return;
@@ -482,6 +509,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 continue;
             }
 
+            int actionIndex = runtime.actionCursor();
             runtime.consumeAction();
 
             ActionContext ctx = contextFor(serverLevel, runtime, placement, timed.settings());
@@ -496,6 +524,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             };
 
             settle(runtime, ctx.operator());
+            report.record(actionIndex, runtime.index(), serverLevel.getGameTime(), result);
 
             if (result.succeeded()) {
                 storage.spendCharge(cost);
@@ -607,6 +636,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (carried != null) {
             this.recording = carried;
             this.motionTrack = new MotionTrack(carried.motion());
+            report.resize(carried.actions().size());
             rebuildRuntimes();
         }
     }
@@ -642,6 +672,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         recording = input.read("recording", RecordingCodecs.RECORDING).orElse(null);
         motionTrack = recording == null ? null : new MotionTrack(recording.motion());
+        report.resize(recording == null ? 0 : recording.actions().size());
 
         ownerId = input.read("owner_id", UUIDUtil.CODEC).orElse(null);
         ownerName = input.getStringOr("owner_name", "");

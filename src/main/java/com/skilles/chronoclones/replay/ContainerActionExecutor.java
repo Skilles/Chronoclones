@@ -78,7 +78,7 @@ public final class ContainerActionExecutor {
                     }
                     FailureReason refusal = runStep(menu, owner, action.steps().get(index), rule);
                     if (refusal != FailureReason.NONE) {
-                        return ActionResult.fail(refusal, localBlock);
+                        return ActionResult.fail(refusal, localBlock, index);
                     }
                 }
             } finally {

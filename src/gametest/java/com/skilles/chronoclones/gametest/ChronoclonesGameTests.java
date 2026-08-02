@@ -61,6 +61,7 @@ public final class ChronoclonesGameTests {
         ItemMatchGameTest.register();
         PlacementGameTest.register();
         AnchorSessionGameTest.register();
+        ReportGameTest.register();
     }
 
     static void add(String name, Consumer<GameTestHelper> function) {

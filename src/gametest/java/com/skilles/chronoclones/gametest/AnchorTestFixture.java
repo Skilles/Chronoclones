@@ -89,6 +89,22 @@ final class AnchorTestFixture {
     static ChronoAnchorBlockEntity placeAndImprint(GameTestHelper helper, BlockPos relativeAnchorPos,
                                                  Recording recording,
                                                  net.minecraft.server.level.ServerPlayer imprinter) {
+        ChronoAnchorBlockEntity anchor =
+                placeAndImprintUnfueled(helper, relativeAnchorPos, recording, imprinter);
+        giveInfiniteCharge(anchor);
+        return anchor;
+    }
+
+    static ChronoAnchorBlockEntity placeAndImprintUnfueled(GameTestHelper helper,
+                                                           BlockPos relativeAnchorPos,
+                                                           Recording recording) {
+        return placeAndImprintUnfueled(helper, relativeAnchorPos, recording, owner(helper.getLevel()));
+    }
+
+    static ChronoAnchorBlockEntity placeAndImprintUnfueled(GameTestHelper helper,
+                                                           BlockPos relativeAnchorPos,
+                                                           Recording recording,
+                                                           net.minecraft.server.level.ServerPlayer imprinter) {
         helper.setBlock(relativeAnchorPos, ModBlocks.CHRONO_ANCHOR.get()
                 .defaultBlockState()
                 .setValue(ChronoAnchorBlock.FACING, Direction.NORTH));
@@ -103,7 +119,6 @@ final class AnchorTestFixture {
 
         requireRoom(helper);
         anchor.imprint(recording, imprinter);
-        giveInfiniteCharge(anchor);
         giveRecordedTools(anchor, recording);
         return anchor;
     }
