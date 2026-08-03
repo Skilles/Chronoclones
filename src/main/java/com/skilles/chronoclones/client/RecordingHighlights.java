@@ -11,13 +11,14 @@ import com.skilles.chronoclones.network.RecordingHighlightPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ContainerScreenEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 
 @EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHighlights {
@@ -48,17 +49,21 @@ public final class RecordingHighlights {
     }
 
     @SubscribeEvent
-    static void render(ContainerScreenEvent.Render.Foreground event) {
-        AbstractContainerScreen<?> screen = event.getContainerScreen();
+    static void render(ScreenEvent.Render.Foreground event) {
+        Screen screen = event.getScreen();
 
-        if (containerId >= 0 && screen.getMenu().containerId == containerId) {
-            paint(event.getGuiGraphics(), screen, TOUCHED, noAmounts(CARRIED));
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
 
-        GoggleSlots.Session session = GoggleSlots.sessionFor(screen);
+        if (containerId >= 0 && containerScreen.getMenu().containerId == containerId) {
+            paint(event.getGuiGraphics(), containerScreen, TOUCHED, noAmounts(CARRIED));
+            return;
+        }
+
+        GoggleSlots.Session session = GoggleSlots.sessionFor(containerScreen);
         if (session != null) {
-            paint(event.getGuiGraphics(), screen, session.touched(), session.carried());
+            paint(event.getGuiGraphics(), containerScreen, session.touched(), session.carried());
         }
     }
 
@@ -82,23 +87,27 @@ public final class RecordingHighlights {
             }
 
             Slot slot = screen.getMenu().slots.get(index);
-            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, tint);
+            var slotX = screen.getLeftPos() + slot.x;
+            var slotY = screen.getTopPos() + slot.y;
+            graphics.fill(slotX, slotY, slotX + 16, slotY + 16, tint);
 
             ItemStack needed = carried.get(index);
             if (needed == null || needed.isEmpty()) {
                 continue;
             }
-            needs(graphics, font, slot, needed);
+            needs(graphics, screen, font, slot, needed);
         }
     }
 
-    private static void needs(GuiGraphicsExtractor graphics, Font font, Slot slot, ItemStack needed) {
+    private static void needs(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Font font, Slot slot, ItemStack needed) {
+        var slotX = screen.getLeftPos() + slot.x;
+        var slotY = screen.getTopPos() + slot.y;
         if (slot.getItem().isEmpty()) {
-            graphics.fakeItem(needed, slot.x, slot.y);
-            graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, GHOST_VEIL);
+            graphics.fakeItem(needed, slotX, slotY);
+            graphics.fill(slotX, slotY, slotX + 16, slotY + 16, GHOST_VEIL);
         }
 
         String count = String.valueOf(needed.getCount());
-        graphics.text(font, count, slot.x + 17 - font.width(count), slot.y + 9, NEEDS, true);
+        graphics.text(font, count, slotX + 17 - font.width(count), slotY + 9, NEEDS, true);
     }
 }
