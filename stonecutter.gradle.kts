@@ -25,6 +25,18 @@ tasks.register("runActiveGameTests") {
     dependsOn(stonecutter.current!!.project + ":runGameTestServer")
 }
 
+tasks.register("chiseledBuild") {
+    group = "stonecutter"
+    description = "Build every version and loader"
+    dependsOn(stonecutter.tasks.named("build"))
+}
+
+tasks.register("chiseledTest") {
+    group = "stonecutter"
+    description = "Run the unit tests of every version and loader"
+    dependsOn(stonecutter.tasks.named("test"))
+}
+
 stonecutter parameters {
     // The loader half of the node name becomes the preprocessor constants:
     // //? if neoforge { ... //?} else { ... }
