@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "Record yourself moving items, killing mobs, breaking blocks, building a house... pretty much anything a player can do! Then have an army of clones do it time and time again..",
+  "authors": [
+    "Skilles"
+  ],
+  "contact": {
+    "homepage": "https://modrinth.com/project/chronoclones",
+    "sources": "https://github.com/Skilles/Chronoclones"
+  },
+  "license": "${mod_license}",
+  "icon": "logo.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.skilles.chronoclones.platform.fabric.ChronoclonesFabric"
+    ],
+    "client": [
+      "com.skilles.chronoclones.platform.fabric.ChronoclonesFabricClient"
+    ]
+  },
+  "mixins": [
+    "chronoclones.mixins.json",
+    "chronoclones.fabric.mixins.json"
+  ],
+  "accessWidener": "chronoclones.accesswidener",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "fabric-api": "*",
+    "minecraft": "~${minecraft_version}",
+    "java": ">=25"
+  }
+}

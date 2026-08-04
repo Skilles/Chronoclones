@@ -31,12 +31,10 @@ public class ChronoShardItem extends Item {
     public static ItemStack inscribe(ItemStack blank, Recording recording) {
         ItemStack inscribed = blank.copyWithCount(1);
         inscribed.set(ModDataComponents.RECORDING.get(), recording);
+        // Stack-size-1 rides on the stack itself, which every loader honours; an Item-level
+        // override for it only exists on NeoForge.
+        inscribed.set(net.minecraft.core.component.DataComponents.MAX_STACK_SIZE, 1);
         return inscribed;
-    }
-
-    @Override
-    public int getMaxStackSize(@NonNull ItemStack stack) {
-        return isInscribed(stack) ? 1 : super.getMaxStackSize(stack);
     }
 
     @Override

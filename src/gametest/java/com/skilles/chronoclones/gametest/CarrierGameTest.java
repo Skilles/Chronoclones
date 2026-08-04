@@ -18,9 +18,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 import static com.skilles.chronoclones.gametest.AnchorTestFixture.countIn;
 
@@ -205,19 +202,17 @@ final class CarrierGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absolute, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absolute)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getResource(0).getItem() != Items.OAK_LOG) {
+                    if (TestItemPipes.slot(level, absolute, 0).getItem() != Items.OAK_LOG) {
                         helper.fail("the click did not land on the square it named: square 0 holds "
-                                + barrel.getResource(0).getItem());
+                                + TestItemPipes.slot(level, absolute, 0).getItem());
                     }
-                    if (!barrel.getResource(1).isEmpty()) {
+                    if (!TestItemPipes.slot(level, absolute, 1).isEmpty()) {
                         helper.fail("it moved along to the next square: square 1 holds "
-                                + barrel.getResource(1).getItem());
+                                + TestItemPipes.slot(level, absolute, 1).getItem());
                     }
                     if (countIn(anchor.getInventory(), Items.DIRT) != 64) {
                         helper.fail("the displaced dirt did not come home: anchor holds "
@@ -270,28 +265,16 @@ final class CarrierGameTest {
 
     private static void assertBarrelHolds(GameTestHelper helper, BlockPos target,
                                           net.minecraft.world.item.Item item, int count) {
-        ResourceHandler<ItemResource> barrel = helper.getLevel().getCapability(
-                Capabilities.Item.BLOCK, helper.absolutePos(target), null);
-        if (barrel == null) {
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(target);
+        if (!TestItemPipes.present(level, absolute)) {
             helper.fail("the barrel exposes no item handler");
             return;
         }
-        if (handlerCount(barrel, item) != count) {
+        if (TestItemPipes.count(level, absolute, item) != count) {
             helper.fail("expected " + count + " " + item + " in the barrel, found "
-                    + handlerCount(barrel, item));
+                    + TestItemPipes.count(level, absolute, item));
         }
-    }
-
-    private static int handlerCount(ResourceHandler<ItemResource> handler,
-                                    net.minecraft.world.item.Item item) {
-        int total = 0;
-        for (int slot = 0; slot < handler.size(); slot++) {
-            ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                total += handler.getAmountAsInt(slot);
-            }
-        }
-        return total;
     }
 
     private static SessionStep.RawClick click(int slot, int button, ContainerInput input) {

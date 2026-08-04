@@ -6,31 +6,24 @@ import java.util.function.Consumer;
 
 import com.skilles.chronoclones.Chronoclones;
 
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.gametest.framework.TestData;
-import net.minecraft.gametest.framework.TestEnvironmentDefinition;
-import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.block.Rotation;
+//? if neoforge {
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
+//?}
 
+/**
+ * The mod's test functions. Each name here pairs with a generated
+ * {@code data/chronoclones/test_instance/<name>.json}, which carries the per-test settings
+ * (environment, structure, max ticks) on both loaders; adding a test means adding its JSON.
+ */
+//? if neoforge
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ChronoclonesGameTests {
 
-    private static final Identifier PLOT_STRUCTURE = Chronoclones.id("test_plot");
-
-    private static final int DEFAULT_MAX_TICKS = 200;
-    private static final int DEFAULT_SETUP_TICKS = 0;
-
-    private static final int PLOT_PADDING = 2;
-
-    private record Entry(String name, int maxTicks, Consumer<GameTestHelper> function) {}
+    private record Entry(String name, Consumer<GameTestHelper> function) {}
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
 
@@ -67,13 +60,15 @@ public final class ChronoclonesGameTests {
     }
 
     static void add(String name, Consumer<GameTestHelper> function) {
-        add(name, DEFAULT_MAX_TICKS, function);
+        ENTRIES.add(new Entry(name, function));
     }
 
+    /** @param maxTicks documentation only; the runtime value lives in the test's JSON */
     static void add(String name, int maxTicks, Consumer<GameTestHelper> function) {
-        ENTRIES.add(new Entry(name, maxTicks, function));
+        add(name, function);
     }
 
+    //? if neoforge {
     @SubscribeEvent
     public static void registerFunctions(RegisterEvent event) {
         if (!event.getRegistryKey().equals(Registries.TEST_FUNCTION)) {
@@ -86,19 +81,15 @@ public final class ChronoclonesGameTests {
             }
         });
     }
-
-    @SubscribeEvent
-    public static void registerTests(RegisterGameTestsEvent event) {
+    //?} else {
+    /*// Called from the gametest dev-mod entrypoint; Fabric registries accept writes during init.
+    public static void registerFunctions() {
         declare();
-        Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(Chronoclones.id("default"));
-
         for (Entry entry : ENTRIES) {
-            Identifier id = Chronoclones.id(entry.name());
-            event.registerTest(id, new FunctionGameTestInstance(
-                    ResourceKey.create(Registries.TEST_FUNCTION, id),
-                    new TestData<>(environment, PLOT_STRUCTURE,
-                            entry.maxTicks(), DEFAULT_SETUP_TICKS, true,
-                            Rotation.NONE, false, 1, 1, false, PLOT_PADDING)));
+            net.minecraft.core.Registry.register(
+                    net.minecraft.core.registries.BuiltInRegistries.TEST_FUNCTION,
+                    Chronoclones.id(entry.name()), entry.function());
         }
     }
+    *///?}
 }

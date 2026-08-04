@@ -252,8 +252,18 @@ public final class ContainerWatch {
     }
 
     private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
-        if (player.connection != null && !player.hasDisconnected()
-                && player.connection.hasChannel(RecordingHighlightPayload.TYPE)) {
+        if (player.connection == null || player.hasDisconnected()) {
+            return;
+        }
+        // Only if the client declared it understands this payload; a vanilla client would kick.
+        boolean listening =
+                //? if neoforge {
+                player.connection.hasChannel(RecordingHighlightPayload.TYPE);
+                //?} else {
+                /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                        player, RecordingHighlightPayload.TYPE);*/
+                //?}
+        if (listening) {
             PlatformNetwork.sendToPlayer(player, payload);
         }
     }

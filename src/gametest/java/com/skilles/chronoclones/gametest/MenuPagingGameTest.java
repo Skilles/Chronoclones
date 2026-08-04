@@ -11,8 +11,7 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.minecraft.server.level.ServerPlayer;
 
 final class MenuPagingGameTest {
 
@@ -38,7 +37,7 @@ final class MenuPagingGameTest {
             return;
         }
 
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
         player.getInventory().clearContent();
         player.getInventory().setItem(9, new ItemStack(Items.DIAMOND, 12));
 
@@ -63,7 +62,7 @@ final class MenuPagingGameTest {
     private static void selectionNeedsOnlySyncedData(GameTestHelper helper) {
         ChronoAnchorBlockEntity untickedAnchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
 
         SimpleContainerData synced = new SimpleContainerData(ChronoAnchorMenu.DATA_COUNT);
         synced.set(AnchorData.ACTIVE_CLONES, 2);
@@ -87,7 +86,7 @@ final class MenuPagingGameTest {
 
     private static void shiftClickStaysOnThePage(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = anchorWithClones(helper, 4);
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
         player.getInventory().clearContent();
 
         ChronoAnchorMenu menu = new ChronoAnchorMenu(1, player.getInventory(), anchor,
@@ -113,7 +112,7 @@ final class MenuPagingGameTest {
 
     private static void refusesAPageWithNoClone(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = anchorWithClones(helper, 2);
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
 
         ChronoAnchorMenu menu = new ChronoAnchorMenu(1, player.getInventory(), anchor,
                 anchor.getContainerData());

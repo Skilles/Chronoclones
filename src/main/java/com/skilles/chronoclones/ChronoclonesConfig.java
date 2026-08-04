@@ -108,7 +108,88 @@ public final class ChronoclonesConfig {
     private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
         return SPEC.isLoaded() ? value.getAsInt() : fallback;
     }
-    //?}
+    //?} else {
+    /*// A plain JSON file with the same keys and ranges as the NeoForge server config. One global
+    // file rather than per-world: Fabric has no serverconfig convention to follow.
+    private static volatile int maxRadius = 24;
+    private static volatile int maxRecordingTicks = 1200;
+    private static volatile int maxActions = 256;
+    private static volatile int maxContainerSteps = 256;
+    private static volatile int maxRecordingBytes = 262_144;
+    private static volatile int maxActionsPerTick = 128;
+    private static volatile int maxActionTicks = 160;
+    private static volatile boolean allowPvp = false;
+    private static volatile int goggleRadius = 24;
+    private static volatile boolean gogglesShowOthers = true;
+
+    public static int maxRadius() { return maxRadius; }
+
+    public static int maxRecordingTicks() { return maxRecordingTicks; }
+
+    public static int maxActions() { return maxActions; }
+
+    public static int maxContainerSteps() { return maxContainerSteps; }
+
+    public static int maxRecordingBytes() { return maxRecordingBytes; }
+
+    public static int maxActionsPerTick() { return maxActionsPerTick; }
+
+    public static int maxActionTicks() { return maxActionTicks; }
+
+    public static boolean allowPvp() { return allowPvp; }
+
+    public static int goggleRadius() { return goggleRadius; }
+
+    public static boolean gogglesShowOthers() { return gogglesShowOthers; }
+
+    // Reads (writing defaults first if absent) config/chronoclones.json. Called from mod init.
+    public static void loadOrCreate(java.nio.file.Path file) {
+        com.google.gson.Gson gson = new com.google.gson.GsonBuilder().setPrettyPrinting().create();
+        try {
+            if (java.nio.file.Files.notExists(file)) {
+                com.google.gson.JsonObject defaults = new com.google.gson.JsonObject();
+                defaults.addProperty("maxRadius", maxRadius);
+                defaults.addProperty("maxRecordingTicks", maxRecordingTicks);
+                defaults.addProperty("maxActions", maxActions);
+                defaults.addProperty("maxContainerSteps", maxContainerSteps);
+                defaults.addProperty("maxRecordingBytes", maxRecordingBytes);
+                defaults.addProperty("maxActionsPerTick", maxActionsPerTick);
+                defaults.addProperty("maxActionTicks", maxActionTicks);
+                defaults.addProperty("allowPvp", allowPvp);
+                defaults.addProperty("goggleRadius", goggleRadius);
+                defaults.addProperty("gogglesShowOthers", gogglesShowOthers);
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, gson.toJson(defaults));
+                return;
+            }
+
+            com.google.gson.JsonObject read = gson.fromJson(
+                    java.nio.file.Files.readString(file), com.google.gson.JsonObject.class);
+            maxRadius = clamped(read, "maxRadius", maxRadius, 1, 64);
+            maxRecordingTicks = clamped(read, "maxRecordingTicks", maxRecordingTicks, 20, 12000);
+            maxActions = clamped(read, "maxActions", maxActions, 1, 4096);
+            maxContainerSteps = clamped(read, "maxContainerSteps", maxContainerSteps, 8, 4096);
+            maxRecordingBytes = clamped(read, "maxRecordingBytes", maxRecordingBytes, 4_096, 8_388_608);
+            maxActionsPerTick = clamped(read, "maxActionsPerTick", maxActionsPerTick, 1, 1024);
+            maxActionTicks = clamped(read, "maxActionTicks", maxActionTicks, 20, 1200);
+            allowPvp = flag(read, "allowPvp", allowPvp);
+            goggleRadius = clamped(read, "goggleRadius", goggleRadius, 4, 64);
+            gogglesShowOthers = flag(read, "gogglesShowOthers", gogglesShowOthers);
+        } catch (java.io.IOException | com.google.gson.JsonParseException failed) {
+            com.skilles.chronoclones.Chronoclones.LOGGER.warn(
+                    "Could not read {}; using defaults", file, failed);
+        }
+    }
+
+    private static int clamped(com.google.gson.JsonObject json, String key, int fallback,
+                               int min, int max) {
+        return json.has(key) ? Math.clamp(json.get(key).getAsLong(), min, max) : fallback;
+    }
+
+    private static boolean flag(com.google.gson.JsonObject json, String key, boolean fallback) {
+        return json.has(key) ? json.get(key).getAsBoolean() : fallback;
+    }
+    *///?}
 
     private ChronoclonesConfig() {}
 }

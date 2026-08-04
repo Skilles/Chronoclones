@@ -156,7 +156,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** What consumeFuel will actually take: burnables, or the creative cell. */
     public static boolean isAnchorFuel(net.minecraft.world.level.Level level, ItemStack stack) {
         return stack.is(com.skilles.chronoclones.registry.ModItems.CREATIVE_CHARGE_CELL.get())
-                || stack.getBurnTime(null, level.fuelValues()) > 0;
+                || level.fuelValues().burnDuration(stack) > 0;
     }
 
     /** Clamped on read, so a clone going away takes its page with it. */

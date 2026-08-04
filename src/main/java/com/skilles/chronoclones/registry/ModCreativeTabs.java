@@ -16,8 +16,15 @@ public final class ModCreativeTabs {
             Registrar.create(BuiltInRegistries.CREATIVE_MODE_TAB, Chronoclones.MODID);
 
     public static final Supplier<CreativeModeTab> MAIN = TABS.register("main",
+            // The no-argument builder is a NeoForge addition; Fabric reflows modded tabs itself.
+            //? if neoforge {
             () -> CreativeModeTab.builder()
+            //?} else {
+            /*() -> CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0)*/
+            //?}
                     .title(Component.translatable("itemGroup.chronoclones"))
+                    // Placement is a NeoForge nicety; Fabric orders modded tabs itself.
+                    //? if neoforge
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
                     .icon(() -> ModItems.CHRONO_ANCHOR.get().getDefaultInstance())
                     .displayItems((parameters, output) -> {

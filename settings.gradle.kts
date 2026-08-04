@@ -13,6 +13,7 @@ pluginManagement {
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
     id("dev.kikugie.stonecutter") version "0.9.2"
+    id("dev.kikugie.loom-back-compat") version "0.4.1"
 }
 
 rootProject.name = "chronoclones"
@@ -22,9 +23,8 @@ stonecutter {
         fun match(version: String, vararg loaders: String) =
             loaders.forEach { version("$version-$it", version).buildscript = "build.$it.gradle.kts" }
 
-        match("26.2", "neoforge")
+        match("26.2", "neoforge", "fabric")
         // Future targets — enable one at a time as each port lands (see docs/PORTING.md):
-        // match("26.2", "fabric")
         // match("1.21.1", "neoforge", "fabric")
         // match("1.20.1", "forge", "fabric")
 

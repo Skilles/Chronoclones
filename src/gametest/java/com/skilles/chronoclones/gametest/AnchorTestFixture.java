@@ -28,9 +28,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.skilles.chronoclones.inventory.StackInventory;
 
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
 final class AnchorTestFixture {
 
@@ -156,8 +155,17 @@ final class AnchorTestFixture {
         }
     }
 
-    static FakePlayer owner(ServerLevel level) {
-        return FakePlayerFactory.get(level, new GameProfile(OWNER_ID, OWNER_NAME));
+    static ServerPlayer owner(ServerLevel level) {
+        return fakePlayer(level, new GameProfile(OWNER_ID, OWNER_NAME));
+    }
+
+    /** The loader's own reusable fake player, so loader internals treat it as one. */
+    static ServerPlayer fakePlayer(ServerLevel level, GameProfile profile) {
+        //? if neoforge {
+        return net.neoforged.neoforge.common.util.FakePlayerFactory.get(level, profile);
+        //?} else {
+        /*return net.fabricmc.fabric.api.entity.FakePlayer.get(level, profile);*/
+        //?}
     }
 
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {

@@ -10,11 +10,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
+import net.minecraft.server.level.ServerPlayer;
 
 final class AnchorInsertGameTest {
 
@@ -40,30 +36,23 @@ final class AnchorInsertGameTest {
             return;
         }
 
-        ResourceHandler<ItemResource> handler =
-                helper.getLevel().getCapability(Capabilities.Item.BLOCK, absolute, null);
-        if (handler == null) {
+        if (!TestItemPipes.present(helper.getLevel(), absolute)) {
             helper.fail("the anchor exposes no item handler at all");
             return;
         }
 
-        try (Transaction tx = Transaction.openRoot()) {
-            if (handler.insert(ItemResource.of(Items.DIAMOND), 4, tx) != 0) {
-                helper.fail("a hopper could feed an anchor whose storage the screen still hides,"
-                        + " and the items would look lost until an imprint");
-                return;
-            }
+        if (TestItemPipes.insert(helper.getLevel(), absolute, Items.DIAMOND, 4) != 0) {
+            helper.fail("a hopper could feed an anchor whose storage the screen still hides,"
+                    + " and the items would look lost until an imprint");
+            return;
         }
 
         anchor.imprint(AnchorTestFixture.breakOneBlock(Blocks.STONE),
                 AnchorTestFixture.owner(helper.getLevel()));
 
-        try (Transaction tx = Transaction.openRoot()) {
-            if (handler.insert(ItemResource.of(Items.DIAMOND), 4, tx) != 4) {
-                helper.fail("an imprinted anchor refused the hopper that stocks it");
-                return;
-            }
-            tx.commit();
+        if (TestItemPipes.insert(helper.getLevel(), absolute, Items.DIAMOND, 4) != 4) {
+            helper.fail("an imprinted anchor refused the hopper that stocks it");
+            return;
         }
         if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 4) {
             helper.fail("the committed insertion never reached the clone storage");
@@ -75,7 +64,7 @@ final class AnchorInsertGameTest {
     private static ChronoAnchorMenu menuOn(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
         return new ChronoAnchorMenu(1, player.getInventory(), anchor, anchor.getContainerData());
     }
 

@@ -14,10 +14,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
-import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 final class ShardGameTest {
 
@@ -64,24 +60,17 @@ final class ShardGameTest {
 
         BlockPos absoluteTarget = helper.absolutePos(target);
         AtomicReference<UUID> observed = new AtomicReference<>();
-        Object listener = new Object() {
-            @net.neoforged.bus.api.SubscribeEvent(priority = EventPriority.HIGHEST)
-            public void onBreak(BreakBlockEvent event) {
-                if (event.getPos().equals(absoluteTarget)) {
-                    observed.compareAndSet(null, event.getPlayer().getUUID());
-                }
-            }
-        };
-        NeoForge.EVENT_BUS.register(listener);
+        BreakWatch watch = BreakWatch.at(absoluteTarget,
+                attempt -> observed.compareAndSet(null, attempt.playerId()));
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR, authored);
-        anchor.imprint(authored, FakePlayerFactory.get(level,
+        anchor.imprint(authored, AnchorTestFixture.fakePlayer(level,
                 new GameProfile(SECOND_OWNER_ID, SECOND_OWNER_NAME)));
         AnchorTestFixture.giveInfiniteCharge(anchor);
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
-                    NeoForge.EVENT_BUS.unregister(listener);
+                    watch.close();
 
                     UUID actor = observed.get();
                     if (actor == null) {

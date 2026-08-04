@@ -26,7 +26,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
 
 final class CaptureGameTest {
 
@@ -255,7 +254,7 @@ final class CaptureGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        FakePlayer owner = AnchorTestFixture.owner(level);
+        ServerPlayer owner = AnchorTestFixture.owner(level);
         BlockPos anchorAbsolute = helper.absolutePos(ANCHOR);
         owner.setPos(anchorAbsolute.getX() + 0.5, anchorAbsolute.getY(), anchorAbsolute.getZ() + 0.5);
 

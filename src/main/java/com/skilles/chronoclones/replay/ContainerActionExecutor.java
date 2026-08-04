@@ -149,7 +149,7 @@ public final class ContainerActionExecutor {
             return new Session(menu, () -> merchant.setTradingPlayer(null));
         }
         if (entity instanceof AbstractHorse horse) {
-            return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.getInventory(),
+            return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.inventory,
                     horse, horse.getInventoryColumns()));
         }
         if (entity instanceof MenuProvider provider) {

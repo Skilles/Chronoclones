@@ -14,5 +14,9 @@ public final class PlatformClientNetwork {
     public static void sendToServer(CustomPacketPayload payload) {
         ClientPacketDistributor.sendToServer(payload);
     }
-    //?}
+    //?} else {
+    /*public static void sendToServer(CustomPacketPayload payload) {
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);
+    }
+    *///?}
 }

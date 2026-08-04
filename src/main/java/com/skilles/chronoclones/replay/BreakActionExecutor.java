@@ -143,7 +143,17 @@ public final class BreakActionExecutor {
             if (breakEvent.isCanceled()) {
                 return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
             }
-            //?}
+            //?} else {
+            /*boolean allowed = net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE
+                    .invoker().beforeBlockBreak(level, owner, worldPos, state,
+                            level.getBlockEntity(worldPos));
+            if (!allowed) {
+                net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.CANCELED
+                        .invoker().onBlockBreakCanceled(level, owner, worldPos, state,
+                                level.getBlockEntity(worldPos));
+                return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
+            }
+            *///?}
 
             List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, tool);
 
@@ -152,11 +162,17 @@ public final class BreakActionExecutor {
             }
 
             // destroyBlock never runs playerDestroy, so nothing else pays this.
+            //? if neoforge {
             int experience = state.getExpDrop(level, worldPos, level.getBlockEntity(worldPos),
                     owner, action.toolTemplate());
             if (experience > 0) {
                 owner.giveExperiencePoints(experience);
             }
+            //?} else {
+            /*// No NeoForge getExpDrop here: the vanilla after-break hook drops the orbs at the
+            // block, and releasing the actor sweeps them into the operator's bank.
+            state.spawnAfterBreak(level, worldPos, action.toolTemplate(), true);
+            *///?}
 
             level.destroyBlock(worldPos, false, owner);
             return ActionResult.OK;

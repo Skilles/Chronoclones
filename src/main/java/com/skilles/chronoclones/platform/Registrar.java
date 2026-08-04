@@ -14,7 +14,7 @@ import net.neoforged.neoforge.registries.DeferredRegister;
  * Loader-neutral registration. Registry classes declare entries through this and stay free of
  * loader imports; only this class knows how the active loader wants registrations delivered.
  *
- * <p>On NeoForge entries queue in a {@link DeferredRegister} until the mod entrypoint hands over
+ * <p>On NeoForge entries queue in a {@code DeferredRegister} until the mod entrypoint hands over
  * the mod bus; a Fabric build registers directly, since its registries accept writes during init.
  */
 public final class Registrar<T> {
@@ -38,7 +38,22 @@ public final class Registrar<T> {
             ALL.forEach(registrar -> registrar.deferred.register(modEventBus));
         }
     }
-    //?}
+    //?} else {
+    /*private final Registry<T> registry;
+    private final String namespace;
+
+    private Registrar(Registry<T> registry, String namespace) {
+        this.registry = registry;
+        this.namespace = namespace;
+    }
+
+    public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
+        R value = factory.get();
+        Registry.register(registry,
+                net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, name), value);
+        return () -> value;
+    }
+    *///?}
 
     public static <T> Registrar<T> create(Registry<T> registry, String namespace) {
         Registrar<T> made = new Registrar<>(registry, namespace);

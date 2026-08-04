@@ -126,7 +126,7 @@ public final class AnchorStorage {
         }
 
         ItemStack probe = fuel.copyWithCount(1);
-        int burnTicks = probe.getBurnTime(null, level.fuelValues());
+        int burnTicks = level.fuelValues().burnDuration(probe);
         if (burnTicks <= 0) {
             return;
         }

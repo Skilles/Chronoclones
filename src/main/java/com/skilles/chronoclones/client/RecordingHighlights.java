@@ -80,8 +80,8 @@ public final class RecordingHighlights {
             }
 
             Slot slot = screen.getMenu().slots.get(index);
-            var slotX = screen.getLeftPos() + slot.x;
-            var slotY = screen.getTopPos() + slot.y;
+            var slotX = screen.leftPos + slot.x;
+            var slotY = screen.topPos + slot.y;
             graphics.fill(slotX, slotY, slotX + 16, slotY + 16, tint);
 
             ItemStack needed = carried.get(index);
@@ -93,8 +93,8 @@ public final class RecordingHighlights {
     }
 
     private static void needs(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Font font, Slot slot, ItemStack needed) {
-        var slotX = screen.getLeftPos() + slot.x;
-        var slotY = screen.getTopPos() + slot.y;
+        var slotX = screen.leftPos + slot.x;
+        var slotY = screen.topPos + slot.y;
         if (slot.getItem().isEmpty()) {
             graphics.fakeItem(needed, slotX, slotY);
             graphics.fill(slotX, slotY, slotX + 16, slotY + 16, GHOST_VEIL);

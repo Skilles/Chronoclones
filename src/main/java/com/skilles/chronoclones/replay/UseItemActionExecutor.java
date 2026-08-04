@@ -137,7 +137,7 @@ public final class UseItemActionExecutor {
         if (!(weapon.getItem() instanceof ProjectileWeaponItem projectile)) {
             return null;
         }
-        Predicate<ItemStack> accepts = projectile.getAllSupportedProjectiles(weapon);
+        Predicate<ItemStack> accepts = projectile.getAllSupportedProjectiles();
 
         for (int slot = 0; slot < ctx.items().size(); slot++) {
             ItemStack held = ctx.items().getItem(slot);

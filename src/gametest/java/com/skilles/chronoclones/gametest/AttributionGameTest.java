@@ -11,9 +11,6 @@ import com.skilles.chronoclones.recording.Recording;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.neoforge.common.NeoForge;
-import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 
 final class AttributionGameTest {
 
@@ -33,14 +30,14 @@ final class AttributionGameTest {
         helper.setBlock(target, Blocks.STONE);
 
         AtomicReference<UUID> observed = new AtomicReference<>();
-        Object listener = listenForBreakAt(helper.absolutePos(target),
-                event -> observed.compareAndSet(null, event.getPlayer().getUUID()));
+        BreakWatch watch = BreakWatch.at(helper.absolutePos(target),
+                attempt -> observed.compareAndSet(null, attempt.playerId()));
 
         AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
-                    NeoForge.EVENT_BUS.unregister(listener);
+                    watch.close();
 
                     UUID actor = observed.get();
                     if (actor == null) {
@@ -59,8 +56,8 @@ final class AttributionGameTest {
         helper.setBlock(target, Blocks.STONE);
 
         AtomicInteger authorAttributedBreaks = new AtomicInteger();
-        Object listener = listenForBreakAt(helper.absolutePos(target), event -> {
-            if (AnchorTestFixture.AUTHOR_ID.equals(event.getPlayer().getUUID())) {
+        BreakWatch watch = BreakWatch.at(helper.absolutePos(target), attempt -> {
+            if (AnchorTestFixture.AUTHOR_ID.equals(attempt.playerId())) {
                 authorAttributedBreaks.incrementAndGet();
             }
         });
@@ -69,7 +66,7 @@ final class AttributionGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
-                    NeoForge.EVENT_BUS.unregister(listener);
+                    watch.close();
                     if (authorAttributedBreaks.get() > 0) {
                         helper.fail("the recording author was used as the actor "
                                 + authorAttributedBreaks.get() + " time(s): the griefing vector");
@@ -82,14 +79,14 @@ final class AttributionGameTest {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.STONE);
 
-        Object listener = listenForBreakAt(helper.absolutePos(target), event -> event.setCanceled(true));
+        BreakWatch watch = BreakWatch.at(helper.absolutePos(target), BreakWatch.Attempt::cancel);
 
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
-                    NeoForge.EVENT_BUS.unregister(listener);
+                    watch.close();
 
                     helper.assertBlockPresent(Blocks.STONE, target);
 
@@ -121,17 +118,4 @@ final class AttributionGameTest {
         helper.succeed();
     }
 
-    private static Object listenForBreakAt(BlockPos absolutePos,
-                                           java.util.function.Consumer<BreakBlockEvent> handler) {
-        Object listener = new Object() {
-            @net.neoforged.bus.api.SubscribeEvent(priority = EventPriority.HIGHEST)
-            public void onBreak(BreakBlockEvent event) {
-                if (event.getPos().equals(absolutePos)) {
-                    handler.accept(event);
-                }
-            }
-        };
-        NeoForge.EVENT_BUS.register(listener);
-        return listener;
-    }
 }

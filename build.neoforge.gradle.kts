@@ -36,16 +36,10 @@ sourceSets {
     }
 
     // Game tests need a running server and must not ship: they register ids into real registries.
+    // Stonecutter wires every source set's directories itself; only the classpath needs linking.
     create("gametest") {
-        java.srcDir(rootProject.file("src/gametest/java"))
-        resources.srcDir(rootProject.file("src/gametest/resources"))
         compileClasspath += sourceSets.main.get().output
         runtimeClasspath += sourceSets.main.get().output
-    }
-
-    test {
-        java.srcDir(rootProject.file("src/test/java"))
-        resources.srcDir(rootProject.file("src/test/resources"))
     }
 }
 
@@ -149,6 +143,11 @@ tasks.withType<ProcessResources>().configureEach {
     filesMatching(listOf("META-INF/neoforge.mods.toml")) {
         expand(replaceProperties)
     }
+
+    // The Fabric half of the metadata never ships in a neoforge jar.
+    exclude("fabric.mod.json")
+    exclude("chronoclones.accesswidener")
+    exclude("chronoclones.fabric.mixins.json")
 }
 
 publishing {
