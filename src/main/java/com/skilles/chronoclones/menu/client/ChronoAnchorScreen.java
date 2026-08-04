@@ -51,7 +51,11 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(extractor, mouseX, mouseY, partialTick);
+        drawBackground(extractor, mouseX, mouseY, partialTick);
+    }
 
+    /** The version-neutral half of the background pass; the override above is the 26.x shell. */
+    private void drawBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         int xo = leftPos;
         int yo = topPos;
 
@@ -326,13 +330,18 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
-        int control = transportAt((int) event.x(), (int) event.y());
+        return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
+    }
+
+    /** The version-neutral half of the click pass; the override above is the 26.x shell. */
+    private boolean handleClick(double x, double y) {
+        int control = transportAt((int) x, (int) y);
         if (control >= 0 && minecraft != null && minecraft.gameMode != null) {
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
                     ChronoAnchorMenu.RUN_STATE_BUTTON + control);
             return true;
         }
-        if (redstoneAt((int) event.x(), (int) event.y())
+        if (redstoneAt((int) x, (int) y)
                 && minecraft != null && minecraft.gameMode != null) {
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
                     ChronoAnchorMenu.REDSTONE_BUTTON);
@@ -340,7 +349,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
 
         int tabs = CloneTabs.count(menu.getActiveClones());
-        int tab = CloneTabs.at((int) event.x() - leftPos, (int) event.y() - topPos, tabs,
+        int tab = CloneTabs.at((int) x - leftPos, (int) y - topPos, tabs,
                 Layout.TAB_RIGHT_EDGE, Layout.TAB_Y);
 
         if (tab >= 0 && tab != menu.getSelectedClone() && minecraft != null && minecraft.gameMode != null) {
@@ -348,12 +357,17 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId, tab);
             return true;
         }
-        return super.mouseClicked(event, doubled);
+        return false;
     }
 
     @Override
     protected void extractTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         super.extractTooltip(extractor, mouseX, mouseY);
+        drawTooltipExtras(extractor, mouseX, mouseY);
+    }
+
+    /** The version-neutral half of the tooltip pass; the override above is the 26.x shell. */
+    private void drawTooltipExtras(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         if (hoveredSlot != null) {
             return;
         }

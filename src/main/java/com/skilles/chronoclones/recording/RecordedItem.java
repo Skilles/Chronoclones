@@ -58,6 +58,16 @@ public record RecordedItem(Holder<Item> item, DataComponentPatch components) {
         return item.value() == Items.AIR;
     }
 
+    /** Whether the template carried anything beyond the bare item. */
+    public boolean hasComponents() {
+        return !components.isEmpty();
+    }
+
+    /** EXACT-rule equality: the same recorded extras, however the era stores them. */
+    public boolean matchesComponentsOf(RecordedItem other) {
+        return components.equals(other.components);
+    }
+
     public ItemStack create() {
         return isEmpty() ? ItemStack.EMPTY : new ItemStack(item, 1, components);
     }

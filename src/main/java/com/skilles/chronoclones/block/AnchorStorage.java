@@ -16,8 +16,8 @@ import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import com.skilles.chronoclones.io.DataIn;
+import com.skilles.chronoclones.io.DataOut;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 
@@ -126,7 +126,7 @@ public final class AnchorStorage {
         }
 
         ItemStack probe = fuel.copyWithCount(1);
-        int burnTicks = level.fuelValues().burnDuration(probe);
+        int burnTicks = com.skilles.chronoclones.platform.Fuel.burnTicks(level, probe);
         if (burnTicks <= 0) {
             return;
         }
@@ -220,7 +220,7 @@ public final class AnchorStorage {
         return "experience_" + clone;
     }
 
-    public void save(ValueOutput output) {
+    public void save(DataOut output) {
         for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
             cloneInventories.get(clone).serialize(output.child(inventoryKey(clone)));
             output.store(experienceKey(clone), ExperienceStore.CODEC, cloneExperience.get(clone));
@@ -230,7 +230,7 @@ public final class AnchorStorage {
         output.store("charge", ChargeBuffer.CODEC, charge);
     }
 
-    public void load(ValueInput input) {
+    public void load(DataIn input) {
         for (int clone = 0; clone < CLONE_INVENTORIES; clone++) {
             int index = clone;
             input.child(inventoryKey(clone))
@@ -246,7 +246,7 @@ public final class AnchorStorage {
         charge = input.read("charge", ChargeBuffer.CODEC).orElse(ChargeBuffer.EMPTY);
     }
 
-    private void adoptLegacyInventory(ValueInput saved) {
+    private void adoptLegacyInventory(DataIn saved) {
         // Through an inventory of the old size: deserialize adopts the saved list wholesale.
         StackInventory legacy = new StackInventory(LEGACY_INVENTORY_SLOTS);
         legacy.deserialize(saved);

@@ -244,7 +244,7 @@ final class CloneInventoryGameTest {
 
         TagValueOutput output = TagValueOutput.createWithContext(
                 ProblemReporter.DISCARDING, level.registryAccess());
-        legacy.serialize(output.child("inventory"));
+        legacy.serialize(com.skilles.chronoclones.io.DataIO.wrap(output.child("inventory")));
         return output.buildResult();
     }
 

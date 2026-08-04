@@ -7,8 +7,8 @@ import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
+import com.skilles.chronoclones.io.DataIn;
+import com.skilles.chronoclones.io.DataOut;
 import org.jspecify.annotations.NonNull;
 
 /**
@@ -192,12 +192,12 @@ public class StackInventory implements Container {
         return copy;
     }
 
-    public void serialize(ValueOutput output) {
+    public void serialize(DataOut output) {
         output.store(VALUE_IO_KEY, ItemStack.OPTIONAL_CODEC.listOf(), stacks);
     }
 
     /** Adopts the saved list wholesale, size included, exactly as the old handler did. */
-    public void deserialize(ValueInput input) {
+    public void deserialize(DataIn input) {
         input.read(VALUE_IO_KEY, ItemStack.OPTIONAL_CODEC.listOf()).ifPresent(saved -> {
             NonNullList<ItemStack> adopted = NonNullList.withSize(saved.size(), ItemStack.EMPTY);
             for (int slot = 0; slot < saved.size(); slot++) {

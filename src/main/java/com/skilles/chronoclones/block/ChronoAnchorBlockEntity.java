@@ -51,6 +51,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import com.skilles.chronoclones.io.DataIO;
+import com.skilles.chronoclones.io.DataIn;
+import com.skilles.chronoclones.io.DataOut;
 import com.skilles.chronoclones.inventory.GatedContainer;
 import com.skilles.chronoclones.inventory.StackInventory;
 
@@ -736,12 +739,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     @Override
     public void removeComponentsFromTag(ValueOutput output) {
-        output.discard("recording");
+        DataIO.wrap(output).discard("recording");
     }
 
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
+        saveData(DataIO.wrap(output));
+    }
+
+    private void saveData(DataOut output) {
         storage.save(output);
 
         if (recording != null) {
@@ -764,6 +771,10 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
+        loadData(DataIO.wrap(input));
+    }
+
+    private void loadData(DataIn input) {
         storage.load(input);
 
         recording = input.read("recording", RecordingCodecs.RECORDING).orElse(null);

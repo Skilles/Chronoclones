@@ -28,8 +28,7 @@ public record ItemMatch(RecordedItem template, ItemRule rule) {
         }
         return switch (rule) {
             case SAME_ITEM -> true;
-            case EXACT -> RecordedItem.of(stack.copyWithCount(1)).components()
-                    .equals(template.components());
+            case EXACT -> RecordedItem.of(stack.copyWithCount(1)).matchesComponentsOf(template);
         };
     }
 }

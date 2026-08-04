@@ -261,10 +261,10 @@ public class RoutineEditorScreen extends Screen {
 
     private boolean carriesComponents() {
         return switch (action()) {
-            case ChronoAction.UseOnBlock a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.UseItem a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.InteractEntity a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.PlaceBlock a -> !a.itemTemplate().components().isEmpty();
+            case ChronoAction.UseOnBlock a -> a.itemTemplate().hasComponents();
+            case ChronoAction.UseItem a -> a.itemTemplate().hasComponents();
+            case ChronoAction.InteractEntity a -> a.itemTemplate().hasComponents();
+            case ChronoAction.PlaceBlock a -> a.itemTemplate().hasComponents();
             default -> false;
         };
     }
@@ -521,7 +521,11 @@ public class RoutineEditorScreen extends Screen {
     public void extractBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                   float partialTick) {
         super.extractBackground(g, mouseX, mouseY, partialTick);
+        drawBackground(g, mouseX, mouseY, partialTick);
+    }
 
+    /** The version-neutral half of the background pass; the override above is the 26.x shell. */
+    private void drawBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         AnchorPanels.panel(g, left - 2, top - 2, WIDTH + 4, HEIGHT + 4);
         g.fill(left, top, left + WIDTH, top + HEIGHT, AnchorPanels.WINDOW);
 
@@ -778,18 +782,23 @@ public class RoutineEditorScreen extends Screen {
 
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
-        int mark = markAt((int) event.x(), (int) event.y());
+        return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
+    }
+
+    /** The version-neutral half of the click pass; the override above is the 26.x shell. */
+    private boolean handleClick(double x, double y) {
+        int mark = markAt((int) x, (int) y);
         if (mark >= 0) {
             select(new Row(mark, -1));
             return true;
         }
 
-        Row row = rowAt((int) event.x(), (int) event.y());
+        Row row = rowAt((int) x, (int) y);
         if (row != null && !row.equals(selectedRow())) {
             select(row);
             return true;
         }
-        return super.mouseClicked(event, doubled);
+        return false;
     }
 
     private void select(Row row) {
@@ -805,12 +814,17 @@ public class RoutineEditorScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        return handleScroll(deltaY) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+    }
+
+    /** The version-neutral half of the scroll pass; the override above is the 26.x shell. */
+    private boolean handleScroll(double deltaY) {
         int overflow = rows().size() - rowsVisible();
         if (overflow > 0) {
             scroll = Math.clamp(scroll - (int) Math.signum(deltaY), 0, overflow);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+        return false;
     }
 
     private @org.jspecify.annotations.Nullable Row rowAt(int x, int y) {

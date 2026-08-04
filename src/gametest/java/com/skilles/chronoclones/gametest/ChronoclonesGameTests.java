@@ -63,6 +63,18 @@ public final class ChronoclonesGameTests {
         ENTRIES.add(new Entry(name, function));
     }
 
+    /** Runs one declared test by name; the pre-26 annotated shims dispatch through here. */
+    public static void run(String name, GameTestHelper helper) {
+        declare();
+        for (Entry entry : ENTRIES) {
+            if (entry.name().equals(name)) {
+                entry.function().accept(helper);
+                return;
+            }
+        }
+        helper.fail("unknown test function " + name);
+    }
+
     /** @param maxTicks documentation only; the runtime value lives in the test's JSON */
     static void add(String name, int maxTicks, Consumer<GameTestHelper> function) {
         add(name, function);

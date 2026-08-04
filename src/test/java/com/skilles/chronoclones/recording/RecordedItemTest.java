@@ -36,14 +36,14 @@ class RecordedItemTest {
 
         RecordedItem item = read.getOrThrow();
         assertEquals(Items.DIAMOND_HOE, item.item().value());
-        assertTrue(item.components().isEmpty(), "a bare id carries no components");
+        assertFalse(item.hasComponents(), "a bare id carries no components");
     }
 
     @Test
     @DisplayName("components survive a round trip")
     void componentsRoundTrip() {
         RecordedItem recorded = damaged(7);
-        assertFalse(recorded.components().isEmpty(), "the damage should have been recorded");
+        assertTrue(recorded.hasComponents(), "the damage should have been recorded");
 
         assertEquals(recorded, roundTrip(recorded));
     }

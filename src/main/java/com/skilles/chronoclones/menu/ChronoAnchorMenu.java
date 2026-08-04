@@ -156,7 +156,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** What consumeFuel will actually take: burnables, or the creative cell. */
     public static boolean isAnchorFuel(net.minecraft.world.level.Level level, ItemStack stack) {
         return stack.is(com.skilles.chronoclones.registry.ModItems.CREATIVE_CHARGE_CELL.get())
-                || level.fuelValues().burnDuration(stack) > 0;
+                || com.skilles.chronoclones.platform.Fuel.burnTicks(level, stack) > 0;
     }
 
     /** Clamped on read, so a clone going away takes its page with it. */
@@ -379,7 +379,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
             boolean moved;
             if (UpgradeState.isUpgrade(stack.getItem())) {
                 moved = moveItemStackTo(stack, fuel + 1, TOTAL_ANCHOR_SLOTS, false);
-            } else if (player.level().fuelValues().burnDuration(stack) > 0) {
+            } else if (com.skilles.chronoclones.platform.Fuel.burnTicks(player.level(), stack) > 0) {
                 moved = moveItemStackTo(stack, fuel, fuel + 1, false)
                         || moveItemStackTo(stack, page, pageEnd, false);
             } else {
