@@ -1,3 +1,4 @@
+//? if neoforge {
 package com.skilles.chronoclones.platform.neoforge;
 
 import com.skilles.chronoclones.Chronoclones;
@@ -23,3 +24,4 @@ public final class NeoForgeCapabilities {
                 (anchor, side) -> new WorldlyContainerWrapper(anchor.getExternalInventory(), side));
     }
 }
+//?}

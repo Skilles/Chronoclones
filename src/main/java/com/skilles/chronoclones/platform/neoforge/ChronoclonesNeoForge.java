@@ -1,3 +1,4 @@
+//? if neoforge {
 package com.skilles.chronoclones.platform.neoforge;
 
 import com.skilles.chronoclones.Chronoclones;
@@ -19,3 +20,4 @@ public class ChronoclonesNeoForge {
         modContainer.registerConfig(ModConfig.Type.SERVER, ChronoclonesConfig.SPEC);
     }
 }
+//?}

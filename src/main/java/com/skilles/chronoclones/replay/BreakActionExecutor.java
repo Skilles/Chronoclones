@@ -16,7 +16,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import com.skilles.chronoclones.inventory.StackInventory;
 
+//? if neoforge {
 import net.neoforged.neoforge.common.CommonHooks;
+//?}
 import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
@@ -135,10 +137,13 @@ public final class BreakActionExecutor {
         ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 0.0f, 0.0f, tool);
         try {
+            // The loader's pre-break check, so protection mods can veto a clone's dig.
+            //? if neoforge {
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);
             if (breakEvent.isCanceled()) {
                 return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
             }
+            //?}
 
             List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, tool);
 

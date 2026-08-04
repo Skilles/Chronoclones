@@ -1,3 +1,4 @@
+//? if neoforge {
 package com.skilles.chronoclones.platform.neoforge;
 
 import com.skilles.chronoclones.Chronoclones;
@@ -17,3 +18,4 @@ public class ChronoclonesClientNeoForge {
         ChronoclonesClientInit.init();
     }
 }
+//?}

@@ -6,7 +6,9 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.inventory.MenuType;
+//? if neoforge {
 import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
+//?}
 
 /**
  * The two menu operations the loaders disagree on: creating a menu type whose client side is
@@ -16,6 +18,7 @@ public final class AnchorMenus {
 
     private AnchorMenus() {}
 
+    //? if neoforge {
     public static MenuType<ChronoAnchorMenu> anchorMenuType() {
         return IMenuTypeExtension.create(ChronoAnchorMenu::new);
     }
@@ -27,4 +30,5 @@ public final class AnchorMenus {
             ChronoAnchorMenu.writeTimeline(buffer, anchor.getRecording());
         });
     }
+    //?}
 }

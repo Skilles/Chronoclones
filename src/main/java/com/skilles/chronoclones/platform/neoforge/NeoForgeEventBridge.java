@@ -1,3 +1,4 @@
+//? if neoforge {
 package com.skilles.chronoclones.platform.neoforge;
 
 import com.skilles.chronoclones.Chronoclones;
@@ -154,3 +155,4 @@ public final class NeoForgeEventBridge {
         RecordingCapture.serverStopped();
     }
 }
+//?}

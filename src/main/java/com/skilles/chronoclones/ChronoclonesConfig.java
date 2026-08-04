@@ -1,9 +1,17 @@
 package com.skilles.chronoclones;
 
+//? if neoforge {
 import net.neoforged.neoforge.common.ModConfigSpec;
+//?}
 
+/**
+ * The mod's limits and toggles, read through the static accessors below. The backing store is
+ * per-loader: NeoForge keeps a SERVER-type ModConfigSpec (per-world file, synced, config screen);
+ * a Fabric build reads a plain JSON file with the same keys and ranges.
+ */
 public final class ChronoclonesConfig {
 
+    //? if neoforge {
     public static final ModConfigSpec SPEC;
 
     public static final ModConfigSpec.IntValue MAX_RADIUS;
@@ -100,6 +108,7 @@ public final class ChronoclonesConfig {
     private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
         return SPEC.isLoaded() ? value.getAsInt() : fallback;
     }
+    //?}
 
     private ChronoclonesConfig() {}
 }
