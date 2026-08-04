@@ -17,7 +17,7 @@ import net.minecraft.world.phys.Vec3;
 import com.skilles.chronoclones.inventory.StackInventory;
 
 import net.neoforged.neoforge.common.CommonHooks;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class BreakActionExecutor {
@@ -111,7 +111,7 @@ public final class BreakActionExecutor {
         BlockPos worldPos = ctx.placement().toWorld(action.localPos());
         ItemStack tool = toolFor(action, ctx.items(), ctx.slot(), ctx.tool(),
                 level.getBlockState(worldPos));
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
+        ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 0.0f, 0.0f, tool == null ? ItemStack.EMPTY : tool);
         try {
             return level.getBlockState(worldPos).getDestroyProgress(owner, level, worldPos);
@@ -132,7 +132,7 @@ public final class BreakActionExecutor {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
         }
 
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
+        ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 0.0f, 0.0f, tool);
         try {
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);

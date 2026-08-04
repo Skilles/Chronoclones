@@ -25,7 +25,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.skilles.chronoclones.platform.PlatformNetwork;
 import org.jspecify.annotations.Nullable;
 
 /** Records what a player did inside a container, as the clicks they made. */
@@ -254,7 +254,7 @@ public final class ContainerWatch {
     private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
         if (player.connection != null && !player.hasDisconnected()
                 && player.connection.hasChannel(RecordingHighlightPayload.TYPE)) {
-            PacketDistributor.sendToPlayer(player, payload);
+            PlatformNetwork.sendToPlayer(player, payload);
         }
     }
 

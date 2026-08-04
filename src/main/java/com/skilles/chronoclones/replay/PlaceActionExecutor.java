@@ -23,7 +23,7 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 import com.skilles.chronoclones.inventory.StackInventory;
 
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 
 public final class PlaceActionExecutor {
 
@@ -76,7 +76,7 @@ public final class PlaceActionExecutor {
 
         ActionPose pose = recorded.map(ChronoAction.PlaceContext::pose)
                 .orElse(ActionPose.OVER_THE_ANCHOR);
-        FakePlayer owner = ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),
+        ClonePlayer owner = ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),
                 pose.worldYaw(ctx.placement().facing()), pose.pitch(), hand, toPlace);
         try {
             BlockHitResult hit = new BlockHitResult(hitVec, face, clickedPos, inside);

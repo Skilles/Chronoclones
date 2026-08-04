@@ -9,7 +9,7 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 import com.skilles.chronoclones.network.RoutinePayloads;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -34,7 +34,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         editorTab = addRenderableWidget(new DrawerTab(
                 Component.translatable("gui.chronoclones.anchor.settings"),
-                () -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
+                () -> PlatformClientNetwork.sendToServer(new RoutinePayloads.Request(
                         RoutinePayloads.Source.ofAnchor(menu.getAnchorPos())))));
         editorTab.setPosition(DrawerTab.tabX(leftPos, imageWidth), topPos + EDITOR_TAB_Y);
         editorTab.setTooltip(net.minecraft.client.gui.components.Tooltip.create(

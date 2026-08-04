@@ -130,11 +130,9 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
-        if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
-            player.openMenu(anchor, buffer -> {
-                buffer.writeBlockPos(pos);
-                ChronoAnchorMenu.writeTimeline(buffer, anchor.getRecording());
-            });
+        if (level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor
+                && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            com.skilles.chronoclones.platform.AnchorMenus.open(serverPlayer, anchor);
         }
         return InteractionResult.SUCCESS;
     }

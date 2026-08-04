@@ -31,7 +31,7 @@ public final class GoggleCache {
 
         long now = client.level.getGameTime();
         if (CLOCK.claim(now, REFRESH_INTERVAL_TICKS)) {
-            net.neoforged.neoforge.client.network.ClientPacketDistributor
+            com.skilles.chronoclones.platform.PlatformClientNetwork
                     .sendToServer(new GogglePayloads.Request());
         }
 

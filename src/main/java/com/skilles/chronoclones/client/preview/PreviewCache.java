@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import org.jspecify.annotations.Nullable;
 
 public final class PreviewCache {
@@ -66,7 +66,7 @@ public final class PreviewCache {
                 && now >= cachedAtTick && now - cachedAtTick <= TTL_TICKS;
         if (!fresh && CLOCK.claim(now, REQUEST_INTERVAL_TICKS)) {
             LEDGER.asked();
-            ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
+            PlatformClientNetwork.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }
 
         // The last known offset, even gone stale, beats flashing back to the origin for the

@@ -14,7 +14,7 @@ import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.world.entity.player.PlayerSkin;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import org.jspecify.annotations.Nullable;
 
 /** The skins of the authors whose routines are running nearby, cached per author. */
@@ -39,7 +39,7 @@ public final class AuthorSkins {
         }
 
         if (ASKED.add(author)) {
-            ClientPacketDistributor.sendToServer(new SkinPayloads.Request(author));
+            PlatformClientNetwork.sendToServer(new SkinPayloads.Request(author));
         }
         return DefaultPlayerSkin.get(author);
     }

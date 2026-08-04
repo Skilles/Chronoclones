@@ -13,7 +13,7 @@ import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class UseItemActionExecutor {
@@ -46,7 +46,7 @@ public final class UseItemActionExecutor {
             return Progress.done(ActionResult.OK);
         }
 
-        FakePlayer owner = acquire(ctx, action, loan.stack());
+        ClonePlayer owner = acquire(ctx, action, loan.stack());
 
         if (owner.getCooldowns().isOnCooldown(loan.stack())) {
             return giveUp(ctx, action, owner, loan, FailureReason.ON_COOLDOWN);
@@ -89,7 +89,7 @@ public final class UseItemActionExecutor {
     private static Progress keepHolding(ActionContext ctx, ChronoAction.UseItem action,
                                         CloneRuntime runtime) {
         HeldItemLoan.Loan loan = runtime.usingLoan();
-        FakePlayer owner = ctx.actor().current(ctx.cloneIndex());
+        ClonePlayer owner = ctx.actor().current(ctx.cloneIndex());
 
         if (loan == null || owner == null || !owner.isUsingItem()) {
             if (loan != null && owner != null) {
@@ -122,7 +122,7 @@ public final class UseItemActionExecutor {
     }
 
     private static ActionResult release(ActionContext ctx, ChronoAction.UseItem action,
-                                        CloneRuntime runtime, FakePlayer owner,
+                                        CloneRuntime runtime, ClonePlayer owner,
                                         HeldItemLoan.Loan loan) {
         takeAmmunitionBack(ctx, owner, runtime.ammoLoan());
         runtime.clearUse();
@@ -132,7 +132,7 @@ public final class UseItemActionExecutor {
     }
 
     /** Vanilla looks for ammunition in the shooter's own inventory, not in the anchor. */
-    private static HeldItemLoan.@Nullable Loan lendAmmunition(ActionContext ctx, FakePlayer owner,
+    private static HeldItemLoan.@Nullable Loan lendAmmunition(ActionContext ctx, ClonePlayer owner,
                                                               ItemStack weapon) {
         if (!(weapon.getItem() instanceof ProjectileWeaponItem projectile)) {
             return null;
@@ -155,7 +155,7 @@ public final class UseItemActionExecutor {
     }
 
     /** Whatever was not fired. */
-    private static void takeAmmunitionBack(ActionContext ctx, FakePlayer owner,
+    private static void takeAmmunitionBack(ActionContext ctx, ClonePlayer owner,
                                            HeldItemLoan.@Nullable Loan ammo) {
         if (ammo == null) {
             return;
@@ -167,7 +167,7 @@ public final class UseItemActionExecutor {
 
     private static final int AMMUNITION_SLOT = 9;
 
-    private static Progress giveUp(ActionContext ctx, ChronoAction.UseItem action, FakePlayer owner,
+    private static Progress giveUp(ActionContext ctx, ChronoAction.UseItem action, ClonePlayer owner,
                                    HeldItemLoan.Loan loan, FailureReason reason) {
         HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), loan,
                 owner.getItemInHand(action.hand()).copy());
@@ -180,12 +180,12 @@ public final class UseItemActionExecutor {
     }
 
     private static ActionResult finish(ActionContext ctx, ChronoAction.UseItem action,
-                                       FakePlayer owner, HeldItemLoan.Loan loan,
+                                       ClonePlayer owner, HeldItemLoan.Loan loan,
                                        InteractionResult result) {
         return Interactions.finish(ctx, owner, action.hand(), loan, result, BlockPos.ZERO);
     }
 
-    private static FakePlayer acquire(ActionContext ctx, ChronoAction.UseItem action, ItemStack held) {
+    private static ClonePlayer acquire(ActionContext ctx, ChronoAction.UseItem action, ItemStack held) {
         ActionPose pose = action.pose().orElse(ActionPose.OVER_THE_ANCHOR);
         return ctx.acquire(pose.worldPos(ctx.placement().origin(), ctx.placement().facing()),
                 pose.worldYaw(ctx.placement().facing()), pose.pitch(), action.hand(), held);

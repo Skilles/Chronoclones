@@ -77,6 +77,26 @@ public final class ChronoclonesConfig {
         return orDefault(MAX_RECORDING_BYTES, 262_144);
     }
 
+    public static int maxActionsPerTick() {
+        return orDefault(MAX_ACTIONS_PER_TICK, 128);
+    }
+
+    public static int maxActionTicks() {
+        return orDefault(MAX_ACTION_TICKS, 160);
+    }
+
+    public static boolean allowPvp() {
+        return SPEC.isLoaded() ? ALLOW_PVP.get() : false;
+    }
+
+    public static int goggleRadius() {
+        return orDefault(GOGGLE_RADIUS, 24);
+    }
+
+    public static boolean gogglesShowOthers() {
+        return SPEC.isLoaded() ? GOGGLES_SHOW_OTHERS.get() : true;
+    }
+
     private static int orDefault(ModConfigSpec.IntValue value, int fallback) {
         return SPEC.isLoaded() ? value.getAsInt() : fallback;
     }

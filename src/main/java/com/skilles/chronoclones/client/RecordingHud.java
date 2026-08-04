@@ -12,14 +12,8 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHud {
 
     private RecordingHud() {}
@@ -31,12 +25,7 @@ public final class RecordingHud {
 
     private static final int BORDER = 18;
 
-    @SubscribeEvent
-    static void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.CHAT, Chronoclones.id("recording_overlay"), RecordingHud::render);
-    }
-
-    private static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || client.level == null || client.gui.hud.isHidden()) {

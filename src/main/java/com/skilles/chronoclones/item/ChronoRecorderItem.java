@@ -27,7 +27,7 @@ import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.skilles.chronoclones.platform.PlatformNetwork;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -107,7 +107,7 @@ public class ChronoRecorderItem extends Item {
                 return InteractionResult.PASS;
             }
             if (state == State.HOLDING) {
-                PacketDistributor.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
+                PlatformNetwork.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
                         RoutinePayloads.Source.ofHand(hand),
                         stack.get(ModDataComponents.RECORDING.get()), 0));
                 return InteractionResult.SUCCESS;

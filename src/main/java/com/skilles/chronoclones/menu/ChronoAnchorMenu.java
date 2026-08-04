@@ -186,7 +186,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     public static final int REDSTONE_BUTTON = RUN_STATE_BUTTON + 3;
 
     private boolean toggleRedstone(Player player) {
-        if (player.isFakePlayer()
+        if (com.skilles.chronoclones.platform.ClonePlayer.isFake(player)
                 || !AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
             return false;
         }
@@ -200,7 +200,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private boolean setRunState(Player player, int ordinal) {
         // A clone acts under its owner's name, so the ownership check below would pass it.
-        if (player.isFakePlayer()) {
+        if (com.skilles.chronoclones.platform.ClonePlayer.isFake(player)) {
             return false;
         }
         if (ordinal < 0 || ordinal >= RunState.values().length

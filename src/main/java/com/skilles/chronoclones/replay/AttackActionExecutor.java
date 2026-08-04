@@ -21,7 +21,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.skilles.chronoclones.inventory.StackInventory;
 
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class AttackActionExecutor {
@@ -52,7 +52,7 @@ public final class AttackActionExecutor {
             return AttackOutcome.missed(FailureReason.NO_ITEM, localBlock);
         }
 
-        FakePlayer owner = ctx.acquire(worldPos, 0.0f, 0.0f,
+        ClonePlayer owner = ctx.acquire(worldPos, 0.0f, 0.0f,
                 loan.stack());
         try {
             AnchorFakePlayer.chargeAttack(owner);
@@ -123,7 +123,7 @@ public final class AttackActionExecutor {
                                                        ChronoAction.AttackEntity action,
                                                        Vec3 worldPos, @Nullable LivingEntity sticky) {
         TargetRule rule = ctx.target();
-        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        boolean allowPvp = ChronoclonesConfig.allowPvp();
         AABB box = Targeting.boxAround(worldPos, rule);
 
         if (sticky != null && sticky.isAlive() && box.contains(sticky.position())) {

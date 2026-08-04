@@ -20,7 +20,7 @@ public abstract class InteractOnMixin {
     @Inject(method = "interactOn", at = @At("RETURN"))
     private void chronoclones$settleInteract(Entity entity, InteractionHand hand, Vec3 location,
                                              CallbackInfoReturnable<InteractionResult> callback) {
-        if ((Object) this instanceof ServerPlayer player && !player.isFakePlayer()) {
+        if ((Object) this instanceof ServerPlayer player && !com.skilles.chronoclones.platform.ClonePlayer.isFake(player)) {
             InteractionWatch.settle(player, hand, callback.getReturnValue());
         }
     }

@@ -14,14 +14,8 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class NudgeKeys {
 
     private NudgeKeys() {}
@@ -31,32 +25,33 @@ public final class NudgeKeys {
 
     private static final Map<NudgeDirection.Key, KeyMapping> KEYS =
             new EnumMap<>(NudgeDirection.Key.class);
-    private static KeyMapping reset;
+    private static final KeyMapping reset;
 
-    @SubscribeEvent
-    static void register(RegisterKeyMappingsEvent event) {
-        bind(event, NudgeDirection.Key.FORWARD, "forward", InputConstants.KEY_UP);
-        bind(event, NudgeDirection.Key.BACK, "back", InputConstants.KEY_DOWN);
-        bind(event, NudgeDirection.Key.LEFT, "left", InputConstants.KEY_LEFT);
-        bind(event, NudgeDirection.Key.RIGHT, "right", InputConstants.KEY_RIGHT);
-        bind(event, NudgeDirection.Key.UP, "up", InputConstants.KEY_PAGEUP);
-        bind(event, NudgeDirection.Key.DOWN, "down", InputConstants.KEY_PAGEDOWN);
+    static {
+        bind(NudgeDirection.Key.FORWARD, "forward", InputConstants.KEY_UP);
+        bind(NudgeDirection.Key.BACK, "back", InputConstants.KEY_DOWN);
+        bind(NudgeDirection.Key.LEFT, "left", InputConstants.KEY_LEFT);
+        bind(NudgeDirection.Key.RIGHT, "right", InputConstants.KEY_RIGHT);
+        bind(NudgeDirection.Key.UP, "up", InputConstants.KEY_PAGEUP);
+        bind(NudgeDirection.Key.DOWN, "down", InputConstants.KEY_PAGEDOWN);
 
         reset = new KeyMapping("key.chronoclones.nudge.reset", InputConstants.Type.KEYSYM,
                 InputConstants.KEY_END, CATEGORY);
-        event.register(reset);
     }
 
-    private static void bind(RegisterKeyMappingsEvent event, NudgeDirection.Key key,
-                             String name, int code) {
-        KeyMapping mapping = new KeyMapping("key.chronoclones.nudge." + name,
-                InputConstants.Type.KEYSYM, code, CATEGORY);
-        KEYS.put(key, mapping);
-        event.register(mapping);
+    private static void bind(NudgeDirection.Key key, String name, int code) {
+        KEYS.put(key, new KeyMapping("key.chronoclones.nudge." + name,
+                InputConstants.Type.KEYSYM, code, CATEGORY));
     }
 
-    @SubscribeEvent
-    static void onClientTick(ClientTickEvent.Post event) {
+    /** Every mapping the mod owns, for whichever registry the loader uses. */
+    public static void forEachMapping(java.util.function.Consumer<KeyMapping> registrar) {
+        KEYS.values().forEach(registrar);
+        registrar.accept(reset);
+    }
+
+    /** Called at the end of every client tick. */
+    public static void tick() {
         PreviewCache.Target target = PreviewCache.current();
         Minecraft client = Minecraft.getInstance();
         if (target == null || client.player == null) {
@@ -74,7 +69,7 @@ public final class NudgeKeys {
                         NudgeDirection.step(entry.getKey(), playerFacing, target.facing()));
             }
         }
-        while (reset != null && reset.consumeClick()) {
+        while (reset.consumeClick()) {
             send(target.anchorPos(), BlockPos.ZERO);
         }
     }
@@ -85,13 +80,13 @@ public final class NudgeKeys {
                 // discarded
             }
         }
-        while (reset != null && reset.consumeClick()) {
+        while (reset.consumeClick()) {
             // discarded
         }
     }
 
     private static void send(BlockPos anchorPos, BlockPos delta) {
-        ClientPacketDistributor.sendToServer(new AnchorNudgePayload(anchorPos, delta));
+        PlatformClientNetwork.sendToServer(new AnchorNudgePayload(anchorPos, delta));
         PreviewCache.nudged(delta);
     }
 }

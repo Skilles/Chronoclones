@@ -10,31 +10,28 @@ import com.skilles.chronoclones.registry.ModMenus;
 import com.mojang.logging.LogUtils;
 
 import net.minecraft.resources.Identifier;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.config.ModConfig;
 import org.slf4j.Logger;
 
-@Mod(Chronoclones.MODID)
-public class Chronoclones {
+/** Loader-neutral mod core; each loader's entrypoint lives under {@code platform}. */
+public final class Chronoclones {
 
     public static final String MODID = "chronoclones";
     public static final Logger LOGGER = LogUtils.getLogger();
 
-    public Chronoclones(IEventBus modEventBus, ModContainer modContainer) {
-        ModBlocks.BLOCKS.register(modEventBus);
-        ModItems.ITEMS.register(modEventBus);
-        ModDataComponents.COMPONENTS.register(modEventBus);
-        ModCreativeTabs.TABS.register(modEventBus);
-        ModBlockEntities.BLOCK_ENTITIES.register(modEventBus);
-        ModEntities.ENTITY_TYPES.register(modEventBus);
-        ModMenus.MENUS.register(modEventBus);
-
-        modContainer.registerConfig(ModConfig.Type.SERVER, ChronoclonesConfig.SPEC);
+    /** Runs every registry class's static registrations, in dependency order. */
+    public static void init() {
+        ModBlocks.init();
+        ModItems.init();
+        ModDataComponents.init();
+        ModCreativeTabs.init();
+        ModBlockEntities.init();
+        ModEntities.init();
+        ModMenus.init();
     }
 
     public static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(MODID, path);
     }
+
+    private Chronoclones() {}
 }

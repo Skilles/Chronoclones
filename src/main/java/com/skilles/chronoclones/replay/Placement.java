@@ -31,7 +31,7 @@ public record Placement(BlockPos anchorPos, BlockPos origin, Direction facing) {
     }
 
     public boolean withinRadius(BlockPos worldPos) {
-        return worldPos.closerThan(anchorPos, ChronoclonesConfig.MAX_RADIUS.getAsInt());
+        return worldPos.closerThan(anchorPos, ChronoclonesConfig.maxRadius());
     }
 
     public boolean withinRadius(Vec3 worldPos) {

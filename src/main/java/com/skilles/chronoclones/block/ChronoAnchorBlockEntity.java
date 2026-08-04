@@ -279,7 +279,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public void nudgeOrigin(BlockPos delta) {
-        int limit = com.skilles.chronoclones.ChronoclonesConfig.MAX_RADIUS.getAsInt();
+        int limit = com.skilles.chronoclones.ChronoclonesConfig.maxRadius();
         originOffset = new BlockPos(
                 Math.clamp(originOffset.getX() + delta.getX(), -limit, limit),
                 Math.clamp(originOffset.getY() + delta.getY(), -limit, limit),
@@ -497,7 +497,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         boolean unfinished = rule.completion() == ActionSettings.TargetRule.Completion.UNTIL_DEAD
                 && attack.targetAlive();
-        if (unfinished && runtime.targetTicks() < ChronoclonesConfig.MAX_ACTION_TICKS.getAsInt()) {
+        if (unfinished && runtime.targetTicks() < ChronoclonesConfig.maxActionTicks()) {
             runtime.awaitTarget();
             return false;
         }
@@ -528,7 +528,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         UseItemActionExecutor.Progress progress = UseItemActionExecutor.tick(ctx, action, runtime);
         settle(runtime, ctx.operator());
 
-        boolean outOfPatience = runtime.usingTicks() >= ChronoclonesConfig.MAX_ACTION_TICKS.getAsInt();
+        boolean outOfPatience = runtime.usingTicks() >= ChronoclonesConfig.maxActionTicks();
         if (!progress.finished() && !outOfPatience) {
             return false;
         }

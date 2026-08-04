@@ -15,7 +15,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 
 public final class InteractEntityActionExecutor {
 
@@ -33,7 +33,7 @@ public final class InteractEntityActionExecutor {
             return ActionResult.fail(FailureReason.UNLOADED, localBlock);
         }
 
-        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        boolean allowPvp = ChronoclonesConfig.allowPvp();
         TargetRule rule = ctx.target();
         AABB box = Targeting.boxAround(worldPos, rule);
         List<Entity> candidates = level.getEntitiesOfClass(Entity.class, box, entity ->
@@ -55,7 +55,7 @@ public final class InteractEntityActionExecutor {
             return ActionResult.fail(FailureReason.NO_ITEM, localBlock);
         }
 
-        FakePlayer owner = ctx.acquire(worldPos,
+        ClonePlayer owner = ctx.acquire(worldPos,
                 ctx.placement().facing().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
             InteractionResult result = owner.interactOn(target, action.hand(),

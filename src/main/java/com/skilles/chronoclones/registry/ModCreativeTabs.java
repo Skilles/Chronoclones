@@ -1,20 +1,21 @@
 package com.skilles.chronoclones.registry;
 
-import com.skilles.chronoclones.Chronoclones;
+import java.util.function.Supplier;
 
-import net.minecraft.core.registries.Registries;
+import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.platform.Registrar;
+
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModCreativeTabs {
 
-    public static final DeferredRegister<CreativeModeTab> TABS =
-            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, Chronoclones.MODID);
+    public static final Registrar<CreativeModeTab> TABS =
+            Registrar.create(BuiltInRegistries.CREATIVE_MODE_TAB, Chronoclones.MODID);
 
-    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> MAIN = TABS.register("main",
+    public static final Supplier<CreativeModeTab> MAIN = TABS.register("main",
             () -> CreativeModeTab.builder()
                     .title(Component.translatable("itemGroup.chronoclones"))
                     .withTabsBefore(CreativeModeTabs.SPAWN_EGGS)
@@ -29,6 +30,8 @@ public final class ModCreativeTabs {
                         output.accept(ModItems.CREATIVE_CHARGE_CELL.get());
                     })
                     .build());
+
+    public static void init() {}
 
     private ModCreativeTabs() {}
 }

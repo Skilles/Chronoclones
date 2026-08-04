@@ -1,6 +1,7 @@
-package com.skilles.chronoclones.registry;
+package com.skilles.chronoclones.platform.neoforge;
 
 import com.skilles.chronoclones.Chronoclones;
+import com.skilles.chronoclones.registry.ModBlockEntities;
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 
 import net.neoforged.bus.api.SubscribeEvent;
@@ -10,9 +11,9 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import net.neoforged.neoforge.transfer.item.WorldlyContainerWrapper;
 
 @EventBusSubscriber(modid = Chronoclones.MODID)
-public final class ModCapabilities {
+public final class NeoForgeCapabilities {
 
-    private ModCapabilities() {}
+    private NeoForgeCapabilities() {}
 
     @SubscribeEvent
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {

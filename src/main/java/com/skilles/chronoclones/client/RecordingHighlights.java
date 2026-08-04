@@ -15,12 +15,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.Slot;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ScreenEvent;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHighlights {
 
     private RecordingHighlights() {}
@@ -48,22 +43,20 @@ public final class RecordingHighlights {
         CARRIED.clear();
     }
 
-    @SubscribeEvent
-    static void render(ScreenEvent.Render.Foreground event) {
-        Screen screen = event.getScreen();
-
+    /** Painted over every screen's foreground by the loader's screen-render hook. */
+    public static void renderForeground(Screen screen, GuiGraphicsExtractor graphics) {
         if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
             return;
         }
 
         if (containerId >= 0 && containerScreen.getMenu().containerId == containerId) {
-            paint(event.getGuiGraphics(), containerScreen, TOUCHED, noAmounts(CARRIED));
+            paint(graphics, containerScreen, TOUCHED, noAmounts(CARRIED));
             return;
         }
 
         GoggleSlots.Session session = GoggleSlots.sessionFor(containerScreen);
         if (session != null) {
-            paint(event.getGuiGraphics(), containerScreen, session.touched(), session.carried());
+            paint(graphics, containerScreen, session.touched(), session.carried());
         }
     }
 

@@ -12,13 +12,8 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.Shapes;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
 import org.joml.Vector3f;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class PreviewRenderer {
 
     private PreviewRenderer() {}
@@ -31,8 +26,8 @@ public final class PreviewRenderer {
     private static final int GOGGLE_ALPHA = 0x55;
     private static final double INSET = 0.002;
 
-    @SubscribeEvent
-    public static void onSubmitGeometry(SubmitCustomGeometryEvent event) {
+    /** Called from the loader's world-render custom-geometry stage. */
+    public static void submitGeometry(PoseStack poseStack, SubmitNodeCollector collector) {
         PreviewCache.Target hovered = PreviewCache.current();
         List<PreviewCache.Target> worn = GoggleCache.current();
         if (hovered == null && worn.isEmpty()) {
@@ -40,8 +35,6 @@ public final class PreviewRenderer {
         }
 
         Vec3 camera = Minecraft.getInstance().gameRenderer.mainCamera().position();
-        PoseStack poseStack = event.getPoseStack();
-        SubmitNodeCollector collector = event.getSubmitNodeCollector();
 
         poseStack.pushPose();
         poseStack.translate(-camera.x, -camera.y, -camera.z);

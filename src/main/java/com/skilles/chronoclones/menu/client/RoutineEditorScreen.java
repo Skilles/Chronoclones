@@ -29,7 +29,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import org.jspecify.annotations.NonNull;
 
 public class RoutineEditorScreen extends Screen {
@@ -439,7 +439,7 @@ public class RoutineEditorScreen extends Screen {
                 rebuildControls();
                 return;
             }
-            ClientPacketDistributor.sendToServer(new RoutinePayloads.Discard(source, revision));
+            PlatformClientNetwork.sendToServer(new RoutinePayloads.Discard(source, revision));
             onClose();
         }, true));
     }
@@ -449,7 +449,7 @@ public class RoutineEditorScreen extends Screen {
                 110, BAR_HEIGHT, Component.translatable("gui.chronoclones.editor.delete"), () -> {
             flushName();
             int index = selectedRow().action();
-            ClientPacketDistributor.sendToServer(
+            PlatformClientNetwork.sendToServer(
                     new RoutinePayloads.RemoveAction(source, index, revision));
             revision++;
             routine = routine.without(index);
@@ -485,7 +485,7 @@ public class RoutineEditorScreen extends Screen {
     private void apply(ActionSettings settings) {
         routine = routine.withSettings(selectedRow().action(), settings);
         nameDirty = false;
-        ClientPacketDistributor.sendToServer(
+        PlatformClientNetwork.sendToServer(
                 new RoutinePayloads.EditAction(source, selectedRow().action(), settings, revision));
         revision++;
     }
@@ -829,7 +829,7 @@ public class RoutineEditorScreen extends Screen {
                 && !isTyping()
                 && source.anchor().isPresent()) {
             flushName();
-            ClientPacketDistributor.sendToServer(
+            PlatformClientNetwork.sendToServer(
                     new RoutinePayloads.Reopen(source.anchor().get()));
             return true;
         }

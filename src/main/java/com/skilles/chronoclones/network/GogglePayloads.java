@@ -23,7 +23,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.chunk.LevelChunk;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -80,19 +79,16 @@ public final class GogglePayloads {
         }
     }
 
-    public static void handleRequest(Request request, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void handleRequest(Request request, ServerPlayer player) {
         if (!player.getItemBySlot(EquipmentSlot.HEAD).is(ModItems.CHRONO_GOGGLES.get())) {
             return;
         }
-        context.reply(gather(player));
+        com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player, gather(player));
     }
 
     private static Reply gather(ServerPlayer player) {
-        int radius = ChronoclonesConfig.GOGGLE_RADIUS.getAsInt();
-        boolean showOthers = ChronoclonesConfig.GOGGLES_SHOW_OTHERS.get();
+        int radius = ChronoclonesConfig.goggleRadius();
+        boolean showOthers = ChronoclonesConfig.gogglesShowOthers();
         BlockPos centre = player.blockPosition();
 
         List<Entry> found = new ArrayList<>();

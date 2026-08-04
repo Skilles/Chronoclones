@@ -10,7 +10,7 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 /** Lends a clone's items into the fake player for a container session, and drains them back. */
@@ -18,7 +18,7 @@ public final class ContainerCarrier {
 
     private ContainerCarrier() {}
 
-    public static void load(StackInventory inventory, FakePlayer player,
+    public static void load(StackInventory inventory, ClonePlayer player,
                             AbstractContainerMenu menu, ActionSettings settings) {
         Inventory target = player.getInventory();
         target.clearContent();
@@ -50,7 +50,7 @@ public final class ContainerCarrier {
     }
 
     public static void drain(ServerLevel level, BlockPos anchorPos,
-                             StackInventory inventory, FakePlayer player,
+                             StackInventory inventory, ClonePlayer player,
                              @Nullable AbstractContainerMenu menu) {
         if (menu != null) {
             ItemStack carried = menu.getCarried();

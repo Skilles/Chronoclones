@@ -11,7 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 
 public final class UseBlockActionExecutor {
 
@@ -47,7 +47,7 @@ public final class UseBlockActionExecutor {
                 .add(LocalSpace.rotateY(action.localHitOffset(),
                         LocalSpace.stepsFromNorth(ctx.placement().facing())));
 
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
+        ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 face.getOpposite().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
             InteractionResult result = owner.gameMode.useItemOn(owner, level,
