@@ -17,8 +17,8 @@ public class ClonePlayer extends
         //? if neoforge {
         FakePlayer
         //?} else {
-        /*net.fabricmc.fabric.api.entity.FakePlayer*/
-        //?}
+        /*net.fabricmc.fabric.api.entity.FakePlayer
+        *///?}
 {
 
     public ClonePlayer(ServerLevel level, GameProfile profile) {
@@ -34,7 +34,7 @@ public class ClonePlayer extends
         //? if neoforge {
         return player.isFakePlayer();
         //?} else {
-        /*return player instanceof net.fabricmc.fabric.api.entity.FakePlayer;*/
-        //?}
+        /*return player instanceof net.fabricmc.fabric.api.entity.FakePlayer;
+        *///?}
     }
 }

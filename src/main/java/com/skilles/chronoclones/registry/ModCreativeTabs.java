@@ -20,8 +20,8 @@ public final class ModCreativeTabs {
             //? if neoforge {
             () -> CreativeModeTab.builder()
             //?} else {
-            /*() -> CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0)*/
-            //?}
+            /*() -> CreativeModeTab.builder(CreativeModeTab.Row.TOP, 0)
+            *///?}
                     .title(Component.translatable("itemGroup.chronoclones"))
                     // Placement is a NeoForge nicety; Fabric orders modded tabs itself.
                     //? if neoforge

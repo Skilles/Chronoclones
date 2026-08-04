@@ -164,8 +164,8 @@ final class AnchorTestFixture {
         //? if neoforge {
         return net.neoforged.neoforge.common.util.FakePlayerFactory.get(level, profile);
         //?} else {
-        /*return net.fabricmc.fabric.api.entity.FakePlayer.get(level, profile);*/
-        //?}
+        /*return net.fabricmc.fabric.api.entity.FakePlayer.get(level, profile);
+        *///?}
     }
 
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {

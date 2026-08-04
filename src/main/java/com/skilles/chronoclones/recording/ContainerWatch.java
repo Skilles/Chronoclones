@@ -261,8 +261,8 @@ public final class ContainerWatch {
                 player.connection.hasChannel(RecordingHighlightPayload.TYPE);
                 //?} else {
                 /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
-                        player, RecordingHighlightPayload.TYPE);*/
-                //?}
+                        player, RecordingHighlightPayload.TYPE);
+                *///?}
         if (listening) {
             PlatformNetwork.sendToPlayer(player, payload);
         }
