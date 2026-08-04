@@ -4,26 +4,39 @@ on:
   push:
     paths:
       - "src/**"
+      - "versions/**"
       - "gradle/**"
       - "gradlew"
       - "gradlew.bat"
-      - "build.gradle"
-      - "settings.gradle"
+      - "*.gradle.kts"
       - "gradle.properties"
+      - ".sc_active_version"
+      - ".github/workflows/build.yml"
 
   pull_request:
     paths:
       - "src/**"
+      - "versions/**"
       - "gradle/**"
       - "gradlew"
       - "gradlew.bat"
-      - "build.gradle"
-      - "settings.gradle"
+      - "*.gradle.kts"
       - "gradle.properties"
+      - ".sc_active_version"
+      - ".github/workflows/build.yml"
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - node: 26.2-neoforge
+            gametest_task: runGameTestServer
+          - node: 26.2-fabric
+            gametest_task: runGametest
 
     steps:
       - name: Checkout repository
@@ -41,18 +54,21 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build with Gradle
-        run: ./gradlew build
+      - name: Build
+        run: ./gradlew ":${{ matrix.node }}:build"
 
-      - name: Run game tests
-        run: ./gradlew runGameTestServer
+      - name: Unit tests
+        run: ./gradlew ":${{ matrix.node }}:test"
+
+      - name: Game tests
+        run: ./gradlew ":${{ matrix.node }}:${{ matrix.gametest_task }}"
 
       - name: Upload mod JAR
         uses: actions/upload-artifact@v7
         with:
-          name: chronoclone
+          name: chronoclones-${{ matrix.node }}
           path: |
-            build/libs/*.jar
-            !build/libs/*-sources.jar
-            !build/libs/*-javadoc.jar
+            versions/${{ matrix.node }}/build/libs/*.jar
+            !versions/${{ matrix.node }}/build/libs/*-sources.jar
+            !versions/${{ matrix.node }}/build/libs/*-javadoc.jar
           if-no-files-found: error
