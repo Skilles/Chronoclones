@@ -61,7 +61,7 @@ final class BreakingGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 smartly(breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_SHOVEL))));
         emptyEveryClone(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_PICKAXE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_PICKAXE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
@@ -99,7 +99,7 @@ final class BreakingGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 smartly(breakWith(Blocks.STONE, new ItemStack(Items.DIAMOND_PICKAXE))));
         emptyEveryClone(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_SHOVEL), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_SHOVEL, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(60, () -> {
@@ -147,7 +147,7 @@ final class BreakingGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, silked));
         emptyEveryClone(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_PICKAXE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_PICKAXE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
@@ -168,7 +168,7 @@ final class BreakingGameTest {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
             for (int slot = 0; slot < inventory.size(); slot++) {
-                inventory.set(slot, ItemResource.EMPTY, 0);
+                inventory.setItem(slot, ItemStack.EMPTY);
             }
         }
     }
@@ -184,7 +184,7 @@ final class BreakingGameTest {
                                 Blocks.STONE.defaultBlockState()),
                         ActionSettings.DEFAULT.withRecordedSubject(false)));
 
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIRT), 8);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIRT, 8));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {

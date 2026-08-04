@@ -3,6 +3,7 @@ package com.skilles.chronoclones.gametest;
 import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
+import com.skilles.chronoclones.inventory.StackInventory;
 import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.ChronoAction;
 import com.skilles.chronoclones.registry.ModItems;
@@ -15,14 +16,13 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 
 final class CloneInventoryGameTest {
 
@@ -52,7 +52,7 @@ final class CloneInventoryGameTest {
     private static void exactSlotRuleRefusesToSearch(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper,
                 new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, 4));
-        anchor.getCloneInventory(0).set(17, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).setItem(17, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
@@ -70,8 +70,8 @@ final class CloneInventoryGameTest {
     private static void anySlotRuleIgnoresTheRecordedSquare(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper,
                 new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.ANY, 4));
-        anchor.getCloneInventory(0).set(4, ItemResource.of(Items.STONE), 1);
-        anchor.getCloneInventory(0).set(2, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).setItem(4, new ItemStack(Items.STONE, 1));
+        anchor.getCloneInventory(0).setItem(2, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
@@ -79,7 +79,7 @@ final class CloneInventoryGameTest {
                         helper.fail("an any rule placed nothing at all");
                         return;
                     }
-                    if (!anchor.getCloneInventory(0).getResource(2).isEmpty()) {
+                    if (!anchor.getCloneInventory(0).getItem(2).isEmpty()) {
                         helper.fail("an any rule still reached for the recorded square first");
                     }
                 })
@@ -93,12 +93,12 @@ final class CloneInventoryGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
-                    ItemStacksResourceHandler inventory = anchor.getCloneInventory(0);
+                    StackInventory inventory = anchor.getCloneInventory(0);
                     if (AnchorTestFixture.countIn(inventory, Items.COBBLESTONE) == 0) {
                         helper.fail("the clone stored nothing it mined");
                         return;
                     }
-                    if (inventory.getResource(0).getItem() != Items.COBBLESTONE) {
+                    if (inventory.getItem(0).getItem() != Items.COBBLESTONE) {
                         helper.fail("the cobblestone went past the first hotbar square into "
                                 + firstHolding(inventory, Items.COBBLESTONE));
                     }
@@ -106,9 +106,9 @@ final class CloneInventoryGameTest {
                 .thenSucceed();
     }
 
-    private static int firstHolding(ItemStacksResourceHandler inventory, net.minecraft.world.item.Item item) {
+    private static int firstHolding(StackInventory inventory, net.minecraft.world.item.Item item) {
         for (int slot = 0; slot < inventory.size(); slot++) {
-            if (inventory.getResource(slot).getItem() == item) {
+            if (inventory.getItem(slot).getItem() == item) {
                 return slot;
             }
         }
@@ -118,15 +118,15 @@ final class CloneInventoryGameTest {
     private static void heldSlotIsDrawnFromFirst(GameTestHelper helper) {
         int recorded = 4;
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, recorded);
-        anchor.getCloneInventory(0).set(recorded, ItemResource.of(Items.STONE), 1);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).setItem(recorded, new ItemStack(Items.STONE, 1));
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
-                    if (!anchor.getCloneInventory(0).getResource(recorded).isEmpty()) {
+                    if (!anchor.getCloneInventory(0).getItem(recorded).isEmpty()) {
                         helper.fail("the recorded square still holds its stone; some other was spent");
                     }
-                    if (anchor.getCloneInventory(0).getAmountAsInt(0) != 1) {
+                    if (anchor.getCloneInventory(0).getItem(0).getCount() != 1) {
                         helper.fail("square 0 was raided while the recorded square was full");
                     }
                 })
@@ -135,7 +135,7 @@ final class CloneInventoryGameTest {
 
     private static void heldSlotFallsBackToASearch(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 4);
-        anchor.getCloneInventory(0).set(17, ItemResource.of(Items.STONE), 1);
+        anchor.getCloneInventory(0).setItem(17, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
@@ -164,7 +164,7 @@ final class CloneInventoryGameTest {
 
     private static void cannotReachAnotherInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
-        anchor.getCloneInventory(1).set(0, ItemResource.of(Items.STONE), 16);
+        anchor.getCloneInventory(1).setItem(0, new ItemStack(Items.STONE, 16));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
@@ -182,7 +182,7 @@ final class CloneInventoryGameTest {
     private static void eachCloneDrawsFromItsOwn(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = placingAnchor(helper, 0);
         splitters(anchor, 1);
-        anchor.getCloneInventory(1).set(0, ItemResource.of(Items.STONE), 16);
+        anchor.getCloneInventory(1).setItem(0, new ItemStack(Items.STONE, 16));
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
@@ -192,7 +192,7 @@ final class CloneInventoryGameTest {
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.STONE) != 15) {
                         helper.fail("the placed stone came from somewhere other than its owner");
                     }
-                    if (!anchor.getCloneInventory(0).getResource(0).isEmpty()) {
+                    if (!anchor.getCloneInventory(0).getItem(0).isEmpty()) {
                         helper.fail("the first clone's inventory grew stone it was never given");
                     }
                 })
@@ -203,10 +203,10 @@ final class CloneInventoryGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
         splitters(anchor, 1);
-        anchor.getCloneInventory(1).set(0, ItemResource.of(Items.DIAMOND), 5);
+        anchor.getCloneInventory(1).setItem(0, new ItemStack(Items.DIAMOND, 5));
 
         helper.startSequence()
-                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().set(0, ItemResource.EMPTY, 0))
+                .thenExecuteAfter(4, () -> anchor.getUpgradeHandler().setItem(0, ItemStack.EMPTY))
                 .thenExecuteAfter(4, () -> {
                     if (AnchorTestFixture.countIn(anchor.getCloneInventory(1), Items.DIAMOND) != 0) {
                         helper.fail("the dropped clone kept its inventory, out of reach of the GUI");
@@ -227,7 +227,7 @@ final class CloneInventoryGameTest {
         anchor.loadWithComponents(TagValueInput.create(
                 ProblemReporter.DISCARDING, level.registryAccess(), legacySave(level)));
 
-        ItemStacksResourceHandler first = anchor.getCloneInventory(0);
+        StackInventory first = anchor.getCloneInventory(0);
         if (first.size() != ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS) {
             helper.fail("loading an old anchor shrank its inventory to " + first.size() + " slots");
         }
@@ -239,8 +239,8 @@ final class CloneInventoryGameTest {
     }
 
     private static CompoundTag legacySave(ServerLevel level) {
-        ItemStacksResourceHandler legacy = new ItemStacksResourceHandler(18);
-        legacy.set(4, ItemResource.of(Items.DIAMOND), 9);
+        StackInventory legacy = new StackInventory(18);
+        legacy.setItem(4, new ItemStack(Items.DIAMOND, 9));
 
         TagValueOutput output = TagValueOutput.createWithContext(
                 ProblemReporter.DISCARDING, level.registryAccess());
@@ -249,7 +249,7 @@ final class CloneInventoryGameTest {
     }
 
     private static void splitters(ChronoAnchorBlockEntity anchor, int count) {
-        anchor.getUpgradeHandler().set(0, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), count);
+        anchor.getUpgradeHandler().setItem(0, new ItemStack(ModItems.CHRONO_SPLITTER.get(), count));
     }
 
     private static int droppedCount(GameTestHelper helper, net.minecraft.world.item.Item item) {

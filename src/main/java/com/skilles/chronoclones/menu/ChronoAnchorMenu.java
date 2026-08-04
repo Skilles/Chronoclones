@@ -21,8 +21,7 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
-import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
+import com.skilles.chronoclones.inventory.StackInventory;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -92,27 +91,27 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.actionMarks = actionMarks;
 
         for (int clone = 0; clone < CLONES; clone++) {
-            ItemStacksResourceHandler storage = anchor.getCloneInventory(clone);
+            StackInventory storage = anchor.getCloneInventory(clone);
             int page = clone;
             for (int index = 0; index < ANCHOR_SLOTS; index++) {
-                addSlot(new ClonePageSlot(storage, storage::set, index,
+                addSlot(new ClonePageSlot(storage, index,
                         Layout.STORAGE_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
                         page, this::getSelectedClone, this::hasStorage));
             }
         }
 
-        ItemStacksResourceHandler fuel = anchor.getFuelHandler();
-        addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, Layout.FUEL_X, Layout.MODULE_Y) {
+        StackInventory fuel = anchor.getFuelHandler();
+        addSlot(new Slot(fuel, 0, Layout.FUEL_X, Layout.MODULE_Y) {
             @Override
             public boolean mayPlace(@NonNull ItemStack stack) {
                 return isAnchorFuel(playerInventory.player.level(), stack) && super.mayPlace(stack);
             }
         });
 
-        ItemStacksResourceHandler upgrades = anchor.getUpgradeHandler();
+        StackInventory upgrades = anchor.getUpgradeHandler();
         for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
-            addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i,
+            addSlot(new Slot(upgrades, i,
                     Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18) {
                 @Override
                 public boolean mayPlace(@NonNull ItemStack stack) {

@@ -9,7 +9,6 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class ItemMatchGameTest {
 
@@ -26,10 +25,10 @@ final class ItemMatchGameTest {
         ItemMatch match = ItemMatch.of(RecordedItem.of(damaged(Items.DIAMOND_HOE, 7)),
                 ItemRule.SAME_ITEM);
 
-        if (!match.accepts(ItemResource.of(new ItemStack(Items.DIAMOND_HOE)))) {
+        if (!match.accepts(new ItemStack(Items.DIAMOND_HOE))) {
             helper.fail("a routine recorded with a scratched hoe refused an unscratched one");
         }
-        if (match.accepts(ItemResource.of(new ItemStack(Items.IRON_HOE)))) {
+        if (match.accepts(new ItemStack(Items.IRON_HOE))) {
             helper.fail("an iron hoe satisfied a routine recorded with a diamond one");
         }
         helper.succeed();
@@ -39,10 +38,10 @@ final class ItemMatchGameTest {
         ItemMatch match = ItemMatch.of(RecordedItem.of(damaged(Items.DIAMOND_HOE, 7)),
                 ItemRule.EXACT);
 
-        if (!match.accepts(ItemResource.of(damaged(Items.DIAMOND_HOE, 7)))) {
+        if (!match.accepts(damaged(Items.DIAMOND_HOE, 7))) {
             helper.fail("an exact rule refused the very item it was recorded with");
         }
-        if (match.accepts(ItemResource.of(new ItemStack(Items.DIAMOND_HOE)))) {
+        if (match.accepts(new ItemStack(Items.DIAMOND_HOE))) {
             helper.fail("an exact rule accepted an item carrying different components");
         }
         helper.succeed();

@@ -105,7 +105,7 @@ final class RoutineEditGameTest {
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 3);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 3));
 
         int actions = anchor.getRecording().actions().size();
         FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
@@ -166,7 +166,7 @@ final class RoutineEditGameTest {
     private static void discardingSpillsTheStorage(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 7));
         anchor.setCloneExperience(1, new com.skilles.chronoclones.block.ExperienceStore(40));
 
         anchor.clearRecording();

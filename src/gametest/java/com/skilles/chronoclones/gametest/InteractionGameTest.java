@@ -165,7 +165,7 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.FLINT_AND_STEEL)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.FLINT_AND_STEEL), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.FLINT_AND_STEEL, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -220,7 +220,7 @@ final class InteractionGameTest {
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 2);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.OAK_LOG, 2));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -326,7 +326,7 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         List.of(carrying(menuSlot, Items.DIAMOND, 5)),
                         click(menuSlot, LEFT, ContainerInput.QUICK_MOVE))));
-        anchor.getCloneInventory(0).set(inventorySlot, ItemResource.of(Items.DIAMOND), 5);
+        anchor.getCloneInventory(0).setItem(inventorySlot, new ItemStack(Items.DIAMOND, 5));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -509,7 +509,7 @@ final class InteractionGameTest {
                         List.of(carrying(FURNACE_CARRIER_SLOT, Items.COAL, 1)),
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, LEFT, ContainerInput.PICKUP))));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.COAL), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.COAL, 1));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
@@ -543,8 +543,8 @@ final class InteractionGameTest {
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
 
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.IRON_INGOT), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.GOLD_INGOT, 12));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.IRON_INGOT, 7));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -599,7 +599,7 @@ final class InteractionGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(
                         useOnBlock(new BlockPos(0, 0, -1), Items.DIAMOND_HOE, Blocks.DIRT), 0));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_HOE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -624,7 +624,7 @@ final class InteractionGameTest {
                         ActionSettings.DEFAULT
                                 .withSlot(ActionSettings.SlotRule.prefer(0))
                                 .withRecordedSubject(false)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_HOE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> helper.assertBlockPresent(Blocks.DIRT, target))
@@ -653,6 +653,17 @@ final class InteractionGameTest {
     }
 
     private static int countIn(ResourceHandler<ItemResource> handler, Item item) {
-        return AnchorTestFixture.countIn(handler, item);
+        int total = 0;
+        for (int slot = 0; slot < handler.size(); slot++) {
+            ItemResource resource = handler.getResource(slot);
+            if (!resource.isEmpty() && resource.getItem() == item) {
+                total += handler.getAmountAsInt(slot);
+            }
+        }
+        return total;
+    }
+
+    private static int countIn(net.minecraft.world.Container container, Item item) {
+        return AnchorTestFixture.countIn(container, item);
     }
 }

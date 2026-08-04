@@ -37,8 +37,8 @@ final class ReportGameTest {
         // No stone at the target, so every clone that reaches the break records the same skip.
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getUpgradeHandler().set(0, net.neoforged.neoforge.transfer.item.ItemResource.of(
-                com.skilles.chronoclones.registry.ModItems.CHRONO_SPLITTER.get()), 1);
+        anchor.getUpgradeHandler().setItem(0, new net.minecraft.world.item.ItemStack(
+                com.skilles.chronoclones.registry.ModItems.CHRONO_SPLITTER.get(), 1));
         anchor.serverTick();
 
         helper.startSequence()

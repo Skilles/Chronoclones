@@ -7,6 +7,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+import net.neoforged.neoforge.transfer.item.WorldlyContainerWrapper;
 
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class ModCapabilities {
@@ -18,6 +19,6 @@ public final class ModCapabilities {
         event.registerBlockEntity(
                 Capabilities.Item.BLOCK,
                 ModBlockEntities.CHRONO_ANCHOR.get(),
-                (anchor, side) -> anchor.getExternalInventory());
+                (anchor, side) -> new WorldlyContainerWrapper(anchor.getExternalInventory(), side));
     }
 }

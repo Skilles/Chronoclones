@@ -47,7 +47,7 @@ final class AnchorSessionGameTest {
 
         ChronoAnchorBlockEntity runner =
                 AnchorTestFixture.placeAndImprint(helper, RUNNER, recording);
-        runner.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.DIAMOND)), 5);
+        runner.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -76,7 +76,7 @@ final class AnchorSessionGameTest {
 
         ChronoAnchorBlockEntity runner =
                 AnchorTestFixture.placeAndImprint(helper, RUNNER, recording);
-        runner.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.DIAMOND)), 5);
+        runner.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -161,7 +161,7 @@ final class AnchorSessionGameTest {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
             for (int slot = 0; slot < inventory.size(); slot++) {
-                inventory.set(slot, ItemResource.EMPTY, 0);
+                inventory.setItem(slot, ItemStack.EMPTY);
             }
         }
     }

@@ -70,7 +70,7 @@ final class PlacementGameTest {
 
         ChronoAnchorBlockEntity anchor =
                 AnchorTestFixture.placeAndImprint(helper, ANCHOR, recorded.recording());
-        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.OAK_STAIRS)), 8);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.OAK_STAIRS, 8));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {

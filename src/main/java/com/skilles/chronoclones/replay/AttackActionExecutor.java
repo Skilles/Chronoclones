@@ -19,9 +19,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import com.skilles.chronoclones.inventory.StackInventory;
+
 import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 public final class AttackActionExecutor {
@@ -85,16 +85,16 @@ public final class AttackActionExecutor {
     }
 
     /** The slot rule is ignored here for the same reason it is for a smart tool. */
-    private static HeldItemLoan.@Nullable Loan takeBestWeapon(ResourceHandler<ItemResource> inventory) {
+    private static HeldItemLoan.@Nullable Loan takeBestWeapon(StackInventory inventory) {
         int best = -1;
         double bestDamage = 0.0;
 
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            if (resource.isEmpty() || inventory.getAmountAsInt(slot) <= 0) {
+            ItemStack held = inventory.getItem(slot);
+            if (held.isEmpty()) {
                 continue;
             }
-            double damage = meleeDamageOf(resource.toStack(1));
+            double damage = meleeDamageOf(held.copyWithCount(1));
             if (damage > bestDamage) {
                 best = slot;
                 bestDamage = damage;
@@ -103,7 +103,7 @@ public final class AttackActionExecutor {
 
         return best < 0
                 ? HeldItemLoan.EMPTY_HANDED
-                : HeldItemLoan.take(inventory, inventory.getResource(best).getItem(),
+                : HeldItemLoan.take(inventory, inventory.getItem(best).getItem(),
                         SlotRule.prefer(best));
     }
 

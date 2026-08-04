@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.replay;
 
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
+import com.skilles.chronoclones.inventory.StackInventory;
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
 
 import net.minecraft.core.BlockPos;
@@ -8,9 +9,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Containers;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 /** Lends an item out of a clone's storage for one action and takes back what returns. */
 public final class HeldItemLoan {
@@ -21,12 +19,12 @@ public final class HeldItemLoan {
 
     public static final Loan EMPTY_HANDED = new Loan(-1, ItemStack.EMPTY);
 
-    public static Loan take(ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
+    public static Loan take(StackInventory inventory, Item item, SlotRule rule) {
         return take(inventory, ItemMatch.sameItem(item), rule);
     }
 
     /** Takes the whole of one matching slot, so the action can put back what it does not use. */
-    public static Loan take(ResourceHandler<ItemResource> inventory, ItemMatch match, SlotRule rule) {
+    public static Loan take(StackInventory inventory, ItemMatch match, SlotRule rule) {
         if (match.isEmptyHanded()) {
             return EMPTY_HANDED;
         }
@@ -46,7 +44,7 @@ public final class HeldItemLoan {
     }
 
     public static @org.jspecify.annotations.Nullable ItemStack peek(
-            ResourceHandler<ItemResource> inventory, Item item, SlotRule rule) {
+            StackInventory inventory, Item item, SlotRule rule) {
         return peek(inventory, ItemMatch.sameItem(item), rule);
     }
 
@@ -57,7 +55,7 @@ public final class HeldItemLoan {
      * and taking it out and putting it back on every tick of a long dig would be churn.
      */
     public static @org.jspecify.annotations.Nullable ItemStack peek(
-            ResourceHandler<ItemResource> inventory, ItemMatch match, SlotRule rule) {
+            StackInventory inventory, ItemMatch match, SlotRule rule) {
         if (match.isEmptyHanded()) {
             return ItemStack.EMPTY;
         }
@@ -76,64 +74,52 @@ public final class HeldItemLoan {
     }
 
     private static @org.jspecify.annotations.Nullable ItemStack peekAt(
-            ResourceHandler<ItemResource> inventory, ItemMatch match, int slot) {
+            StackInventory inventory, ItemMatch match, int slot) {
         if (slot < 0 || slot >= inventory.size()) {
             return null;
         }
-        ItemResource resource = inventory.getResource(slot);
-        int amount = inventory.getAmountAsInt(slot);
-        if (resource.isEmpty() || !match.accepts(resource) || amount <= 0) {
+        ItemStack held = inventory.getItem(slot);
+        if (held.isEmpty() || !match.accepts(held)) {
             return null;
         }
-        return resource.toStack(amount);
+        return held.copy();
     }
 
     private static @org.jspecify.annotations.Nullable Loan takeFrom(
-            ResourceHandler<ItemResource> inventory, ItemMatch match, int slot) {
+            StackInventory inventory, ItemMatch match, int slot) {
         if (slot < 0 || slot >= inventory.size()) {
             return null;
         }
-        ItemResource resource = inventory.getResource(slot);
-        if (resource.isEmpty() || !match.accepts(resource)) {
-            return null;
-        }
-        int amount = inventory.getAmountAsInt(slot);
-        if (amount <= 0) {
+        ItemStack held = inventory.getItem(slot);
+        if (held.isEmpty() || !match.accepts(held)) {
             return null;
         }
 
-        try (Transaction tx = Transaction.openRoot()) {
-            int taken = inventory.extract(slot, resource, amount, tx);
-            if (taken <= 0) {
-                return null;
-            }
-            tx.commit();
-            return new Loan(slot, resource.toStack(taken));
+        ItemStack taken = inventory.extract(slot, held.getCount());
+        if (taken.isEmpty()) {
+            return null;
         }
+        return new Loan(slot, taken);
     }
 
     /** Back to the slot it came from where possible, and on the ground rather than lost. */
     public static void giveBack(ServerLevel level, BlockPos anchorPos,
-                                ResourceHandler<ItemResource> inventory, Loan loan, ItemStack remainder) {
+                                StackInventory inventory, Loan loan, ItemStack remainder) {
         if (remainder.isEmpty()) {
             return;
         }
 
-        ItemResource resource = ItemResource.of(remainder);
-        try (Transaction tx = Transaction.openRoot()) {
-            int stored = loan.slot() >= 0
-                    ? inventory.insert(loan.slot(), resource, remainder.getCount(), tx)
-                    : 0;
-            if (stored < remainder.getCount()) {
-                stored += inventory.insert(resource, remainder.getCount() - stored, tx);
-            }
-            tx.commit();
+        int stored = loan.slot() >= 0
+                ? inventory.insert(loan.slot(), remainder, remainder.getCount())
+                : 0;
+        if (stored < remainder.getCount()) {
+            stored += inventory.insert(remainder, remainder.getCount() - stored);
+        }
 
-            int lost = remainder.getCount() - stored;
-            if (lost > 0) {
-                Containers.dropItemStack(level, anchorPos.getX() + 0.5, anchorPos.getY() + 1.0,
-                        anchorPos.getZ() + 0.5, resource.toStack(lost));
-            }
+        int lost = remainder.getCount() - stored;
+        if (lost > 0) {
+            Containers.dropItemStack(level, anchorPos.getX() + 0.5, anchorPos.getY() + 1.0,
+                    anchorPos.getZ() + 0.5, remainder.copyWithCount(lost));
         }
     }
 

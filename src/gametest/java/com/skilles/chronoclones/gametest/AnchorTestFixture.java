@@ -26,8 +26,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+import net.minecraft.world.Container;
 import net.neoforged.neoforge.common.util.FakePlayer;
 import net.neoforged.neoforge.common.util.FakePlayerFactory;
 
@@ -133,11 +134,10 @@ final class AnchorTestFixture {
             if (swung.isEmpty()) {
                 continue;
             }
-            ItemResource tool = ItemResource.of(swung);
             for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
-                ItemStacksResourceHandler inventory = anchor.getCloneInventory(clone);
+                StackInventory inventory = anchor.getCloneInventory(clone);
                 if (countIn(inventory, swung.getItem()) == 0) {
-                    inventory.set(inventory.size() - 1, tool, 1);
+                    inventory.setItem(inventory.size() - 1, swung.copyWithCount(1));
                 }
             }
         }
@@ -161,9 +161,7 @@ final class AnchorTestFixture {
     }
 
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {
-        anchor.getFuelHandler().set(0,
-                net.neoforged.neoforge.transfer.item.ItemResource.of(
-                        ModItems.CREATIVE_CHARGE_CELL.get()), 1);
+        anchor.getFuelHandler().setItem(0, new ItemStack(ModItems.CREATIVE_CHARGE_CELL.get()));
     }
 
     static BlockState stateAt(GameTestHelper helper, BlockPos relative) {
@@ -181,25 +179,22 @@ final class AnchorTestFixture {
     }
 
     static net.minecraft.world.item.ItemStack findStack(
-            net.neoforged.neoforge.transfer.ResourceHandler<
-                    net.neoforged.neoforge.transfer.item.ItemResource> handler,
-            net.minecraft.world.item.Item item) {
-        for (int slot = 0; slot < handler.size(); slot++) {
-            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                return resource.toStack(Math.max(1, handler.getAmountAsInt(slot)));
+            Container container, net.minecraft.world.item.Item item) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack held = container.getItem(slot);
+            if (!held.isEmpty() && held.getItem() == item) {
+                return held.copyWithCount(Math.max(1, held.getCount()));
             }
         }
         return null;
     }
 
-    static int countIn(net.neoforged.neoforge.transfer.ResourceHandler<
-            net.neoforged.neoforge.transfer.item.ItemResource> handler, net.minecraft.world.item.Item item) {
+    static int countIn(Container container, net.minecraft.world.item.Item item) {
         int total = 0;
-        for (int slot = 0; slot < handler.size(); slot++) {
-            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                total += handler.getAmountAsInt(slot);
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack held = container.getItem(slot);
+            if (!held.isEmpty() && held.getItem() == item) {
+                total += held.getCount();
             }
         }
         return total;

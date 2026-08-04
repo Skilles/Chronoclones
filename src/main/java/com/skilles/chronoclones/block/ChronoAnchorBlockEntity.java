@@ -51,9 +51,10 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+import com.skilles.chronoclones.inventory.GatedContainer;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+import net.minecraft.world.Container;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -135,19 +136,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         super(ModBlockEntities.CHRONO_ANCHOR.get(), pos, state);
     }
 
-    public ResourceHandler<ItemResource> getInventory() {
+    public Container getInventory() {
         return storage.combined();
     }
 
-    private final GatedInventory externalInventory =
-            new GatedInventory(storage.combined(), () -> recording != null);
+    private final GatedContainer externalInventory =
+            new GatedContainer(storage.combined(), () -> recording != null);
 
     /** What hoppers and pipes reach. */
-    public ResourceHandler<ItemResource> getExternalInventory() {
+    public GatedContainer getExternalInventory() {
         return externalInventory;
     }
 
-    public ItemStacksResourceHandler getCloneInventory(int clone) {
+    public StackInventory getCloneInventory(int clone) {
         return storage.cloneInventory(clone);
     }
 
@@ -163,11 +164,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return data;
     }
 
-    public ItemStacksResourceHandler getFuelHandler() {
+    public StackInventory getFuelHandler() {
         return storage.fuel();
     }
 
-    public ItemStacksResourceHandler getUpgradeHandler() {
+    public StackInventory getUpgradeHandler() {
         return storage.upgradeSlots();
     }
 
@@ -634,7 +635,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    private ItemStacksResourceHandler inventoryOf(CloneRuntime runtime) {
+    private StackInventory inventoryOf(CloneRuntime runtime) {
         return storage.cloneInventory(runtime.index());
     }
 

@@ -172,7 +172,7 @@ final class MenuStepGameTest {
 
     private static void anvilNamesWhatItIsGiven(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
         int banked = ExperienceStore.pointsForLevels(5);
         anchor.setCloneExperience(0, new ExperienceStore(banked));
 
@@ -198,7 +198,7 @@ final class MenuStepGameTest {
 
     private static void anvilWithoutExperienceSaysSo(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -216,8 +216,8 @@ final class MenuStepGameTest {
 
     private static void anvilDrinksABottle(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.EXPERIENCE_BOTTLE), 4);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.EXPERIENCE_BOTTLE, 4));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -274,7 +274,7 @@ final class MenuStepGameTest {
                                         BuiltInRegistries.ITEM.wrapAsHolder(bought),
                                         SessionStep.Amount.ALL)))));
 
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.EMERALD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.EMERALD, 1));
         return anchor;
     }
 

@@ -14,7 +14,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jspecify.annotations.Nullable;
 
 public final class UseItemActionExecutor {
@@ -141,12 +140,11 @@ public final class UseItemActionExecutor {
         Predicate<ItemStack> accepts = projectile.getAllSupportedProjectiles(weapon);
 
         for (int slot = 0; slot < ctx.items().size(); slot++) {
-            ItemResource resource = ctx.items().getResource(slot);
-            int amount = ctx.items().getAmountAsInt(slot);
-            if (resource.isEmpty() || amount <= 0 || !accepts.test(resource.toStack(1))) {
+            ItemStack held = ctx.items().getItem(slot);
+            if (held.isEmpty() || !accepts.test(held.copyWithCount(1))) {
                 continue;
             }
-            HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), resource.getItem(),
+            HeldItemLoan.Loan loan = HeldItemLoan.take(ctx.items(), held.getItem(),
                     SlotRule.prefer(slot));
             if (loan != null) {
                 owner.getInventory().setItem(AMMUNITION_SLOT, loan.stack());

@@ -6,10 +6,9 @@ import com.skilles.chronoclones.recording.ActionSettings;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class ReplayGameTest {
 
@@ -110,7 +109,7 @@ final class ReplayGameTest {
 
         var inventory = anchor.getCloneInventory(0);
         for (int slot = 0; slot < inventory.size() - 1; slot++) {
-            inventory.set(slot, ItemResource.of(Items.BEDROCK), 64);
+            inventory.setItem(slot, new ItemStack(Items.BEDROCK, 64));
         }
 
         helper.startSequence()
@@ -143,14 +142,7 @@ final class ReplayGameTest {
                 .thenSucceed();
     }
 
-    private static int countOf(ResourceHandler<ItemResource> handler, net.minecraft.world.item.Item item) {
-        int total = 0;
-        for (int slot = 0; slot < handler.size(); slot++) {
-            ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                total += handler.getAmountAsInt(slot);
-            }
-        }
-        return total;
+    private static int countOf(net.minecraft.world.Container container, net.minecraft.world.item.Item item) {
+        return AnchorTestFixture.countIn(container, item);
     }
 }

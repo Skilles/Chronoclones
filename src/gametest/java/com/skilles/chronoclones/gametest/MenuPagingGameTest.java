@@ -130,7 +130,7 @@ final class MenuPagingGameTest {
     private static ChronoAnchorBlockEntity anchorWithClones(GameTestHelper helper, int clones) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getUpgradeHandler().set(0, ItemResource.of(ModItems.CHRONO_SPLITTER.get()), clones - 1);
+        anchor.getUpgradeHandler().setItem(0, new ItemStack(ModItems.CHRONO_SPLITTER.get(), clones - 1));
         anchor.serverTick();
         return anchor;
     }

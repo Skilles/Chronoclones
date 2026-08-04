@@ -67,7 +67,7 @@ final class AnchorDropsGameTest {
     private static void spillsInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 7));
 
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(ANCHOR);

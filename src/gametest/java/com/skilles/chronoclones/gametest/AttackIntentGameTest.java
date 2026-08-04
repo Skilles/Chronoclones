@@ -34,7 +34,7 @@ final class AttackIntentGameTest {
                 AttackIntentGameTest::missesBeyondItsRadius);
         ChronoclonesGameTests.add("attack_until_dead_finishes_the_kill",
                 AttackIntentGameTest::untilDeadFinishesTheKill);
-        ChronoclonesGameTests.add("attack_until_dead_gives_up_eventually",
+        ChronoclonesGameTests.add("attack_until_dead_gives_up_eventually", 240,
                 AttackIntentGameTest::untilDeadGivesUpEventually);
         ChronoclonesGameTests.add("attack_needs_a_weapon_it_owns",
                 AttackIntentGameTest::needsAWeaponItOwns);
@@ -149,7 +149,8 @@ final class AttackIntentGameTest {
                 untilDead(), 400);
 
         helper.startSequence()
-                .thenExecuteAfter(130, () -> {
+                // The give-up lands one tick after maxActionTicks (default 160) of waiting.
+                .thenExecuteAfter(190, () -> {
                     if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.UNFINISHED) {
                         helper.fail("expected the attack to give up and say so, got "
                                 + anchor.getLastFailure().reason());
@@ -200,8 +201,8 @@ final class AttackIntentGameTest {
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
                 TargetRule.DEFAULT, 20, ActionSettings.ToolRule.SMART);
         takeEverythingBack(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.WOODEN_SHOVEL)), 1);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(new ItemStack(Items.DIAMOND_AXE)), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.WOODEN_SHOVEL, 1));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.DIAMOND_AXE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -263,7 +264,7 @@ final class AttackIntentGameTest {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
             for (int slot = 0; slot < inventory.size(); slot++) {
-                inventory.set(slot, ItemResource.EMPTY, 0);
+                inventory.setItem(slot, ItemStack.EMPTY);
             }
         }
     }

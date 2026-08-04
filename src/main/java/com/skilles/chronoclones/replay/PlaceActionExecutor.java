@@ -21,10 +21,9 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import com.skilles.chronoclones.inventory.StackInventory;
+
 import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 public final class PlaceActionExecutor {
 
@@ -32,7 +31,7 @@ public final class PlaceActionExecutor {
 
     public static ActionResult execute(ActionContext ctx, ChronoAction.PlaceBlock action) {
         ServerLevel level = ctx.level();
-        ResourceHandler<ItemResource> inventory = ctx.items();
+        StackInventory inventory = ctx.items();
         BlockPos worldPos = ctx.placement().toWorld(action.localPos());
 
         if (!ctx.placement().withinRadius(worldPos)) {
@@ -55,12 +54,12 @@ public final class PlaceActionExecutor {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
         }
 
-        Item item = inventory.getResource(found).getItem();
+        Item item = inventory.getItem(found).getItem();
         if (!(item instanceof BlockItem blockItem)) {
             return ActionResult.fail(FailureReason.NOT_PLACEABLE, action.localPos());
         }
 
-        ItemStack toPlace = inventory.getResource(found).toStack(1);
+        ItemStack toPlace = inventory.getItem(found).copyWithCount(1);
 
         Optional<ChronoAction.PlaceContext> recorded = action.context();
         Direction face = ctx.placement().toWorld(action.localFace());
@@ -88,19 +87,20 @@ public final class PlaceActionExecutor {
                 return ActionResult.fail(FailureReason.OBSTRUCTED, action.localPos());
             }
 
-            // Consume first, inside the transaction: a placement that succeeds is never free, and one
+            // Consume first, refund on failure: a placement that succeeds is never free, and one
             // that fails never eats the item.
-            try (Transaction tx = Transaction.openRoot()) {
-                int taken = inventory.extract(found, ItemResource.of(toPlace), 1, tx);
-                if (taken != 1) {
-                    return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
-                }
+            ItemStack taken = inventory.extract(found, 1);
+            if (taken.isEmpty()) {
+                return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
+            }
 
-                InteractionResult placed = blockItem.place(context);
-                if (!placed.consumesAction()) {
-                    return ActionResult.fail(FailureReason.OBSTRUCTED, action.localPos());
+            InteractionResult placed = blockItem.place(context);
+            if (!placed.consumesAction()) {
+                // The slot it just left always has room for the one item back.
+                if (inventory.insert(found, taken, 1) < 1) {
+                    inventory.insert(taken, 1);
                 }
-                tx.commit();
+                return ActionResult.fail(FailureReason.OBSTRUCTED, action.localPos());
             }
 
             return ActionResult.OK;
@@ -109,7 +109,7 @@ public final class PlaceActionExecutor {
         }
     }
 
-    private static int findAnyBlock(ResourceHandler<ItemResource> inventory, SlotRule rule) {
+    private static int findAnyBlock(StackInventory inventory, SlotRule rule) {
         if (holdsABlock(inventory, rule.preferred())) {
             return rule.preferred();
         }
@@ -124,16 +124,15 @@ public final class PlaceActionExecutor {
         return -1;
     }
 
-    private static boolean holdsABlock(ResourceHandler<ItemResource> inventory, int slot) {
+    private static boolean holdsABlock(StackInventory inventory, int slot) {
         if (slot < 0 || slot >= inventory.size()) {
             return false;
         }
-        ItemResource resource = inventory.getResource(slot);
-        return !resource.isEmpty() && resource.getItem() instanceof BlockItem
-                && inventory.getAmountAsInt(slot) > 0;
+        ItemStack held = inventory.getItem(slot);
+        return !held.isEmpty() && held.getItem() instanceof BlockItem;
     }
 
-    private static int findSlotWith(ResourceHandler<ItemResource> inventory, ItemMatch match,
+    private static int findSlotWith(StackInventory inventory, ItemMatch match,
                                     SlotRule rule) {
         if (holds(inventory, rule.preferred(), match)) {
             return rule.preferred();
@@ -149,11 +148,11 @@ public final class PlaceActionExecutor {
         return -1;
     }
 
-    private static boolean holds(ResourceHandler<ItemResource> inventory, int slot, ItemMatch match) {
+    private static boolean holds(StackInventory inventory, int slot, ItemMatch match) {
         if (slot < 0 || slot >= inventory.size()) {
             return false;
         }
-        ItemResource resource = inventory.getResource(slot);
-        return !resource.isEmpty() && match.accepts(resource) && inventory.getAmountAsInt(slot) > 0;
+        ItemStack held = inventory.getItem(slot);
+        return !held.isEmpty() && match.accepts(held);
     }
 }

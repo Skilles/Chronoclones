@@ -2,10 +2,10 @@ package com.skilles.chronoclones.block;
 
 import com.skilles.chronoclones.registry.ModItems;
 
+import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 public record UpgradeState(int cloneCount, int ticksPerStep) {
 
@@ -20,17 +20,17 @@ public record UpgradeState(int cloneCount, int ticksPerStep) {
         RATE
     }
 
-    public static UpgradeState from(ResourceHandler<ItemResource> upgrades) {
+    public static UpgradeState from(Container upgrades) {
         int[] counts = new int[Axis.values().length];
 
-        for (int slot = 0; slot < upgrades.size(); slot++) {
-            ItemResource resource = upgrades.getResource(slot);
-            if (resource.isEmpty()) {
+        for (int slot = 0; slot < upgrades.getContainerSize(); slot++) {
+            ItemStack held = upgrades.getItem(slot);
+            if (held.isEmpty()) {
                 continue;
             }
-            Axis axis = axisOf(resource.getItem());
+            Axis axis = axisOf(held.getItem());
             if (axis != null) {
-                counts[axis.ordinal()] += Math.max(1, upgrades.getAmountAsInt(slot));
+                counts[axis.ordinal()] += Math.max(1, held.getCount());
             }
         }
 
