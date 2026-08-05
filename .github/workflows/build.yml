@@ -39,6 +39,8 @@ jobs:
             gametest_task: runGametest
           - node: 1.21.1-neoforge
             gametest_task: runGameTestServer
+          - node: 1.21.1-fabric
+            gametest_task: runGametest
 
     steps:
       - name: Checkout repository

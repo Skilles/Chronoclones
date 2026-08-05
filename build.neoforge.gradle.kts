@@ -23,6 +23,15 @@ stonecutter {
         replace("extractLabels(", "renderLabels(")
         replace("getGameProfile().name()", "getGameProfile().getName()")
         replace("snapTo(", "moveTo(")
+        replace("PayloadTypeRegistry.serverboundPlay()", "PayloadTypeRegistry.playC2S()")
+        replace("PayloadTypeRegistry.clientboundPlay()", "PayloadTypeRegistry.playS2C()")
+        replace("ContainerStorage", "InventoryStorage")
+        replace("START_LEVEL_TICK", "START_WORLD_TICK")
+        replace("END_LEVEL_TICK", "END_WORLD_TICK")
+        replace("ServerEntityLevelChangeEvents", "ServerEntityWorldChangeEvents")
+        replace("AFTER_PLAYER_CHANGE_LEVEL", "AFTER_PLAYER_CHANGE_WORLD")
+        replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuType", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType")
+        replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory")
     }
 }
 
@@ -197,6 +206,7 @@ tasks.withType<ProcessResources>().configureEach {
     // The Fabric half of the metadata never ships in a neoforge jar.
     exclude("fabric.mod.json")
     exclude("chronoclones.accesswidener")
+    exclude("aw/**")
     exclude("chronoclones.fabric.mixins.json")
 
     // The per-version AT ships at the path neoforge.mods.toml names; the sources stay out.

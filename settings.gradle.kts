@@ -24,7 +24,7 @@ stonecutter {
             loaders.forEach { version("$version-$it", version).buildscript = "build.$it.gradle.kts" }
 
         match("26.2", "neoforge", "fabric")
-        match("1.21.1", "neoforge")
+        match("1.21.1", "neoforge", "fabric")
         // Future targets — enable one at a time as each port lands (see docs/PORTING.md):
         // match("1.21.1", "fabric")
         // match("1.20.1", "forge", "fabric")

@@ -1,0 +1,20 @@
+accessWidener v2 named
+# Kept in sync with META-INF/accesstransformer.cfg (the NeoForge twin of this file).
+
+# A fake player never ticks, so its attack cooldown never refills and every swing would land
+# permanently uncharged.
+accessible field net/minecraft/world/entity/LivingEntity attackStrengthTicker I
+
+# The use countdown runs in the private updatingUsingItem, so a clone has to run it by hand; a bow
+# reads its draw off what is left.
+accessible field net/minecraft/world/entity/LivingEntity useItemRemaining I
+accessible method net/minecraft/world/entity/LivingEntity completeUsingItem ()V
+# An override may not be less visible than what it overrides.
+accessible method net/minecraft/server/level/ServerPlayer completeUsingItem ()V
+
+# Where a container screen draws its slots; NeoForge has getters, vanilla does not.
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
+accessible field net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I
+
+# The horse screen replay builds the menu directly; vanilla exposes no getter for this.
+accessible field net/minecraft/world/entity/animal/horse/AbstractHorse inventory Lnet/minecraft/world/SimpleContainer;

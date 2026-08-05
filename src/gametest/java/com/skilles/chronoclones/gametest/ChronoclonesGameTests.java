@@ -106,13 +106,21 @@ public final class ChronoclonesGameTests {
     // Pre-26 has no test-function registry; the @GameTestHolder-annotated shims carry the tests.
     //?} else {
     /*// Called from the gametest dev-mod entrypoint; Fabric registries accept writes during init.
+    // Pre-26 has no test-function registry; the fabric-gametest entrypoint registers the
+    // annotated shims in GeneratedGameTests instead, and this becomes a no-op.
     public static void registerFunctions() {
-        declare();
+*///?}
+    //? if fabric {
+    //? if >=26 {
+    /*        declare();
         for (Entry entry : ENTRIES) {
             net.minecraft.core.Registry.register(
                     net.minecraft.core.registries.BuiltInRegistries.TEST_FUNCTION,
                     Chronoclones.id(entry.name()), entry.function());
         }
-    }
+    *///?}
+    //?}
+    //? if fabric {
+    /*}
     *///?}
 }

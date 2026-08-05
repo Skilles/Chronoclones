@@ -22,6 +22,15 @@ stonecutter {
         replace("extractLabels(", "renderLabels(")
         replace("getGameProfile().name()", "getGameProfile().getName()")
         replace("snapTo(", "moveTo(")
+        replace("PayloadTypeRegistry.serverboundPlay()", "PayloadTypeRegistry.playC2S()")
+        replace("PayloadTypeRegistry.clientboundPlay()", "PayloadTypeRegistry.playS2C()")
+        replace("ContainerStorage", "InventoryStorage")
+        replace("START_LEVEL_TICK", "START_WORLD_TICK")
+        replace("END_LEVEL_TICK", "END_WORLD_TICK")
+        replace("ServerEntityLevelChangeEvents", "ServerEntityWorldChangeEvents")
+        replace("AFTER_PLAYER_CHANGE_LEVEL", "AFTER_PLAYER_CHANGE_WORLD")
+        replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuType", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType")
+        replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory")
     }
 }
 
@@ -65,8 +74,10 @@ sourceSets {
     }
 }
 
+val accessWidenerFile = rootProject.file("src/main/resources/aw/${stonecutter.current.version}.accesswidener")
+
 loom {
-    accessWidenerPath = rootProject.file("src/main/resources/chronoclones.accesswidener")
+    accessWidenerPath = accessWidenerFile
 
     mods {
         create(modId) {
@@ -110,7 +121,10 @@ dependencies {
     testCompileOnly("org.jspecify:jspecify:1.0.0")
 
     minecraft("com.mojang:minecraft:$minecraftVersion")
-    // 26.x is the unobfuscated era: no mappings block; loom-back-compat handles the rest.
+    // 26.x is the unobfuscated era and needs no mappings; older targets develop against mojmap.
+    if (stonecutter.current.parsed < "26") {
+        mappings(loom.layered { officialMojangMappings() })
+    }
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
     modImplementation("net.fabricmc.fabric-api:fabric-api:$fabricApiVersion")
 
@@ -164,9 +178,27 @@ tasks.withType<ProcessResources>().configureEach {
         expand(replaceProperties)
     }
 
+    // Pre-26 has no test-function registry: the annotated shims register through the
+    // fabric-gametest entrypoint, added here so the 26.x json stays free of a missing class.
+    if (stonecutter.current.parsed < "26") {
+        filesMatching("fabric.mod.json") {
+            filter { line -> line.replace(
+                "\"com.skilles.chronoclones.gametest.FabricGametestInit\"",
+                "\"com.skilles.chronoclones.gametest.FabricGametestInit\" ], " +
+                        "\"fabric-gametest\": [ \"com.skilles.chronoclones.gametest.GeneratedGameTests\"") }
+        }
+    }
+
     // The NeoForge half of the metadata never ships in a fabric jar.
     exclude("META-INF/neoforge.mods.toml")
     exclude("META-INF/accesstransformer.cfg")
+    exclude("at/**")
+
+    // The per-version AW ships at the path fabric.mod.json names; the sources stay out.
+    exclude("aw/**")
+    from(accessWidenerFile) {
+        rename { "chronoclones.accesswidener" }
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {

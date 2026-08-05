@@ -61,14 +61,28 @@ public final class FabricEventBridge {
             return InteractionResult.PASS;
         });
 
-        UseItemCallback.EVENT.register((player, level, hand) -> {
+*///?}
+//? if fabric {
+//? if >=26 {
+/*        UseItemCallback.EVENT.register((player, level, hand) -> {
             if (player instanceof ServerPlayer serverPlayer) {
                 RecordingCapture.rightClickItem(serverPlayer, hand,
                         serverPlayer.getItemInHand(hand));
             }
             return InteractionResult.PASS;
         });
-
+*///?} else {
+/*        UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (player instanceof ServerPlayer serverPlayer) {
+                RecordingCapture.rightClickItem(serverPlayer, hand,
+                        serverPlayer.getItemInHand(hand));
+            }
+            return net.minecraft.world.InteractionResultHolder.pass(player.getItemInHand(hand));
+        });
+*///?}
+//?}
+//? if fabric {
+/*
         UseEntityCallback.EVENT.register((player, level, hand, target, hit) -> {
             if (player instanceof ServerPlayer serverPlayer) {
                 RecordingCapture.entityInteracted(serverPlayer, hand,
