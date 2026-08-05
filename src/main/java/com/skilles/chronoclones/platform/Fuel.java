@@ -14,6 +14,15 @@ public final class Fuel {
     public static int burnTicks(Level level, ItemStack stack) {
         //? if >=26 {
         return level.fuelValues().burnDuration(stack);
+        //?} else {
+        //? if neoforge {
+        /*int ticks = stack.getBurnTime(net.minecraft.world.item.crafting.RecipeType.SMELTING);
+        return Math.max(ticks, 0);
+        *///?}
+        //? if fabric {
+        /*Integer ticks = net.fabricmc.fabric.api.registry.FuelRegistry.INSTANCE.get(stack.getItem());
+        return ticks == null ? 0 : ticks;
+        *///?}
         //?}
     }
 }

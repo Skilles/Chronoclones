@@ -64,6 +64,7 @@ final class BreakWatch implements AutoCloseable {
             }
             installed = true;
             //? if neoforge {
+            //? if >=26 {
             net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
                     net.neoforged.bus.api.EventPriority.HIGHEST, false,
                     net.neoforged.neoforge.event.level.block.BreakBlockEvent.class,
@@ -78,6 +79,22 @@ final class BreakWatch implements AutoCloseable {
                             event.setCanceled(true);
                         }
                     }));
+            //?} else {
+            /*net.neoforged.neoforge.common.NeoForge.EVENT_BUS.addListener(
+                    net.neoforged.bus.api.EventPriority.HIGHEST, false,
+                    net.neoforged.neoforge.event.level.BlockEvent.BreakEvent.class,
+                    event -> dispatch(event.getPos(), new Attempt() {
+                        @Override
+                        public UUID playerId() {
+                            return event.getPlayer().getUUID();
+                        }
+
+                        @Override
+                        public void cancel() {
+                            event.setCanceled(true);
+                        }
+                    }));
+            *///?}
             //?} else {
             /*net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                     (level, player, pos, state, blockEntity) -> {

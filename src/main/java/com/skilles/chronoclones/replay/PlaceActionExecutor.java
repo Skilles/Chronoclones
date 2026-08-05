@@ -42,7 +42,11 @@ public final class PlaceActionExecutor {
         }
 
         BlockState existing = level.getBlockState(worldPos);
+        //? if >=26 {
         if (existing.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || existing.hasBlockEntity()) {
+        //?} else {
+        /*if (existing.is(ModTags.ANCHOR_UNBREAKABLE) || existing.hasBlockEntity()) {
+        *///?}
             return ActionResult.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 

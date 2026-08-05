@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /** Reports what right-clicking an entity actually did. */
 public abstract class InteractOnMixin {
 
+    //? if >=26 {
     @Inject(method = "interactOn", at = @At("RETURN"))
     private void chronoclones$settleInteract(Entity entity, InteractionHand hand, Vec3 location,
                                              CallbackInfoReturnable<InteractionResult> callback) {
@@ -24,4 +25,13 @@ public abstract class InteractOnMixin {
             InteractionWatch.settle(player, hand, callback.getReturnValue());
         }
     }
+    //?} else {
+    /*@Inject(method = "interactOn", at = @At("RETURN"))
+    private void chronoclones$settleInteract(Entity entity, InteractionHand hand,
+                                             CallbackInfoReturnable<InteractionResult> callback) {
+        if ((Object) this instanceof ServerPlayer player && !com.skilles.chronoclones.platform.ClonePlayer.isFake(player)) {
+            InteractionWatch.settle(player, hand, callback.getReturnValue());
+        }
+    }
+    *///?}
 }

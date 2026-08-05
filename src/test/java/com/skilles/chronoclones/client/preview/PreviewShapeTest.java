@@ -13,7 +13,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -46,7 +50,11 @@ class PreviewShapeTest {
 
     private static ChronoAction.AttackEntity attackAt(double x, double y, double z) {
         return new ChronoAction.AttackEntity(new Vec3(x, y, z),
+                //? if >=26 {
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW), ItemStack.EMPTY);
+                //?} else {
+                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW), ItemStack.EMPTY);
+                *///?}
     }
 
     @Test
@@ -66,7 +74,11 @@ class PreviewShapeTest {
     void interactIsVisible() {
         PreviewShape shape = PreviewShape.of(
                 of(new ChronoAction.InteractEntity(new Vec3(0, 0, -2),
+                        //? if >=26 {
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                        //?} else {
+                        /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                        *///?}
                         InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
                 ANCHOR, Direction.NORTH);
 
@@ -81,7 +93,11 @@ class PreviewShapeTest {
         PreviewShape shape = PreviewShape.of(
                 of(new ChronoAction.UseContainer(
                         new MenuTarget.Entity(standing,
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                *///?}
                         39, List.of(), List.of())),
                 ANCHOR, Direction.NORTH);
 

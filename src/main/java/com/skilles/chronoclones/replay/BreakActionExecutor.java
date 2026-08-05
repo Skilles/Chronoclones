@@ -43,7 +43,11 @@ public final class BreakActionExecutor {
             return ActionResult.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
+        //? if >=26 {
         if (state.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
+        //?} else {
+        /*if (state.is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
+        *///?}
             return ActionResult.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 

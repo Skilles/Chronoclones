@@ -15,8 +15,16 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26 {
 import net.minecraft.world.entity.EntitySpawnReason;
+//?} else {
+/*import net.minecraft.world.entity.MobSpawnType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -249,7 +257,11 @@ final class AttackIntentGameTest {
     }
 
     private static Mob spawnPig(GameTestHelper helper, BlockPos relative) {
+        //? if >=26 {
         Mob pig = EntityTypes.PIG.spawn(helper.getLevel(), helper.absolutePos(relative),
+        //?} else {
+        /*Mob pig = EntityType.PIG.spawn(helper.getLevel(), helper.absolutePos(relative),
+        *///?}
                 EntitySpawnReason.TRIGGERED);
         if (pig == null) {
             helper.fail("could not spawn the pig this test is about");
@@ -273,7 +285,11 @@ final class AttackIntentGameTest {
     }
 
     private static Mob spawn(GameTestHelper helper, BlockPos relative) {
+        //? if >=26 {
         Mob cow = EntityTypes.COW.spawn(helper.getLevel(), helper.absolutePos(relative),
+        //?} else {
+        /*Mob cow = EntityType.COW.spawn(helper.getLevel(), helper.absolutePos(relative),
+        *///?}
                 EntitySpawnReason.TRIGGERED);
         if (cow == null) {
             helper.fail("could not spawn the cow this test is about");
@@ -304,7 +320,11 @@ final class AttackIntentGameTest {
                                                            boolean recorded) {
         ChronoAction.AttackEntity swing = new ChronoAction.AttackEntity(
                 Vec3.atCenterOf(RECORDED),
+                //? if >=26 {
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                //?} else {
+                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                *///?}
                 new ItemStack(Items.NETHERITE_SWORD));
 
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR, new Recording(

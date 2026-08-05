@@ -129,7 +129,11 @@ public final class AnchorFakePlayer {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack lastHeld = actor.getItemInHand(hand);
             if (!lastHeld.isEmpty()) {
+                //? if >=26 {
                 actor.getCooldowns().removeCooldown(actor.getCooldowns().getCooldownGroup(lastHeld));
+                //?} else {
+                /*actor.getCooldowns().removeCooldown(lastHeld.getItem());
+                *///?}
             }
             hold(actor, hand, ItemStack.EMPTY);
         }

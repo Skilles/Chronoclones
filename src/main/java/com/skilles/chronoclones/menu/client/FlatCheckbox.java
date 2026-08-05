@@ -7,7 +7,9 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+//? if >=26 {
 import net.minecraft.client.input.InputWithModifiers;
+//?}
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
@@ -27,10 +29,17 @@ class FlatCheckbox extends AbstractButton {
         this.onToggle = onToggle;
     }
 
+    //? if >=26 {
     @Override
     public void onPress(@NonNull InputWithModifiers input) {
         onToggle.accept(!value.getAsBoolean());
     }
+    //?} else {
+    /*@Override
+    public void onPress() {
+        onToggle.accept(!value.getAsBoolean());
+    }
+    *///?}
 
     @Override
     protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {

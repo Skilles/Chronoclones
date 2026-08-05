@@ -3,6 +3,28 @@ plugins {
     id("dev.kikugie.loom-back-compat")
 }
 
+stonecutter {
+    // Must mirror build.neoforge.gradle.kts exactly: replacements rewrite the shared source
+    // in place, so every node has to agree on the rename table.
+    replacements.string(current.parsed < "26") {
+        replace("net.minecraft.client.renderer.rendertype.RenderTypes", "net.minecraft.client.renderer.RenderType")
+        replace("RenderTypes.", "RenderType.")
+        replace("GuiGraphicsExtractor", "GuiGraphics")
+        replace("Identifier", "ResourceLocation")
+        replace("ContainerInput", "ClickType")
+        replace("EntitySpawnReason.", "MobSpawnType.")
+        replace("centeredText(", "drawCenteredString(")
+        replace(".text(font", ".drawString(font")
+        replace("fakeItem(", "renderFakeItem(")
+        replace("setScreenAndShow(", "setScreen(")
+        replace("net.minecraft.world.entity.player.PlayerSkin", "net.minecraft.client.resources.PlayerSkin")
+        replace("extractContents(", "renderWidget(")
+        replace("extractLabels(", "renderLabels(")
+        replace("getGameProfile().name()", "getGameProfile().getName()")
+        replace("snapTo(", "moveTo(")
+    }
+}
+
 val modId: String = property("mod_id") as String
 val minecraftVersion: String = property("minecraft_version") as String
 val fabricLoaderVersion: String = property("fabric_loader_version") as String
@@ -83,6 +105,10 @@ repositories {
 }
 
 dependencies {
+    compileOnly("org.jspecify:jspecify:1.0.0")
+    "gametestCompileOnly"("org.jspecify:jspecify:1.0.0")
+    testCompileOnly("org.jspecify:jspecify:1.0.0")
+
     minecraft("com.mojang:minecraft:$minecraftVersion")
     // 26.x is the unobfuscated era: no mappings block; loom-back-compat handles the rest.
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
@@ -113,6 +139,26 @@ val replaceProperties = mapOf(
 
 tasks.withType<ProcessResources>().configureEach {
     inputs.properties(replaceProperties)
+
+    // Mixin before 0.8.7 does not know JAVA_25; the mixin classes themselves are fine.
+    if (stonecutter.current.parsed < "26") {
+        filesMatching("*.mixins.json") {
+            filter { line -> line.replace("\"compatibilityLevel\": \"JAVA_25\"", "\"compatibilityLevel\": \"JAVA_21\"") }
+        }
+    }
+
+    // assets/<ns>/items item-model definitions are a 1.21.4+ format; equipment assets are 1.21.2+.
+    if (stonecutter.current.parsed < "1.21.2") {
+        exclude("assets/*/items/**")
+        exclude("assets/*/equipment/**")
+    }
+
+    // Plain-string ingredients arrived in 1.21.2; older parsers want the {"item": id} object.
+    if (stonecutter.current.parsed < "1.21.2") {
+        filesMatching("data/*/recipe/*.json") {
+            filter { line -> line.replace(Regex("\"([A-Z])\": \"([a-z0-9_.:/-]+)\""), "\"$1\": { \"item\": \"$2\" }") }
+        }
+    }
 
     filesMatching(listOf("fabric.mod.json")) {
         expand(replaceProperties)

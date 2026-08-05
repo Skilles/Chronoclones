@@ -8,7 +8,11 @@ import com.skilles.chronoclones.recording.ActionSettings.TargetRule.Completion;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
@@ -26,7 +30,11 @@ class AttackIntentTest {
     private static AttackIntent.Swing swing(int tick, UUID target) {
         return new AttackIntent.Swing(new TimedAction(tick, new ChronoAction.AttackEntity(
                 new Vec3(0, 0, -1),
+                //? if >=26 {
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.ZOMBIE),
+                //?} else {
+                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.ZOMBIE),
+                *///?}
                 ItemStack.EMPTY)), target);
     }
 

@@ -22,8 +22,12 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+//? if >=26 {
 import net.minecraft.client.input.KeyEvent;
+//?}
+//? if >=26 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -517,12 +521,21 @@ public class RoutineEditorScreen extends Screen {
         super.onClose();
     }
 
+    //? if >=26 {
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                   float partialTick) {
         super.extractBackground(g, mouseX, mouseY, partialTick);
         drawBackground(g, mouseX, mouseY, partialTick);
     }
+    //?} else {
+    /*@Override
+    public void renderBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
+                                 float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        drawBackground(g, mouseX, mouseY, partialTick);
+    }
+    *///?}
 
     /** The version-neutral half of the background pass; the override above is the 26.x shell. */
     private void drawBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -550,11 +563,15 @@ public class RoutineEditorScreen extends Screen {
             return;
         }
         TimedAction timed = actions().get(index);
-        g.setComponentTooltipForNextFrame(font, List.of(
+        List<Component> lines = List.of(
                 Component.literal(rowTitle(timed)),
                 Component.literal(summaryOf(timed)),
-                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick()))),
-                mouseX, mouseY);
+                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick())));
+        //? if >=26 {
+        g.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+        //?} else {
+        /*g.renderComponentTooltip(font, lines, mouseX, mouseY);
+        *///?}
     }
 
     private static String seconds(int ticks) {
@@ -780,10 +797,17 @@ public class RoutineEditorScreen extends Screen {
         };
     }
 
+    //? if >=26 {
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
         return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
     }
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double x, double y, int button) {
+        return handleClick(x, y) || super.mouseClicked(x, y, button);
+    }
+    *///?}
 
     /** The version-neutral half of the click pass; the override above is the 26.x shell. */
     private boolean handleClick(double x, double y) {
@@ -837,6 +861,7 @@ public class RoutineEditorScreen extends Screen {
         return line < rowsVisible() && index < rows.size() ? rows.get(index) : null;
     }
 
+    //? if >=26 {
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (minecraft != null && minecraft.options.keyInventory.matches(event)
@@ -849,6 +874,20 @@ public class RoutineEditorScreen extends Screen {
         }
         return super.keyPressed(event);
     }
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (minecraft != null && minecraft.options.keyInventory.matches(key, scan)
+                && !isTyping()
+                && source.anchor().isPresent()) {
+            flushName();
+            PlatformClientNetwork.sendToServer(
+                    new RoutinePayloads.Reopen(source.anchor().get()));
+            return true;
+        }
+        return super.keyPressed(key, scan, mods);
+    }
+    *///?}
 
     private boolean isTyping() {
         return getFocused() instanceof EditBox box && box.canConsumeInput();

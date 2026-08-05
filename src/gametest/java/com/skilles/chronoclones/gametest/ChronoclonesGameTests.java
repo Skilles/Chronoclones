@@ -19,8 +19,11 @@ import net.neoforged.neoforge.registries.RegisterEvent;
  * {@code data/chronoclones/test_instance/<name>.json}, which carries the per-test settings
  * (environment, structure, max ticks) on both loaders; adding a test means adding its JSON.
  */
-//? if neoforge
+//? if neoforge {
+//? if >=26 {
 @EventBusSubscriber(modid = Chronoclones.MODID)
+//?}
+//?}
 public final class ChronoclonesGameTests {
 
     private record Entry(String name, Consumer<GameTestHelper> function) {}
@@ -68,7 +71,12 @@ public final class ChronoclonesGameTests {
         declare();
         for (Entry entry : ENTRIES) {
             if (entry.name().equals(name)) {
-                entry.function().accept(helper);
+                try {
+                    entry.function().accept(helper);
+                } catch (RuntimeException | Error thrown) {
+                    Chronoclones.LOGGER.error("gametest {} threw", name, thrown);
+                    throw thrown;
+                }
                 return;
             }
         }
@@ -81,6 +89,7 @@ public final class ChronoclonesGameTests {
     }
 
     //? if neoforge {
+    //? if >=26 {
     @SubscribeEvent
     public static void registerFunctions(RegisterEvent event) {
         if (!event.getRegistryKey().equals(Registries.TEST_FUNCTION)) {
@@ -93,6 +102,8 @@ public final class ChronoclonesGameTests {
             }
         });
     }
+    //?}
+    // Pre-26 has no test-function registry; the @GameTestHolder-annotated shims carry the tests.
     //?} else {
     /*// Called from the gametest dev-mod entrypoint; Fabric registries accept writes during init.
     public static void registerFunctions() {

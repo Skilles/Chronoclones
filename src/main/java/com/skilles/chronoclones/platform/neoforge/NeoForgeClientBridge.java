@@ -23,7 +23,11 @@ import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
+//? if >=26 {
 import net.neoforged.neoforge.client.event.SubmitCustomGeometryEvent;
+//?} else {
+/*import net.neoforged.neoforge.client.event.RenderLevelStageEvent;
+*///?}
 import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
 /** NeoForge's client registration and render events, routed to the shared client code. */
@@ -60,6 +64,7 @@ public final class NeoForgeClientBridge {
         NudgeKeys.tick();
     }
 
+    //? if >=26 {
     @SubscribeEvent
     static void onScreenRender(ScreenEvent.Render.Foreground event) {
         RecordingHighlights.renderForeground(event.getScreen(), event.getGuiGraphics());
@@ -69,6 +74,22 @@ public final class NeoForgeClientBridge {
     static void onSubmitGeometry(SubmitCustomGeometryEvent event) {
         PreviewRenderer.submitGeometry(event.getPoseStack(), event.getSubmitNodeCollector());
     }
+    //?} else {
+    /*@SubscribeEvent
+    static void onScreenRender(ScreenEvent.Render.Post event) {
+        RecordingHighlights.renderForeground(event.getScreen(), event.getGuiGraphics());
+    }
+
+    @SubscribeEvent
+    static void onRenderLevelStage(RenderLevelStageEvent event) {
+        if (event.getStage() != RenderLevelStageEvent.Stage.AFTER_TRANSLUCENT_BLOCKS) {
+            return;
+        }
+        var buffers = net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource();
+        PreviewRenderer.renderGeometry(event.getPoseStack(), buffers);
+        buffers.endBatch(net.minecraft.client.renderer.RenderType.lines());
+    }
+    *///?}
 
     @SubscribeEvent
     static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {

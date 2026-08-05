@@ -23,7 +23,11 @@ public final class ChronoclonesClientInit {
         ChronoclonesNetwork.clientRoutineHandler = ChronoclonesClientInit::openRoutineEditor;
         ChronoclonesNetwork.clientSkinHandler = AuthorSkins::accept;
         RecordingTooltips.detailRequested = () -> {
+            //? if >=26 {
             var window = Minecraft.getInstance().getWindow();
+            //?} else {
+            /*long window = Minecraft.getInstance().getWindow().getWindow();
+            *///?}
             return InputConstants.isKeyDown(window, InputConstants.KEY_LSHIFT)
                     || InputConstants.isKeyDown(window, InputConstants.KEY_RSHIFT);
         };

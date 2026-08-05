@@ -51,7 +51,11 @@ public final class ContainerWatch {
                                        RecordingSession session) {
         PENDING.put(player.getUUID(), new Pending(
                 new MenuTarget.Block(session.toLocal(pos), Optional.of(
+                        //? if >=26 {
                         player.level().getBlockState(pos).typeHolder())),
+                        //?} else {
+                        /*player.level().getBlockState(pos).getBlockHolder())),
+                        *///?}
                 pos, now(player)));
     }
 
@@ -255,6 +259,12 @@ public final class ContainerWatch {
         if (player.connection == null || player.hasDisconnected()) {
             return;
         }
+        //? if <26 {
+        /*// 21.1's hasChannel reads a channel attribute that mock and fake players lack.
+        if (!player.connection.isAcceptingMessages()) {
+            return;
+        }
+        *///?}
         // Only if the client declared it understands this payload; a vanilla client would kick.
         boolean listening =
                 //? if neoforge {

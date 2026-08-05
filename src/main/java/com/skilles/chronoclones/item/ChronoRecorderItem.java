@@ -22,9 +22,12 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
+import java.util.function.Consumer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+//? if >=26 {
 import net.minecraft.world.item.component.TooltipDisplay;
+//?}
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
 import com.skilles.chronoclones.platform.PlatformNetwork;
@@ -91,8 +94,22 @@ public class ChronoRecorderItem extends Item {
                 level, context.getClickedPos());
     }
 
+    //? if >=26 {
     @Override
     public @NonNull InteractionResult use(Level level, Player player, @NonNull InteractionHand hand) {
+        return useShared(level, player, hand);
+    }
+    //?} else {
+    /*@Override
+    public net.minecraft.world.InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        return useShared(level, player, hand) == InteractionResult.PASS
+                ? net.minecraft.world.InteractionResultHolder.pass(stack)
+                : net.minecraft.world.InteractionResultHolder.sidedSuccess(stack, level.isClientSide());
+    }
+    *///?}
+
+    private InteractionResult useShared(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
 
         if (level.isClientSide() || !(player instanceof ServerPlayer serverPlayer)) {
@@ -119,7 +136,11 @@ public class ChronoRecorderItem extends Item {
             }
             clear(stack);
             feedback(serverPlayer, "message.chronoclones.recorder.discarded", ChatFormatting.GRAY);
+            //? if >=26 {
             playSound(serverPlayer, SoundEvents.ITEM_BREAK.value(), 0.7f);
+            //?} else {
+            /*playSound(serverPlayer, SoundEvents.ITEM_BREAK, 0.7f);
+            *///?}
             return InteractionResult.SUCCESS;
         }
 
@@ -143,7 +164,7 @@ public class ChronoRecorderItem extends Item {
         stack.set(ModDataComponents.PROGRESS.get(),
                 new RecordingProgress(session.sessionId(), 0, 0, false));
 
-        player.sendOverlayMessage(Component.translatable(
+        com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(
                 "message.chronoclones.recorder.started",
                 Component.literal(session.originFacing().getName()).withStyle(ChatFormatting.WHITE))
                 .withStyle(ChatFormatting.AQUA));
@@ -173,7 +194,11 @@ public class ChronoRecorderItem extends Item {
                     + "it was discarded while the item still read RECORDING.",
                     player.getGameProfile().name());
             feedback(player, "message.chronoclones.recorder.lost", ChatFormatting.RED);
+            //? if >=26 {
             playSound(player, SoundEvents.ITEM_BREAK.value(), 0.7f);
+            //?} else {
+            /*playSound(player, SoundEvents.ITEM_BREAK, 0.7f);
+            *///?}
             return InteractionResult.SUCCESS;
         }
 
@@ -183,7 +208,11 @@ public class ChronoRecorderItem extends Item {
                     + "{} actions. Capture events are not reaching the session.",
                     player.getGameProfile().name(), session.tick(), session.actionCount());
             feedback(player, "message.chronoclones.recorder.empty", ChatFormatting.RED);
+            //? if >=26 {
             playSound(player, SoundEvents.ITEM_BREAK.value(), 0.7f);
+            //?} else {
+            /*playSound(player, SoundEvents.ITEM_BREAK, 0.7f);
+            *///?}
             return InteractionResult.SUCCESS;
         }
 
@@ -198,7 +227,7 @@ public class ChronoRecorderItem extends Item {
             case ABANDONED -> "message.chronoclones.recorder.discarded";
         };
 
-        player.sendOverlayMessage(Component.translatable(key,
+        com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(key,
                 recording.lengthSeconds(), recording.actions().size()).withStyle(ChatFormatting.AQUA));
 
         playSound(player, reason == RecordingSession.StopReason.MANUAL
@@ -212,9 +241,22 @@ public class ChronoRecorderItem extends Item {
         return stateOf(stack) != State.IDLE;
     }
 
+    //? if >=26 {
     @Override
     public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
-                                java.util.function.@NonNull Consumer<Component> adder, @NonNull TooltipFlag flag) {
+                                Consumer<Component> adder, @NonNull TooltipFlag flag) {
+        appendSharedHoverText(stack, context, adder, flag);
+    }
+    //?} else {
+    /*@Override
+    public void appendHoverText(ItemStack stack, TooltipContext context,
+                                java.util.List<Component> lines, TooltipFlag flag) {
+        appendSharedHoverText(stack, context, lines::add, flag);
+    }
+    *///?}
+
+    private void appendSharedHoverText(ItemStack stack, TooltipContext context,
+                                       Consumer<Component> adder, TooltipFlag flag) {
         switch (stateOf(stack)) {
             case IDLE -> adder.accept(Component.translatable("tooltip.chronoclones.recorder.idle")
                     .withStyle(ChatFormatting.DARK_GRAY));
@@ -235,7 +277,7 @@ public class ChronoRecorderItem extends Item {
     }
 
     private static void feedback(ServerPlayer player, String key, ChatFormatting colour) {
-        player.sendOverlayMessage(Component.translatable(key).withStyle(colour));
+        com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(key).withStyle(colour));
     }
 
     private static void playSound(ServerPlayer player, net.minecraft.sounds.SoundEvent sound, float pitch) {

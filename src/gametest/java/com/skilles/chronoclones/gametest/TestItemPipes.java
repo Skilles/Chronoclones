@@ -14,6 +14,7 @@ final class TestItemPipes {
     private TestItemPipes() {}
 
     //? if neoforge {
+    //? if >=26 {
     private static net.neoforged.neoforge.transfer.@org.jspecify.annotations.Nullable ResourceHandler<
             net.neoforged.neoforge.transfer.item.ItemResource> handler(
             ServerLevel level, BlockPos absolutePos) {
@@ -75,6 +76,63 @@ final class TestItemPipes {
         }
         return total;
     }
+    //?} else {
+    /*private static net.neoforged.neoforge.items.@org.jspecify.annotations.Nullable IItemHandler handler(
+            ServerLevel level, BlockPos absolutePos) {
+        return level.getCapability(
+                net.neoforged.neoforge.capabilities.Capabilities.ItemHandler.BLOCK, absolutePos, null);
+    }
+
+    static boolean present(ServerLevel level, BlockPos absolutePos) {
+        return handler(level, absolutePos) != null;
+    }
+
+    // Inserts wherever fits, first slot to last; returns how much went in.
+    static int insert(ServerLevel level, BlockPos absolutePos, Item item, int amount) {
+        var found = handler(level, absolutePos);
+        if (found == null) {
+            return 0;
+        }
+        ItemStack remaining = new ItemStack(item, amount);
+        for (int slot = 0; slot < found.getSlots() && !remaining.isEmpty(); slot++) {
+            remaining = found.insertItem(slot, remaining, false);
+        }
+        return amount - remaining.getCount();
+    }
+
+    static void insertIntoSlot(ServerLevel level, BlockPos absolutePos, int slot,
+                               Item item, int amount) {
+        var found = handler(level, absolutePos);
+        if (found == null || slot >= found.getSlots()) {
+            return;
+        }
+        found.insertItem(slot, new ItemStack(item, amount), false);
+    }
+
+    // A copy of what the automation view shows in one slot, or EMPTY.
+    static ItemStack slot(ServerLevel level, BlockPos absolutePos, int slot) {
+        var found = handler(level, absolutePos);
+        if (found == null || slot >= found.getSlots()) {
+            return ItemStack.EMPTY;
+        }
+        return found.getStackInSlot(slot).copy();
+    }
+
+    static int count(ServerLevel level, BlockPos absolutePos, Item item) {
+        var found = handler(level, absolutePos);
+        if (found == null) {
+            return 0;
+        }
+        int total = 0;
+        for (int index = 0; index < found.getSlots(); index++) {
+            ItemStack stack = found.getStackInSlot(index);
+            if (stack.is(item)) {
+                total += stack.getCount();
+            }
+        }
+        return total;
+    }
+    *///?}
     //?} else {
     /*private static net.fabricmc.fabric.api.transfer.v1.storage.@org.jspecify.annotations.Nullable Storage<
             net.fabricmc.fabric.api.transfer.v1.item.ItemVariant> handler(

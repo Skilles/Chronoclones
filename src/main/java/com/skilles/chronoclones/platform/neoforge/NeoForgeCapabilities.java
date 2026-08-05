@@ -9,7 +9,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
+//? if >=26 {
 import net.neoforged.neoforge.transfer.item.WorldlyContainerWrapper;
+//?}
 
 @EventBusSubscriber(modid = Chronoclones.MODID)
 public final class NeoForgeCapabilities {
@@ -18,10 +20,18 @@ public final class NeoForgeCapabilities {
 
     @SubscribeEvent
     public static void registerCapabilities(RegisterCapabilitiesEvent event) {
+        //? if >=26 {
         event.registerBlockEntity(
                 Capabilities.Item.BLOCK,
                 ModBlockEntities.CHRONO_ANCHOR.get(),
                 (anchor, side) -> new WorldlyContainerWrapper(anchor.getExternalInventory(), side));
+        //?} else {
+        /*event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                ModBlockEntities.CHRONO_ANCHOR.get(),
+                (anchor, side) -> new net.neoforged.neoforge.items.wrapper.SidedInvWrapper(
+                        anchor.getExternalInventory(), side));
+        *///?}
     }
 }
 //?}

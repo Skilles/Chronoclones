@@ -10,7 +10,9 @@ import com.skilles.chronoclones.network.RoutinePayloads;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import com.skilles.chronoclones.platform.PlatformClientNetwork;
+//? if >=26 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -25,7 +27,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private DrawerTab editorTab;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
+        //? if >=26 {
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
+        //?} else {
+        /*super(menu, playerInventory, title);
+        this.imageWidth = Layout.WIDTH;
+        this.imageHeight = Layout.HEIGHT;
+        *///?}
     }
 
     @Override
@@ -48,11 +56,24 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         editorTab.active = menu.getLengthTicks() > 0;
     }
 
+    //? if >=26 {
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(extractor, mouseX, mouseY, partialTick);
         drawBackground(extractor, mouseX, mouseY, partialTick);
     }
+    //?} else {
+    /*@Override
+    protected void renderBg(@NonNull GuiGraphicsExtractor extractor, float partialTick, int mouseX, int mouseY) {
+        drawBackground(extractor, mouseX, mouseY, partialTick);
+    }
+
+    @Override
+    public void render(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
+        super.render(extractor, mouseX, mouseY, partialTick);
+        renderTooltip(extractor, mouseX, mouseY);
+    }
+    *///?}
 
     /** The version-neutral half of the background pass; the override above is the 26.x shell. */
     private void drawBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
@@ -328,10 +349,17 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
+    //? if >=26 {
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
         return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
     }
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double x, double y, int button) {
+        return handleClick(x, y) || super.mouseClicked(x, y, button);
+    }
+    *///?}
 
     /** The version-neutral half of the click pass; the override above is the 26.x shell. */
     private boolean handleClick(double x, double y) {
@@ -360,11 +388,19 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         return false;
     }
 
+    //? if >=26 {
     @Override
     protected void extractTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         super.extractTooltip(extractor, mouseX, mouseY);
         drawTooltipExtras(extractor, mouseX, mouseY);
     }
+    //?} else {
+    /*@Override
+    protected void renderTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        super.renderTooltip(extractor, mouseX, mouseY);
+        drawTooltipExtras(extractor, mouseX, mouseY);
+    }
+    *///?}
 
     /** The version-neutral half of the tooltip pass; the override above is the 26.x shell. */
     private void drawTooltipExtras(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
@@ -424,12 +460,20 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     }
 
     private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY, Component text) {
+        //? if >=26 {
         extractor.setTooltipForNextFrame(font, text, mouseX, mouseY);
+        //?} else {
+        /*extractor.renderTooltip(font, text, mouseX, mouseY);
+        *///?}
     }
 
     private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
                          java.util.List<Component> lines) {
+        //? if >=26 {
         extractor.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+        //?} else {
+        /*extractor.renderComponentTooltip(font, lines, mouseX, mouseY);
+        *///?}
     }
 
     private boolean within(int mouseX, int mouseY, int x, int y, int width, int height) {

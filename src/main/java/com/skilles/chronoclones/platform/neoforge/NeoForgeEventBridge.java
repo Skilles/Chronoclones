@@ -16,7 +16,9 @@ import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
+//? if >=26 {
 import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
+//?}
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
@@ -45,12 +47,21 @@ public final class NeoForgeEventBridge {
         }
     }
 
+    //? if >=26 {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBlockBreak(BreakBlockEvent event) {
         if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player) {
             RecordingCapture.blockBroken(player, event.getPos(), event.getState());
         }
     }
+    //?} else {
+    /*@SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onBlockBreak(net.neoforged.neoforge.event.level.BlockEvent.BreakEvent event) {
+        if (!event.isCanceled() && event.getPlayer() instanceof ServerPlayer player) {
+            RecordingCapture.blockBroken(player, event.getPos(), event.getState());
+        }
+    }
+    *///?}
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {

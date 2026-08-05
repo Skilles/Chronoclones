@@ -13,11 +13,28 @@ public final class PlatformNetwork {
 
     //? if neoforge {
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        //? if <26 {
+        /*// 21.1's distributor reads a channel attribute that mock gametest players lack.
+        if (player.connection == null || !player.connection.isAcceptingMessages()) {
+            return;
+        }
+        *///?}
         PacketDistributor.sendToPlayer(player, payload);
     }
 
     public static void sendToAllPlayers(CustomPacketPayload payload) {
+        //? if >=26 {
         PacketDistributor.sendToAllPlayers(payload);
+        //?} else {
+        /*// Routed one by one so channel-less mock players are skipped, as in sendToPlayer.
+        var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            sendToPlayer(player, payload);
+        }
+        *///?}
     }
     //?} else {
     /*// Held for broadcast sends; the Fabric entrypoint keeps it current across server lifecycles.

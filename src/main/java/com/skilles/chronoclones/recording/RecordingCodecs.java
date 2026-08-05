@@ -29,6 +29,26 @@ public final class RecordingCodecs {
 
     private RecordingCodecs() {}
 
+    // These stream codecs only exist upstream in the 26.x era; older nodes rebuild them.
+    //? if >=26 {
+    private static final StreamCodec<io.netty.buffer.ByteBuf, Vec3> VEC3_STREAM = Vec3.STREAM_CODEC;
+    private static final StreamCodec<io.netty.buffer.ByteBuf, InteractionHand> HAND_STREAM =
+            InteractionHand.STREAM_CODEC;
+    private static final StreamCodec<io.netty.buffer.ByteBuf, ContainerInput> CLICK_STREAM =
+            ContainerInput.STREAM_CODEC;
+    //?} else {
+    /*private static final StreamCodec<io.netty.buffer.ByteBuf, Vec3> VEC3_STREAM =
+            StreamCodec.composite(
+                    ByteBufCodecs.DOUBLE, Vec3::x,
+                    ByteBufCodecs.DOUBLE, Vec3::y,
+                    ByteBufCodecs.DOUBLE, Vec3::z,
+                    Vec3::new);
+    private static final StreamCodec<io.netty.buffer.ByteBuf, InteractionHand> HAND_STREAM =
+            ByteBufCodecs.idMapper(id -> InteractionHand.values()[id], Enum::ordinal);
+    private static final StreamCodec<io.netty.buffer.ByteBuf, ContainerInput> CLICK_STREAM =
+            ByteBufCodecs.idMapper(id -> ContainerInput.values()[id], Enum::ordinal);
+    *///?}
+
     public static final Codec<MotionSample> MOTION_SAMPLE = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(MotionSample::tick),
             Vec3.CODEC.fieldOf("pos").forGetter(MotionSample::localPos),
@@ -39,7 +59,7 @@ public final class RecordingCodecs {
     public static final StreamCodec<RegistryFriendlyByteBuf, MotionSample> MOTION_SAMPLE_STREAM =
             StreamCodec.composite(
                     ByteBufCodecs.VAR_INT, MotionSample::tick,
-                    Vec3.STREAM_CODEC.cast(), MotionSample::localPos,
+                    VEC3_STREAM.cast(), MotionSample::localPos,
                     ByteBufCodecs.FLOAT, MotionSample::localYaw,
                     ByteBufCodecs.FLOAT, MotionSample::pitch,
                     MotionSample::new);
@@ -67,7 +87,7 @@ public final class RecordingCodecs {
 
     public static final StreamCodec<RegistryFriendlyByteBuf, ActionPose> ACTION_POSE_STREAM =
             StreamCodec.composite(
-                    Vec3.STREAM_CODEC.cast(), ActionPose::localPos,
+                    VEC3_STREAM.cast(), ActionPose::localPos,
                     ByteBufCodecs.FLOAT, ActionPose::localYaw,
                     ByteBufCodecs.FLOAT, ActionPose::pitch,
                     ActionPose::new);
@@ -83,9 +103,9 @@ public final class RecordingCodecs {
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.PlaceContext> PLACE_CONTEXT_STREAM =
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC.cast(), ChronoAction.PlaceContext::localClicked,
-                    Vec3.STREAM_CODEC.cast(), ChronoAction.PlaceContext::localHitOffset,
+                    VEC3_STREAM.cast(), ChronoAction.PlaceContext::localHitOffset,
                     ByteBufCodecs.BOOL, ChronoAction.PlaceContext::inside,
-                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.PlaceContext::hand,
+                    HAND_STREAM.cast(), ChronoAction.PlaceContext::hand,
                     ACTION_POSE_STREAM, ChronoAction.PlaceContext::pose,
                     ChronoAction.PlaceContext::new);
 
@@ -172,7 +192,7 @@ public final class RecordingCodecs {
 
     static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Entity> MENU_ENTITY_STREAM =
             StreamCodec.composite(
-                    Vec3.STREAM_CODEC.cast(), MenuTarget.Entity::localPos,
+                    VEC3_STREAM.cast(), MenuTarget.Entity::localPos,
                     ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), MenuTarget.Entity::expectedType,
                     MenuTarget.Entity::new);
 
@@ -285,26 +305,48 @@ public final class RecordingCodecs {
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.AttackEntity> ATTACK_ENTITY_STREAM =
             StreamCodec.composite(
-                    Vec3.STREAM_CODEC.cast(), ChronoAction.AttackEntity::localPos,
+                    VEC3_STREAM.cast(), ChronoAction.AttackEntity::localPos,
                     ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), ChronoAction.AttackEntity::expectedType,
                     ItemStack.OPTIONAL_STREAM_CODEC, ChronoAction.AttackEntity::weaponTemplate,
                     ChronoAction.AttackEntity::new);
 
+    private static final StreamCodec<RegistryFriendlyByteBuf, java.util.Optional<net.minecraft.core.Holder<Block>>>
+            EXPECTED_BLOCK_STREAM = ByteBufCodecs.optional(ByteBufCodecs.holderRegistry(Registries.BLOCK));
+
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseOnBlock> USE_ON_BLOCK_STREAM =
+            //? if >=26 {
             StreamCodec.composite(
                     BlockPos.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localPos,
                     Direction.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localFace,
-                    Vec3.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::localHitOffset,
+                    VEC3_STREAM.cast(), ChronoAction.UseOnBlock::localHitOffset,
                     ByteBufCodecs.BOOL.cast(), ChronoAction.UseOnBlock::inside,
-                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseOnBlock::hand,
+                    HAND_STREAM.cast(), ChronoAction.UseOnBlock::hand,
                     RecordedItem.STREAM_CODEC, ChronoAction.UseOnBlock::itemTemplate,
-                    ByteBufCodecs.optional(ByteBufCodecs.holderRegistry(Registries.BLOCK)),
-                    ChronoAction.UseOnBlock::expectedBlock,
+                    EXPECTED_BLOCK_STREAM, ChronoAction.UseOnBlock::expectedBlock,
                     ChronoAction.UseOnBlock::new);
+            //?} else {
+            /*// 1.21.1's composite() stops at six fields; write and read the seven parts by hand.
+            StreamCodec.of((buf, v) -> {
+                BlockPos.STREAM_CODEC.encode(buf, v.localPos());
+                Direction.STREAM_CODEC.encode(buf, v.localFace());
+                VEC3_STREAM.encode(buf, v.localHitOffset());
+                ByteBufCodecs.BOOL.encode(buf, v.inside());
+                HAND_STREAM.encode(buf, v.hand());
+                RecordedItem.STREAM_CODEC.encode(buf, v.itemTemplate());
+                EXPECTED_BLOCK_STREAM.encode(buf, v.expectedBlock());
+            }, buf -> new ChronoAction.UseOnBlock(
+                    BlockPos.STREAM_CODEC.decode(buf),
+                    Direction.STREAM_CODEC.decode(buf),
+                    VEC3_STREAM.decode(buf),
+                    ByteBufCodecs.BOOL.decode(buf),
+                    HAND_STREAM.decode(buf),
+                    RecordedItem.STREAM_CODEC.decode(buf),
+                    EXPECTED_BLOCK_STREAM.decode(buf)));
+            *///?}
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.UseItem> USE_ITEM_STREAM =
             StreamCodec.composite(
-                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.UseItem::hand,
+                    HAND_STREAM.cast(), ChronoAction.UseItem::hand,
                     RecordedItem.STREAM_CODEC, ChronoAction.UseItem::itemTemplate,
                     ByteBufCodecs.VAR_INT, ChronoAction.UseItem::holdTicks,
                     ByteBufCodecs.optional(ACTION_POSE_STREAM), ChronoAction.UseItem::pose,
@@ -312,9 +354,9 @@ public final class RecordingCodecs {
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.InteractEntity> INTERACT_ENTITY_STREAM =
             StreamCodec.composite(
-                    Vec3.STREAM_CODEC.cast(), ChronoAction.InteractEntity::localPos,
+                    VEC3_STREAM.cast(), ChronoAction.InteractEntity::localPos,
                     ByteBufCodecs.holderRegistry(Registries.ENTITY_TYPE), ChronoAction.InteractEntity::expectedType,
-                    InteractionHand.STREAM_CODEC.cast(), ChronoAction.InteractEntity::hand,
+                    HAND_STREAM.cast(), ChronoAction.InteractEntity::hand,
                     RecordedItem.STREAM_CODEC, ChronoAction.InteractEntity::itemTemplate,
                     ChronoAction.InteractEntity::new);
 
@@ -331,7 +373,7 @@ public final class RecordingCodecs {
             StreamCodec.composite(
                     ByteBufCodecs.INT, SessionStep.RawClick::slot,
                     ByteBufCodecs.INT, SessionStep.RawClick::button,
-                    ContainerInput.STREAM_CODEC.cast(), SessionStep.RawClick::input,
+                    CLICK_STREAM.cast(), SessionStep.RawClick::input,
                     SessionStep.RawClick::new);
 
     static final StreamCodec<RegistryFriendlyByteBuf, SessionStep.Button> BUTTON_STREAM =
@@ -524,20 +566,46 @@ public final class RecordingCodecs {
                     ActionSettings.StepSettings::amount,
                     ActionSettings.StepSettings::new);
 
+    private static final StreamCodec<io.netty.buffer.ByteBuf, ActionSettings.ToolRule> TOOL_RULE_STREAM =
+            ByteBufCodecs.idMapper(id -> ActionSettings.ToolRule.values()[id], Enum::ordinal);
+
+    private static final StreamCodec<RegistryFriendlyByteBuf, List<ActionSettings.StepSettings>> STEP_LIST_STREAM =
+            STEP_SETTINGS_STREAM.apply(ByteBufCodecs.collection(ArrayList::new));
+
     public static final StreamCodec<RegistryFriendlyByteBuf, ActionSettings> ACTION_SETTINGS_STREAM =
+            //? if >=26 {
             StreamCodec.composite(
                     ByteBufCodecs.STRING_UTF8, ActionSettings::name,
                     SLOT_RULE_STREAM, ActionSettings::slot,
-                    ByteBufCodecs.idMapper(
-                            id -> ActionSettings.ToolRule.values()[id], Enum::ordinal),
-                    ActionSettings::tool,
+                    TOOL_RULE_STREAM, ActionSettings::tool,
                     ByteBufCodecs.BOOL, ActionSettings::recordedSubject,
                     TARGET_RULE_STREAM, ActionSettings::target,
                     TRANSFER_RULE_STREAM, ActionSettings::transfer,
-                    STEP_SETTINGS_STREAM.apply(ByteBufCodecs.collection(ArrayList::new)),
-                    ActionSettings::steps,
+                    STEP_LIST_STREAM, ActionSettings::steps,
                     ITEM_RULE_STREAM, ActionSettings::item,
                     ActionSettings::new);
+            //?} else {
+            /*// 1.21.1's composite() stops at six fields; the eight-field record reads and
+            // writes its parts by hand in the same order composite() would have used.
+            StreamCodec.of((buf, v) -> {
+                ByteBufCodecs.STRING_UTF8.encode(buf, v.name());
+                SLOT_RULE_STREAM.encode(buf, v.slot());
+                TOOL_RULE_STREAM.encode(buf, v.tool());
+                ByteBufCodecs.BOOL.encode(buf, v.recordedSubject());
+                TARGET_RULE_STREAM.encode(buf, v.target());
+                TRANSFER_RULE_STREAM.encode(buf, v.transfer());
+                STEP_LIST_STREAM.encode(buf, v.steps());
+                ITEM_RULE_STREAM.encode(buf, v.item());
+            }, buf -> new ActionSettings(
+                    ByteBufCodecs.STRING_UTF8.decode(buf),
+                    SLOT_RULE_STREAM.decode(buf),
+                    TOOL_RULE_STREAM.decode(buf),
+                    ByteBufCodecs.BOOL.decode(buf),
+                    TARGET_RULE_STREAM.decode(buf),
+                    TRANSFER_RULE_STREAM.decode(buf),
+                    STEP_LIST_STREAM.decode(buf),
+                    ITEM_RULE_STREAM.decode(buf)));
+            *///?}
 
     public static final Codec<TimedAction> TIMED_ACTION = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("tick").forGetter(TimedAction::tick),

@@ -122,9 +122,15 @@ final class CarrierGameTest {
     private static final int RIGHT = 1;
 
     private static int menuSlotOf(int inventorySlot) {
+        //? if >=26 {
         return Inventory.isHotbarSlot(inventorySlot)
                 ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.SELECTION_SIZE) + inventorySlot
                 : CHEST_SLOTS + inventorySlot - Inventory.SELECTION_SIZE;
+        //?} else {
+        /*return Inventory.isHotbarSlot(inventorySlot)
+                ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.getSelectionSize()) + inventorySlot
+                : CHEST_SLOTS + inventorySlot - Inventory.getSelectionSize();
+        *///?}
     }
 
     private static void lendsTheSquareTheClickNames(GameTestHelper helper) {

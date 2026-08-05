@@ -15,9 +15,21 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+//? if >=26 {
 import net.minecraft.world.entity.EntitySpawnReason;
+//?} else {
+/*import net.minecraft.world.entity.MobSpawnType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.npc.villager.Villager;
+//?} else {
+/*import net.minecraft.world.entity.npc.Villager;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.trading.ItemCost;
@@ -264,7 +276,11 @@ final class MenuStepGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
                         new MenuTarget.Entity(local,
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                *///?}
                         MERCHANT_MENU_SIZE, List.of(),
                         List.of(
                                 new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
@@ -284,7 +300,11 @@ final class MenuStepGameTest {
 
     private static Villager merchant(GameTestHelper helper, BlockPos relative,
                                      MerchantOffer... offers) {
+        //? if >=26 {
         Villager villager = EntityTypes.VILLAGER.spawn(helper.getLevel(),
+        //?} else {
+        /*Villager villager = EntityType.VILLAGER.spawn(helper.getLevel(),
+        *///?}
                 helper.absolutePos(relative), EntitySpawnReason.TRIGGERED);
         if (villager == null) {
             helper.fail("could not spawn the villager this test is about");

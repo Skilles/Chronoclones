@@ -3,7 +3,11 @@ package com.skilles.chronoclones.recording;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.phys.Vec3;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +19,11 @@ class MenuTargetTest {
     private static final BlockPos ORIGIN = new BlockPos(100, 64, 100);
 
     private static MenuTarget entity(Vec3 at) {
+        //? if >=26 {
         return new MenuTarget.Entity(at, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER));
+        //?} else {
+        /*return new MenuTarget.Entity(at, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER));
+        *///?}
     }
 
     @Test

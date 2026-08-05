@@ -20,8 +20,16 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26 {
 import net.minecraft.world.level.storage.TagValueInput;
+//?} else {
+/*
+*///?}
+//? if >=26 {
 import net.minecraft.world.level.storage.TagValueOutput;
+//?} else {
+/*
+*///?}
 import net.minecraft.world.phys.AABB;
 
 final class CloneInventoryGameTest {
@@ -224,8 +232,12 @@ final class CloneInventoryGameTest {
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
         ServerLevel level = helper.getLevel();
 
+        //? if >=26 {
         anchor.loadWithComponents(TagValueInput.create(
                 ProblemReporter.DISCARDING, level.registryAccess(), legacySave(level)));
+        //?} else {
+        /*anchor.loadWithComponents(legacySave(level), level.registryAccess());
+        *///?}
 
         StackInventory first = anchor.getCloneInventory(0);
         if (first.size() != ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS) {
@@ -242,10 +254,17 @@ final class CloneInventoryGameTest {
         StackInventory legacy = new StackInventory(18);
         legacy.setItem(4, new ItemStack(Items.DIAMOND, 9));
 
+        //? if >=26 {
         TagValueOutput output = TagValueOutput.createWithContext(
                 ProblemReporter.DISCARDING, level.registryAccess());
         legacy.serialize(com.skilles.chronoclones.io.DataIO.wrap(output.child("inventory")));
         return output.buildResult();
+        //?} else {
+        /*CompoundTag output = new CompoundTag();
+        legacy.serialize(com.skilles.chronoclones.io.DataIO.wrap(output, level.registryAccess())
+                .child("inventory"));
+        return output;
+        *///?}
     }
 
     private static void splitters(ChronoAnchorBlockEntity anchor, int count) {

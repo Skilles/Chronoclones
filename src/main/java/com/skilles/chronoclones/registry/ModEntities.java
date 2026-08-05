@@ -25,7 +25,11 @@ public final class ModEntities {
                     .fireImmune()
                     .updateInterval(1)
                     .clientTrackingRange(8)
+                    //? if >=26 {
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, Chronoclones.id("chrono_clone"))));
+                    //?} else {
+                    /*.build(Chronoclones.id("chrono_clone").toString()));
+                    *///?}
 
     public static void init() {}
 

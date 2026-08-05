@@ -17,7 +17,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
+//? if >=26 {
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
+//?} else {
+/*import net.minecraft.world.entity.animal.horse.AbstractHorse;
+*///?}
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;

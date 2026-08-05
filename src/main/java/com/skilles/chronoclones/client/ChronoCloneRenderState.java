@@ -1,3 +1,4 @@
+//? if >=26 {
 package com.skilles.chronoclones.client;
 
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
@@ -8,3 +9,4 @@ public class ChronoCloneRenderState extends HumanoidRenderState {
 
     public PlayerSkin skin = DefaultPlayerSkin.getDefaultSkin();
 }
+//?}

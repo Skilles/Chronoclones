@@ -49,8 +49,10 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26 {
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+//?}
 import com.skilles.chronoclones.io.DataIO;
 import com.skilles.chronoclones.io.DataIn;
 import com.skilles.chronoclones.io.DataOut;
@@ -708,9 +710,16 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         actor.discard();
     }
 
+    //? if >=26 {
     @Override
     public void preRemoveSideEffects(@NonNull BlockPos pos, @NonNull BlockState state) {
         super.preRemoveSideEffects(pos, state);
+        spillOnRemoval(pos);
+    }
+    //?}
+
+    /** Pre-26 versions reach this from the block's onRemove instead. */
+    public void spillOnRemoval(BlockPos pos) {
         if (level != null) {
             storage.spillEverything(level, pos);
         }
@@ -724,10 +733,21 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    //? if >=26 {
     @Override
     protected void applyImplicitComponents(net.minecraft.core.component.@NonNull DataComponentGetter getter) {
         super.applyImplicitComponents(getter);
-        Recording carried = getter.get(ModDataComponents.RECORDING.get());
+        adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
+    }
+    //?} else {
+    /*@Override
+    protected void applyImplicitComponents(BlockEntity.DataComponentInput getter) {
+        super.applyImplicitComponents(getter);
+        adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
+    }
+    *///?}
+
+    private void adoptCarried(@Nullable Recording carried) {
         if (carried != null) {
             this.recording = carried;
             this.motionTrack = new MotionTrack(carried.motion());
@@ -737,6 +757,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    //? if >=26 {
     @Override
     public void removeComponentsFromTag(ValueOutput output) {
         DataIO.wrap(output).discard("recording");
@@ -747,6 +768,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         super.saveAdditional(output);
         saveData(DataIO.wrap(output));
     }
+    //?} else {
+    /*@Override
+    public void removeComponentsFromTag(net.minecraft.nbt.CompoundTag tag) {
+        tag.remove("recording");
+    }
+
+    @Override
+    protected void saveAdditional(net.minecraft.nbt.CompoundTag tag,
+                                  net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        saveData(DataIO.wrap(tag, registries));
+    }
+    *///?}
 
     private void saveData(DataOut output) {
         storage.save(output);
@@ -768,11 +802,20 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         output.putBoolean("finishing", finishing);
     }
 
+    //? if >=26 {
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
         loadData(DataIO.wrap(input));
     }
+    //?} else {
+    /*@Override
+    protected void loadAdditional(net.minecraft.nbt.CompoundTag tag,
+                                  net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        loadData(DataIO.wrap(tag, registries, true));
+    }
+    *///?}
 
     private void loadData(DataIn input) {
         storage.load(input);

@@ -22,7 +22,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -150,7 +154,11 @@ final class RoutineEditGameTest {
     }
 
     private static @org.jspecify.annotations.Nullable Recording recordingCarriedBy(ServerPlayer player) {
+        //? if >=26 {
         for (ItemStack stack : player.getInventory()) {
+        //?} else {
+        /*for (ItemStack stack : player.getInventory().items) {
+        *///?}
             Recording recording = ChronoRecorderItem.recordingOf(stack);
             if (recording != null) {
                 return recording;
@@ -219,13 +227,21 @@ final class RoutineEditGameTest {
      * item components, which are only bound once the game is fully up. */
     private static void creatureActionsArePicturedAsCreatures(GameTestHelper helper) {
         assertIcon(helper, new ChronoAction.InteractEntity(
+                        //? if >=26 {
                         Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                        //?} else {
+                        /*Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                        *///?}
                         InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET)),
                 Items.COW_SPAWN_EGG);
 
         assertIcon(helper, new ChronoAction.UseContainer(
                         new MenuTarget.Entity(Vec3.ZERO,
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                *///?}
                         39, List.of(), List.of()),
                 Items.VILLAGER_SPAWN_EGG);
 

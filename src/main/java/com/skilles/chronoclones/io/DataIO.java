@@ -72,5 +72,82 @@ public final class DataIO {
             }
         };
     }
-    //?}
+    //?} else {
+    /*// Pre-26 versions save straight into NBT; codecs run through registry-aware ops.
+    public static DataOut wrap(net.minecraft.nbt.CompoundTag tag,
+                               net.minecraft.core.HolderLookup.Provider registries) {
+        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops =
+                net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
+        return new DataOut() {
+            @Override
+            public DataOut child(String key) {
+                net.minecraft.nbt.CompoundTag existing = tag.getCompound(key);
+                tag.put(key, existing);
+                return wrap(existing, registries);
+            }
+
+            @Override
+            public <T> void store(String key, Codec<T> codec, T value) {
+                codec.encodeStart(ops, value).result().ifPresent(element -> tag.put(key, element));
+            }
+
+            @Override
+            public void putString(String key, String value) {
+                tag.putString(key, value);
+            }
+
+            @Override
+            public void putBoolean(String key, boolean value) {
+                tag.putBoolean(key, value);
+            }
+
+            @Override
+            public void discard(String key) {
+                tag.remove(key);
+            }
+        };
+    }
+
+    public static DataIn wrap(net.minecraft.nbt.CompoundTag tag,
+                              net.minecraft.core.HolderLookup.Provider registries,
+                              // Overload-disambiguation marker; pre-26 CompoundTag is one type
+                              // for both directions where ValueInput and ValueOutput are two.
+                              boolean read) {
+        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops =
+                net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
+        return new DataIn() {
+            @Override
+            public Optional<DataIn> child(String key) {
+                return tag.contains(key, net.minecraft.nbt.Tag.TAG_COMPOUND)
+                        ? Optional.of(wrap(tag.getCompound(key), registries, true))
+                        : Optional.empty();
+            }
+
+            @Override
+            public <T> Optional<T> read(String key, Codec<T> codec) {
+                net.minecraft.nbt.Tag element = tag.get(key);
+                return element == null ? Optional.empty() : codec.parse(ops, element).result();
+            }
+
+            @Override
+            public Optional<String> getString(String key) {
+                return tag.contains(key, net.minecraft.nbt.Tag.TAG_STRING)
+                        ? Optional.of(tag.getString(key))
+                        : Optional.empty();
+            }
+
+            @Override
+            public String getStringOr(String key, String fallback) {
+                return getString(key).orElse(fallback);
+            }
+
+            @Override
+            public boolean getBooleanOr(String key, boolean fallback) {
+                return tag.contains(key, net.minecraft.nbt.Tag.TAG_BYTE)
+                        ? tag.getBoolean(key)
+                        : fallback;
+            }
+        };
+    }
+    *///?}
 }

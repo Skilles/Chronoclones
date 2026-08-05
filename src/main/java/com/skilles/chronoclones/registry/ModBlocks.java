@@ -21,7 +21,9 @@ public final class ModBlocks {
     public static final Supplier<ChronoAnchorBlock> CHRONO_ANCHOR = BLOCKS.register(
             "chrono_anchor",
             () -> new ChronoAnchorBlock(BlockBehaviour.Properties.of()
+                    //? if >=26 {
                     .setId(ResourceKey.create(Registries.BLOCK, Chronoclones.id("chrono_anchor")))
+                    //?}
                     .mapColor(MapColor.DEEPSLATE)
                     .strength(3.0f, 9.0f)
                     .sound(SoundType.DEEPSLATE)

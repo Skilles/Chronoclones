@@ -32,20 +32,42 @@ class SkinPayloadsTest {
     @Test
     @DisplayName("a profile keeps its texture property across the wire")
     void texturesSurviveTheWire() {
+        //? if >=26 {
         PropertyMap properties = new PropertyMap(
                 ImmutableMultimap.of("textures", new Property("textures", "aGVsbG8=", "signed")));
         GameProfile profile = new GameProfile(
                 UUID.nameUUIDFromBytes("author".getBytes()), "Skilles", properties);
+        //?} else {
+        /*GameProfile profile = new GameProfile(
+                UUID.nameUUIDFromBytes("author".getBytes()), "Skilles");
+        profile.getProperties().put("textures", new Property("textures", "aGVsbG8=", "signed"));
+        *///?}
 
         SkinPayloads.Reply read = roundTrip(new SkinPayloads.Reply(
+                //? if >=26 {
                 profile.id(), Optional.of(profile)));
+                //?} else {
+                /*profile.getId(), Optional.of(profile)));
+                *///?}
 
         assertTrue(read.profile().isPresent(), "the profile did not survive at all");
         GameProfile arrived = read.profile().get();
+        //? if >=26 {
         assertEquals(profile.id(), arrived.id());
+        //?} else {
+        /*assertEquals(profile.getId(), arrived.getId());
+        *///?}
+        //? if >=26 {
         assertEquals(profile.name(), arrived.name());
+        //?} else {
+        /*assertEquals(profile.getName(), arrived.getName());
+        *///?}
 
+        //? if >=26 {
         Property textures = arrived.properties().get("textures").iterator().next();
+        //?} else {
+        /*Property textures = arrived.getProperties().get("textures").iterator().next();
+        *///?}
         assertNotNull(textures, "the textures property is what the client needs and it is missing");
         assertEquals("aGVsbG8=", textures.value());
         assertEquals("signed", textures.signature());

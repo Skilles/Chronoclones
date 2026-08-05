@@ -28,7 +28,11 @@ public final class RecordingHud {
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
+        //? if >=26 {
         if (player == null || client.level == null || client.gui.hud.isHidden()) {
+        //?} else {
+        /*if (player == null || client.level == null || client.options.hideGui) {
+        *///?}
             return;
         }
 

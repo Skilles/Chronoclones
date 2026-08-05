@@ -79,6 +79,7 @@ final class RedstoneGameTest {
 
     private static ChronoAnchorBlockEntity reloaded(GameTestHelper helper,
                                                     ChronoAnchorBlockEntity anchor) {
+        //? if >=26 {
         net.minecraft.world.level.storage.TagValueOutput output =
                 net.minecraft.world.level.storage.TagValueOutput.createWithContext(
                         net.minecraft.util.ProblemReporter.DISCARDING,
@@ -91,6 +92,15 @@ final class RedstoneGameTest {
                 net.minecraft.util.ProblemReporter.DISCARDING,
                 helper.getLevel().registryAccess(), output.buildResult()));
         return fresh;
+        //?} else {
+        /*net.minecraft.nbt.CompoundTag saved =
+                anchor.saveWithoutMetadata(helper.getLevel().registryAccess());
+
+        ChronoAnchorBlockEntity fresh = new ChronoAnchorBlockEntity(
+                anchor.getBlockPos(), anchor.getBlockState());
+        fresh.loadWithComponents(saved, helper.getLevel().registryAccess());
+        return fresh;
+        *///?}
     }
 
     private static void latchSurvivesAReload(GameTestHelper helper) {
@@ -291,7 +301,12 @@ final class RedstoneGameTest {
     }
 
     private static int signal(GameTestHelper helper) {
+        //? if >=26 {
         return helper.getBlockState(ANCHOR).getAnalogOutputSignal(
                 helper.getLevel(), helper.absolutePos(ANCHOR), Direction.NORTH);
+        //?} else {
+        /*return helper.getBlockState(ANCHOR).getAnalogOutputSignal(
+                helper.getLevel(), helper.absolutePos(ANCHOR));
+        *///?}
     }
 }

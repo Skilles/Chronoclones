@@ -47,9 +47,17 @@ final class ExperienceGameTest {
             return;
         }
 
+        //? if >=26 {
         RecipeHolder<?> smelting = level.recipeAccess().getRecipes().stream()
+        //?} else {
+        /*RecipeHolder<?> smelting = level.getRecipeManager().getRecipes().stream()
+        *///?}
                 .filter(holder -> holder.value() instanceof SmeltingRecipe recipe
+                        //? if >=26 {
                         && recipe.experience() > 0.0f)
+                        //?} else {
+                        /*&& recipe.getExperience() > 0.0f)
+                        *///?}
                 .findFirst()
                 .orElse(null);
         if (smelting == null) {

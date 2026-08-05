@@ -35,7 +35,9 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+//? if >=26 {
 import net.minecraft.world.level.redstone.Orientation;
+//?}
 import net.minecraft.world.phys.BlockHitResult;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -88,10 +90,34 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         }
     }
 
+    //? if >=26 {
     @Override
     protected void neighborChanged(@NonNull BlockState state, Level level, @NonNull BlockPos pos,
                                    @NonNull Block neighborBlock, @Nullable Orientation orientation,
                                    boolean movedByPiston) {
+        onNeighborChanged(level, pos);
+    }
+    //?} else {
+    /*@Override
+    protected void neighborChanged(BlockState state, Level level, BlockPos pos,
+                                   Block neighborBlock, BlockPos fromPos, boolean movedByPiston) {
+        onNeighborChanged(level, pos);
+    }
+    *///?}
+
+    //? if <26 {
+    /*// preRemoveSideEffects does not exist yet, so the spill hangs off the block's removal.
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+        if (!state.is(newState.getBlock())
+                && level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
+            anchor.spillOnRemoval(pos);
+        }
+        super.onRemove(state, level, pos, newState, movedByPiston);
+    }
+    *///?}
+
+    private void onNeighborChanged(Level level, BlockPos pos) {
         if (!level.isClientSide()
                 && level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor) {
             anchor.onRedstoneSignal(level.hasNeighborSignal(pos));
@@ -103,9 +129,20 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return true;
     }
 
+    //? if >=26 {
     @Override
     protected int getAnalogOutputSignal(@NonNull BlockState state, Level level, @NonNull BlockPos pos,
                                         @NonNull Direction direction) {
+        return comparatorSignalAt(level, pos);
+    }
+    //?} else {
+    /*@Override
+    protected int getAnalogOutputSignal(BlockState state, Level level, BlockPos pos) {
+        return comparatorSignalAt(level, pos);
+    }
+    *///?}
+
+    private static int comparatorSignalAt(Level level, BlockPos pos) {
         return level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor
                 ? anchor.comparatorSignal()
                 : 0;
@@ -137,20 +174,38 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         return InteractionResult.SUCCESS;
     }
 
+    //? if >=26 {
     @Override
     protected @NonNull InteractionResult useItemOn(ItemStack stack, @NonNull BlockState state, @NonNull Level level, @NonNull BlockPos pos,
                                                    @NonNull Player player, @NonNull InteractionHand hand, @NonNull BlockHitResult hit) {
+        InteractionResult result = useItemOnShared(stack, level, pos, player);
+        return result == InteractionResult.PASS ? InteractionResult.TRY_WITH_EMPTY_HAND : result;
+    }
+    //?} else {
+    /*@Override
+    protected net.minecraft.world.ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
+                                                                  Player player, InteractionHand hand, BlockHitResult hit) {
+        InteractionResult result = useItemOnShared(stack, level, pos, player);
+        if (result == InteractionResult.PASS) {
+            return net.minecraft.world.ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+        return net.minecraft.world.ItemInteractionResult.sidedSuccess(level.isClientSide());
+    }
+    *///?}
+
+    /** PASS here means "let the empty-hand path have it", whatever the era calls that. */
+    private InteractionResult useItemOnShared(ItemStack stack, Level level, BlockPos pos, Player player) {
         boolean isRecorder = stack.is(ModItems.CHRONO_RECORDER.get());
         boolean isShard = stack.is(ModItems.CHRONO_SHARD.get());
 
         if (!isRecorder && !isShard) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
+            return InteractionResult.PASS;
         }
         Recording carried = isRecorder ? ChronoRecorderItem.recordingOf(stack) : ChronoShardItem.recordingOf(stack);
         boolean blankShard = isShard && carried == null;
 
         if (carried == null && !blankShard) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
+            return InteractionResult.PASS;
         }
 
         if (level.isClientSide()) {
@@ -158,7 +213,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
         }
         if (!(player instanceof ServerPlayer serverPlayer)
                 || !(level.getBlockEntity(pos) instanceof ChronoAnchorBlockEntity anchor)) {
-            return InteractionResult.TRY_WITH_EMPTY_HAND;
+            return InteractionResult.PASS;
         }
 
         if (blankShard) {
@@ -167,7 +222,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
 
         RecordingLimits.Refusal refusal = RecordingLimits.refuse(carried, level.registryAccess());
         if (refusal != null) {
-            serverPlayer.sendOverlayMessage(Component.translatable(refusal.translationKey())
+            com.skilles.chronoclones.platform.Messages.overlay(serverPlayer, Component.translatable(refusal.translationKey())
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
@@ -177,7 +232,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             ChronoRecorderItem.clear(stack);
         }
 
-        serverPlayer.sendOverlayMessage(Component.translatable(
+        com.skilles.chronoclones.platform.Messages.overlay(serverPlayer, Component.translatable(
                 "message.chronoclones.anchor.imprinted",
                 Component.literal(carried.authorName()).withStyle(ChatFormatting.WHITE),
                 carried.actions().size()).withStyle(ChatFormatting.AQUA));
@@ -189,13 +244,13 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
     public static InteractionResult extractRecording(ChronoAnchorBlockEntity anchor, ItemStack recorders,
                                                      ServerPlayer player, Level level, BlockPos pos) {
         if (anchor.getRecording() == null) {
-            player.sendOverlayMessage(Component
+            com.skilles.chronoclones.platform.Messages.overlay(player, Component
                     .translatable("message.chronoclones.anchor.nothing_to_extract")
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
         if (!AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
-            player.sendOverlayMessage(Component
+            com.skilles.chronoclones.platform.Messages.overlay(player, Component
                     .translatable("message.chronoclones.anchor.not_yours")
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
@@ -209,7 +264,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             player.drop(holding, false);
         }
 
-        player.sendOverlayMessage(Component.translatable(
+        com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(
                 "message.chronoclones.anchor.extracted",
                 Component.literal(taken.authorName()).withStyle(ChatFormatting.WHITE),
                 taken.actions().size()).withStyle(ChatFormatting.AQUA));
@@ -222,14 +277,14 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
                                                    ServerPlayer player, Level level, BlockPos pos) {
         Recording recording = anchor.getRecording();
         if (recording == null) {
-            player.sendOverlayMessage(Component
+            com.skilles.chronoclones.platform.Messages.overlay(player, Component
                     .translatable("message.chronoclones.shard.nothing_to_copy")
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
         RecordingLimits.Refusal refusal = RecordingLimits.refuse(recording, level.registryAccess());
         if (refusal != null) {
-            player.sendOverlayMessage(Component.translatable(refusal.translationKey())
+            com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(refusal.translationKey())
                     .withStyle(ChatFormatting.RED));
             return InteractionResult.SUCCESS;
         }
@@ -241,7 +296,7 @@ public class ChronoAnchorBlock extends BaseEntityBlock {
             player.drop(inscribed, false);
         }
 
-        player.sendOverlayMessage(Component.translatable(
+        com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(
                 "message.chronoclones.shard.inscribed",
                 Component.literal(recording.authorName()).withStyle(ChatFormatting.WHITE))
                 .withStyle(ChatFormatting.AQUA));

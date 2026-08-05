@@ -16,7 +16,11 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+//? if >=26 {
 import net.minecraft.util.Util;
+//?} else {
+/*import net.minecraft.Util;
+*///?}
 import org.jspecify.annotations.NonNull;
 
 public final class SkinPayloads {
@@ -97,7 +101,13 @@ public final class SkinPayloads {
         Util.backgroundExecutor().execute(() -> {
             Optional<GameProfile> found;
             try {
+                //? if >=26 {
                 found = server.services().profileResolver().fetchById(request.author());
+                //?} else {
+                /*com.mojang.authlib.yggdrasil.ProfileResult fetched =
+                        server.getSessionService().fetchProfile(request.author(), false);
+                found = fetched == null ? Optional.empty() : Optional.of(fetched.profile());
+                *///?}
             } catch (RuntimeException failed) {
                 Chronoclones.LOGGER.debug("Could not look up the author {}", request.author(), failed);
                 found = Optional.empty();

@@ -62,7 +62,11 @@ public final class AuthorSkins {
     private static Supplier<PlayerSkin> lookupFor(GameProfile profile) {
         // Insecure: a routine's author is not this connection's player, so their textures
         // carry no signature this client could check.
+        //? if >=26 {
         return Minecraft.getInstance().getSkinManager().createLookup(profile, false);
+        //?} else {
+        /*return Minecraft.getInstance().getSkinManager().lookupInsecure(profile);
+        *///?}
     }
 
     private static Supplier<PlayerSkin> unresolved(UUID author) {

@@ -167,7 +167,11 @@ public final class RecordingCapture {
     private static int reachedInto(ServerPlayer player, ChronoAction action) {
         return action.heldHand() == InteractionHand.OFF_HAND
                 ? ActionSettings.SlotRule.NONE
+                //? if >=26 {
                 : player.getInventory().getSelectedSlot();
+                //?} else {
+                /*: player.getInventory().selected;
+                *///?}
     }
 
     private static ActionPose poseOf(ServerPlayer player, RecordingSession session) {

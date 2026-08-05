@@ -13,7 +13,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+//?} else {
+/*import net.minecraft.world.entity.projectile.AbstractArrow;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;

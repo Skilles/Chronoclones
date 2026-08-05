@@ -48,7 +48,11 @@ public final class UseItemActionExecutor {
 
         ClonePlayer owner = acquire(ctx, action, loan.stack());
 
+        //? if >=26 {
         if (owner.getCooldowns().isOnCooldown(loan.stack())) {
+        //?} else {
+        /*if (owner.getCooldowns().isOnCooldown(loan.stack().getItem())) {
+        *///?}
             return giveUp(ctx, action, owner, loan, FailureReason.ON_COOLDOWN);
         }
 

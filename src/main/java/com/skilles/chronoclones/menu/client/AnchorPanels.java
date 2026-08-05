@@ -5,7 +5,9 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//? if >=26 {
 import net.minecraft.client.renderer.RenderPipelines;
+//?}
 import net.minecraft.resources.Identifier;
 
 final class AnchorPanels {
@@ -44,20 +46,48 @@ final class AnchorPanels {
     static final int TRACK = 0xFF15151A;
 
     static void panel(GuiGraphicsExtractor g, int x, int y, int width, int height) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_SPRITE, x, y, width, height);
+        //?} else {
+        /*g.blitSprite(PANEL_SPRITE, x, y, width, height);
+        *///?}
     }
 
     static void outline(GuiGraphicsExtractor g, int x, int y, int width, int height, int tint) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, OUTLINE_SPRITE, x, y, width, height, tint);
+        //?} else {
+        /*tinted(g, tint);
+        g.blitSprite(OUTLINE_SPRITE, x, y, width, height);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?}
     }
 
     static void slot(GuiGraphicsExtractor g, int x, int y) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, x - 1, y - 1, 18, 18);
+        //?} else {
+        /*g.blitSprite(SLOT_SPRITE, x - 1, y - 1, 18, 18);
+        *///?}
     }
 
     static void icon(GuiGraphicsExtractor g, Identifier sprite, int x, int y, int tint) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, ICON_SIZE, ICON_SIZE, tint);
+        //?} else {
+        /*tinted(g, tint);
+        g.blitSprite(sprite, x, y, ICON_SIZE, ICON_SIZE);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?}
     }
+
+    //? if <26 {
+    /*// The pre-26 sprite blit has no tint parameter; the global colour modulator stands in.
+    private static void tinted(GuiGraphicsExtractor g, int tint) {
+        g.setColor(((tint >> 16) & 0xFF) / 255.0f, ((tint >> 8) & 0xFF) / 255.0f,
+                (tint & 0xFF) / 255.0f, ((tint >>> 24) & 0xFF) / 255.0f);
+    }
+    *///?}
 
     static void legend(GuiGraphicsExtractor g, Font font, String name, int x, int panelTop) {
         int top = panelTop - Layout.LEGEND_RISE;

@@ -47,7 +47,11 @@ public record RecordedItem(Holder<Item> item, DataComponentPatch components) {
     public static RecordedItem of(ItemStack stack) {
         return stack.isEmpty()
                 ? NOTHING
+                //? if >=26 {
                 : new RecordedItem(stack.typeHolder(), stack.getComponentsPatch());
+                //?} else {
+                /*: new RecordedItem(stack.getItemHolder(), stack.getComponentsPatch());
+                *///?}
     }
 
     public static RecordedItem of(Holder<Item> item) {

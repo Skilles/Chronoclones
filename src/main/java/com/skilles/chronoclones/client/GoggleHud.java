@@ -16,7 +16,11 @@ public final class GoggleHud {
 
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
         Minecraft client = Minecraft.getInstance();
+        //? if >=26 {
         if (client.player == null || client.gui.hud.isHidden() || !GoggleCache.isTruncated()) {
+        //?} else {
+        /*if (client.player == null || client.options.hideGui || !GoggleCache.isTruncated()) {
+        *///?}
             return;
         }
         graphics.centeredText(client.font,

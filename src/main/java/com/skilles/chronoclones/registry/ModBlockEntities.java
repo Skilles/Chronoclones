@@ -16,9 +16,15 @@ public final class ModBlockEntities {
             Registrar.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, Chronoclones.MODID);
 
     public static final Supplier<BlockEntityType<ChronoAnchorBlockEntity>> CHRONO_ANCHOR =
+            //? if >=26 {
             BLOCK_ENTITIES.register("chrono_anchor", () -> new BlockEntityType<>(
                     ChronoAnchorBlockEntity::new,
                     Set.of(ModBlocks.CHRONO_ANCHOR.get())));
+            //?} else {
+            /*BLOCK_ENTITIES.register("chrono_anchor", () -> BlockEntityType.Builder.of(
+                    ChronoAnchorBlockEntity::new,
+                    ModBlocks.CHRONO_ANCHOR.get()).build(null));
+            *///?}
 
     public static void init() {}
 

@@ -27,7 +27,11 @@ public final class UseBlockActionExecutor {
         if (!level.isLoaded(worldPos)) {
             return ActionResult.fail(FailureReason.UNLOADED, action.localPos());
         }
+        //? if >=26 {
         if (level.getBlockState(worldPos).typeHolder().is(ModTags.ANCHOR_UNBREAKABLE)) {
+        //?} else {
+        /*if (level.getBlockState(worldPos).is(ModTags.ANCHOR_UNBREAKABLE)) {
+        *///?}
             return ActionResult.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
