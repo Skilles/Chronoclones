@@ -270,9 +270,14 @@ public final class ContainerWatch {
                 //? if neoforge {
                 player.connection.hasChannel(RecordingHighlightPayload.TYPE);
                 //?} else {
+                //? if >=1.20.5 {
                 /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
                         player, RecordingHighlightPayload.TYPE);
+                *///?} else {
+                /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                        player, RecordingHighlightPayload.TYPE.id());
                 *///?}
+                //?}
         if (listening) {
             PlatformNetwork.sendToPlayer(player, payload);
         }

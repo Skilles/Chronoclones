@@ -2,11 +2,15 @@ package com.skilles.chronoclones.client;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.ChronoclonesConfig;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 import com.skilles.chronoclones.registry.RecordingProgress;
 
 import net.minecraft.ChatFormatting;
+//? if >=1.21 {
+//? if >=1.21 {
 import net.minecraft.client.DeltaTracker;
+//?}
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
@@ -25,7 +29,15 @@ public final class RecordingHud {
 
     private static final int BORDER = 18;
 
+    //? if >=1.21 {
+    //? if >=1.21 {
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         //? if >=26 {
@@ -49,7 +61,11 @@ public final class RecordingHud {
         }
 
         boolean warning = STATE.isWarning(now);
+        //? if >=1.21 {
         float phase = (now + delta.getGameTimeDeltaPartialTick(false)) / 9.0f;
+        //?} else {
+        /*float phase = (now + delta) / 9.0f;
+        *///?}
         float pulse = warning ? 1.0f : 0.62f + 0.38f * (float) ((Math.sin(phase) + 1.0) / 2.0);
 
         border(graphics, warning ? WARN : LIVE, pulse);
@@ -107,7 +123,7 @@ public final class RecordingHud {
     private static @Nullable RecordingProgress stampOf(LocalPlayer player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            RecordingProgress progress = stack.get(ModDataComponents.PROGRESS.get());
+            RecordingProgress progress = RecordingItemData.progress(stack);
             if (progress != null) {
                 return progress;
             }

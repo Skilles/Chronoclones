@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.registry.RecordingProgress;
 
@@ -52,7 +52,7 @@ public final class RecordingCapture {
 
         RecordingSession.StopReason stop = session.tickAndSample(player);
 
-        recorder.set(ModDataComponents.PROGRESS.get(), new RecordingProgress(
+        RecordingItemData.setProgress(recorder, new RecordingProgress(
                 session.sessionId(), session.tick(), session.actionCount(), session.outOfRangeWarning()));
         session.clearOutOfRangeWarning();
 
@@ -327,7 +327,7 @@ public final class RecordingCapture {
 
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder != null) {
-            recorder.remove(ModDataComponents.PROGRESS.get());
+            RecordingItemData.clearProgress(recorder);
         }
     }
 
@@ -353,7 +353,7 @@ public final class RecordingCapture {
         if (!stack.is(ModItems.CHRONO_RECORDER.get())) {
             return false;
         }
-        RecordingProgress progress = stack.get(ModDataComponents.PROGRESS.get());
+        RecordingProgress progress = RecordingItemData.progress(stack);
         return progress != null && progress.sessionId().equals(session.sessionId());
     }
 }

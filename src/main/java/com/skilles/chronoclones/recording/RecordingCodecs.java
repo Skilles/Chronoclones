@@ -76,7 +76,11 @@ public final class RecordingCodecs {
     static final MapCodec<ChronoAction.BreakBlock> BREAK_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
             BlockPos.CODEC.fieldOf("pos").forGetter(ChronoAction.BreakBlock::localPos),
             BuiltInRegistries.BLOCK.holderByNameCodec().fieldOf("expected").forGetter(ChronoAction.BreakBlock::expectedBlock),
+            //? if >=1.20.5 {
             ItemStack.OPTIONAL_CODEC.fieldOf("tool").forGetter(ChronoAction.BreakBlock::toolTemplate)
+            //?} else {
+            /*ItemStack.CODEC.fieldOf("tool").forGetter(ChronoAction.BreakBlock::toolTemplate)
+            *///?}
     ).apply(i, ChronoAction.BreakBlock::new));
 
     public static final Codec<ActionPose> ACTION_POSE = RecordCodecBuilder.create(i -> i.group(
@@ -120,7 +124,11 @@ public final class RecordingCodecs {
     static final MapCodec<ChronoAction.AttackEntity> ATTACK_ENTITY = RecordCodecBuilder.mapCodec(i -> i.group(
             Vec3.CODEC.fieldOf("pos").forGetter(ChronoAction.AttackEntity::localPos),
             BuiltInRegistries.ENTITY_TYPE.holderByNameCodec().fieldOf("expected").forGetter(ChronoAction.AttackEntity::expectedType),
+            //? if >=1.20.5 {
             ItemStack.OPTIONAL_CODEC.fieldOf("weapon").forGetter(ChronoAction.AttackEntity::weaponTemplate)
+            //?} else {
+            /*ItemStack.CODEC.fieldOf("weapon").forGetter(ChronoAction.AttackEntity::weaponTemplate)
+            *///?}
     ).apply(i, ChronoAction.AttackEntity::new));
 
     static final MapCodec<ChronoAction.UseOnBlock> USE_ON_BLOCK = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -181,7 +189,12 @@ public final class RecordingCodecs {
     }
 
     public static final Codec<MenuTarget> MENU_TARGET =
+            //? if >=1.20.5 {
             MenuTarget.Kind.CODEC.dispatch("at", MenuTarget::kind, RecordingCodecs::menuTargetCodecFor);
+            //?} else {
+            /*MenuTarget.Kind.CODEC.dispatch("at", MenuTarget::kind,
+                    kind -> RecordingCodecs.menuTargetCodecFor(kind).codec());
+            *///?}
 
     static final StreamCodec<RegistryFriendlyByteBuf, MenuTarget.Block> MENU_BLOCK_STREAM =
             StreamCodec.composite(
@@ -229,9 +242,21 @@ public final class RecordingCodecs {
     ).apply(i, SessionStep.Button::new));
 
     static final MapCodec<SessionStep.Trade> TRADE = RecordCodecBuilder.mapCodec(i -> i.group(
+            //? if >=1.20.5 {
             ItemStack.OPTIONAL_CODEC.fieldOf("cost_a").forGetter(SessionStep.Trade::costA),
+            //?} else {
+            /*ItemStack.CODEC.fieldOf("cost_a").forGetter(SessionStep.Trade::costA),
+            *///?}
+            //? if >=1.20.5 {
             ItemStack.OPTIONAL_CODEC.fieldOf("cost_b").forGetter(SessionStep.Trade::costB),
+            //?} else {
+            /*ItemStack.CODEC.fieldOf("cost_b").forGetter(SessionStep.Trade::costB),
+            *///?}
+            //? if >=1.20.5 {
             ItemStack.OPTIONAL_CODEC.fieldOf("result").forGetter(SessionStep.Trade::result)
+            //?} else {
+            /*ItemStack.CODEC.fieldOf("result").forGetter(SessionStep.Trade::result)
+            *///?}
     ).apply(i, SessionStep.Trade::new));
 
     static final MapCodec<SessionStep.Rename> RENAME = RecordCodecBuilder.mapCodec(i -> i.group(
@@ -249,7 +274,12 @@ public final class RecordingCodecs {
     }
 
     public static final Codec<SessionStep> SESSION_STEP =
+            //? if >=1.20.5 {
             SessionStep.Kind.CODEC.dispatch("step", SessionStep::kind, RecordingCodecs::stepCodecFor);
+            //?} else {
+            /*SessionStep.Kind.CODEC.dispatch("step", SessionStep::kind,
+                    kind -> RecordingCodecs.stepCodecFor(kind).codec());
+            *///?}
 
     static final Codec<ChronoAction.UseContainer.CarrierSlot> CARRIER_SLOT = RecordCodecBuilder.create(i -> i.group(
             Codec.INT.fieldOf("slot").forGetter(ChronoAction.UseContainer.CarrierSlot::menuSlot),
@@ -283,7 +313,12 @@ public final class RecordingCodecs {
     }
 
     public static final Codec<ChronoAction> ACTION =
+            //? if >=1.20.5 {
             ChronoActionType.CODEC.dispatch("type", ChronoAction::type, RecordingCodecs::mapCodecFor);
+            //?} else {
+            /*ChronoActionType.CODEC.dispatch("type", ChronoAction::type,
+                    type -> RecordingCodecs.mapCodecFor(type).codec());
+            *///?}
 
     static final StreamCodec<RegistryFriendlyByteBuf, ChronoAction.BreakBlock> BREAK_BLOCK_STREAM =
             StreamCodec.composite(
@@ -630,7 +665,12 @@ public final class RecordingCodecs {
             Codec.STRING.fieldOf("author_name").forGetter(Recording::authorName),
             UUIDUtil.CODEC.fieldOf("author_id").forGetter(Recording::authorId),
             Codec.BOOL.optionalFieldOf("creative", false).forGetter(Recording::creative)
-    ).apply(i, Recording::new)).validate(RecordingCodecs::withinStructuralLimits);
+    ).apply(i, Recording::new))
+            //? if >=1.20.5 {
+            .validate(RecordingCodecs::withinStructuralLimits);
+            //?} else {
+            /*.flatXmap(RecordingCodecs::withinStructuralLimits, RecordingCodecs::withinStructuralLimits);
+            *///?}
 
     private static DataResult<Recording> withinStructuralLimits(Recording recording) {
         RecordingLimits.Refusal refusal = RecordingLimits.refuse(recording, null);

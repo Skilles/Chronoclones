@@ -106,9 +106,13 @@ public class StackInventory implements Container {
 
     /** Matches the old handler's capacity: the item's own limit, never above the absolute cap. */
     public int capacity(int slot, ItemStack stack) {
+        //? if >=1.20.5 {
         return stack.isEmpty()
                 ? Item.ABSOLUTE_MAX_STACK_SIZE
                 : Math.min(stack.getMaxStackSize(), Item.ABSOLUTE_MAX_STACK_SIZE);
+        //?} else {
+        /*return stack.isEmpty() ? 99 : Math.min(stack.getMaxStackSize(), 99);
+        *///?}
     }
 
     /**
@@ -121,7 +125,11 @@ public class StackInventory implements Container {
             return 0;
         }
         ItemStack current = stacks.get(slot);
+        //? if >=1.20.5 {
         if (!current.isEmpty() && !ItemStack.isSameItemSameComponents(current, stack)) {
+        //?} else {
+        /*if (!current.isEmpty() && !ItemStack.isSameItemSameTags(current, stack)) {
+        *///?}
             return 0;
         }
 
@@ -193,12 +201,20 @@ public class StackInventory implements Container {
     }
 
     public void serialize(DataOut output) {
+        //? if >=1.20.5 {
         output.store(VALUE_IO_KEY, ItemStack.OPTIONAL_CODEC.listOf(), stacks);
+        //?} else {
+        /*output.store(VALUE_IO_KEY, ItemStack.CODEC.listOf(), stacks);
+        *///?}
     }
 
     /** Adopts the saved list wholesale, size included, exactly as the old handler did. */
     public void deserialize(DataIn input) {
+        //? if >=1.20.5 {
         input.read(VALUE_IO_KEY, ItemStack.OPTIONAL_CODEC.listOf()).ifPresent(saved -> {
+        //?} else {
+        /*input.read(VALUE_IO_KEY, ItemStack.CODEC.listOf()).ifPresent(saved -> {
+        *///?}
             NonNullList<ItemStack> adopted = NonNullList.withSize(saved.size(), ItemStack.EMPTY);
             for (int slot = 0; slot < saved.size(); slot++) {
                 adopted.set(slot, saved.get(slot));

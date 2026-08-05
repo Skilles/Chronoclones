@@ -95,10 +95,14 @@ final class HeldUseGameTest {
     }
 
     private static ChronoAnchorBlockEntity bowAnchor(GameTestHelper helper, int holdTicks) {
+        // Aimed at the floor so the arrow lands inside the plot on every version's physics.
         ChronoAction.UseItem drawing = new ChronoAction.UseItem(
                 InteractionHand.MAIN_HAND,
-                BuiltInRegistries.ITEM.wrapAsHolder(Items.BOW),
-                holdTicks);
+                com.skilles.chronoclones.recording.RecordedItem.of(
+                        BuiltInRegistries.ITEM.wrapAsHolder(Items.BOW)),
+                holdTicks,
+                java.util.Optional.of(new com.skilles.chronoclones.recording.ActionPose(
+                        new Vec3(0.0, 1.0, 0.0), 0.0f, 89.0f)));
 
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR, new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),

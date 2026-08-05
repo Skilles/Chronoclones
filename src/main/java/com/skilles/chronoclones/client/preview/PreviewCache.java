@@ -5,7 +5,7 @@ import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.network.AnchorPreviewPayloads;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.replay.Placement;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -116,7 +116,7 @@ public final class PreviewCache {
     private static @Nullable Recording heldRecording(net.minecraft.world.entity.player.Player player) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
-            Recording recording = stack.get(ModDataComponents.RECORDING.get());
+            Recording recording = RecordingItemData.recording(stack);
             if (recording != null) {
                 return recording;
             }

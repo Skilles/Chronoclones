@@ -10,7 +10,9 @@ import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingSession;
 import com.skilles.chronoclones.recording.RecordingSessions;
 import com.skilles.chronoclones.network.RoutinePayloads;
+//? if >=1.20.5 {
 import com.skilles.chronoclones.registry.ModDataComponents;
+//?}
 import com.skilles.chronoclones.registry.RecordingProgress;
 
 import net.minecraft.ChatFormatting;
@@ -48,28 +50,28 @@ public class ChronoRecorderItem extends Item {
     }
 
     public static State stateOf(ItemStack stack) {
-        if (stack.has(ModDataComponents.PROGRESS.get())) {
+        if (RecordingItemData.hasProgress(stack)) {
             return State.RECORDING;
         }
-        if (stack.has(ModDataComponents.RECORDING.get())) {
+        if (RecordingItemData.hasRecording(stack)) {
             return State.HOLDING;
         }
         return State.IDLE;
     }
 
     public static @Nullable Recording recordingOf(ItemStack stack) {
-        return stack.get(ModDataComponents.RECORDING.get());
+        return RecordingItemData.recording(stack);
     }
 
     public static ItemStack holding(ItemStack stack, Recording recording) {
-        stack.set(ModDataComponents.RECORDING.get(), recording);
-        stack.remove(ModDataComponents.PROGRESS.get());
+        RecordingItemData.setRecording(stack, recording);
+        RecordingItemData.clearProgress(stack);
         return stack;
     }
 
     public static void clear(ItemStack stack) {
-        stack.remove(ModDataComponents.RECORDING.get());
-        stack.remove(ModDataComponents.PROGRESS.get());
+        RecordingItemData.clearRecording(stack);
+        RecordingItemData.clearProgress(stack);
     }
 
     @Override
@@ -126,10 +128,10 @@ public class ChronoRecorderItem extends Item {
             if (state == State.HOLDING) {
                 PlatformNetwork.sendToPlayer(serverPlayer, new RoutinePayloads.Open(
                         RoutinePayloads.Source.ofHand(hand),
-                        stack.get(ModDataComponents.RECORDING.get()), 0));
+                        RecordingItemData.recording(stack), 0));
                 return InteractionResult.SUCCESS;
             }
-            RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
+            RecordingProgress stamp = RecordingItemData.progress(stack);
             RecordingSession active = RecordingSessions.get(serverPlayer);
             if (stamp != null && active != null && stamp.sessionId().equals(active.sessionId())) {
                 RecordingSessions.discard(serverPlayer);
@@ -161,7 +163,7 @@ public class ChronoRecorderItem extends Item {
         }
 
         RecordingSession session = RecordingSessions.start(player);
-        stack.set(ModDataComponents.PROGRESS.get(),
+        RecordingItemData.setProgress(stack,
                 new RecordingProgress(session.sessionId(), 0, 0, false));
 
         com.skilles.chronoclones.platform.Messages.overlay(player, Component.translatable(
@@ -174,10 +176,10 @@ public class ChronoRecorderItem extends Item {
 
     public static InteractionResult stopRecording(ServerPlayer player, ItemStack stack,
                                                   RecordingSession.StopReason reason) {
-        RecordingProgress stamp = stack.get(ModDataComponents.PROGRESS.get());
+        RecordingProgress stamp = RecordingItemData.progress(stack);
         RecordingSession active = RecordingSessions.get(player);
         if (stamp != null && active != null && !stamp.sessionId().equals(active.sessionId())) {
-            stack.remove(ModDataComponents.PROGRESS.get());
+            RecordingItemData.clearProgress(stack);
             Chronoclones.LOGGER.warn("Cleared a stale recording stamp from {}'s recorder; "
                     + "it did not belong to the running session.", player.getGameProfile().name());
             feedback(player, "message.chronoclones.recorder.lost", ChatFormatting.RED);
@@ -186,7 +188,7 @@ public class ChronoRecorderItem extends Item {
 
         RecordingSession session = RecordingSessions.end(player);
         ContainerWatch.forget(player);
-        stack.remove(ModDataComponents.PROGRESS.get());
+        RecordingItemData.clearProgress(stack);
 
         if (session == null) {
             ChronoRecorderItem.clear(stack);
@@ -217,7 +219,7 @@ public class ChronoRecorderItem extends Item {
         }
 
         Recording recording = session.finish();
-        stack.set(ModDataComponents.RECORDING.get(), recording);
+        RecordingItemData.setRecording(stack, recording);
 
         String key = switch (reason) {
             case MANUAL -> "message.chronoclones.recorder.stopped";
@@ -245,24 +247,33 @@ public class ChronoRecorderItem extends Item {
     @Override
     public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
                                 Consumer<Component> adder, @NonNull TooltipFlag flag) {
-        appendSharedHoverText(stack, context, adder, flag);
+        appendSharedHoverText(stack, adder, flag);
     }
     //?} else {
+    //? if >=1.20.5 {
     /*@Override
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 java.util.List<Component> lines, TooltipFlag flag) {
-        appendSharedHoverText(stack, context, lines::add, flag);
+        appendSharedHoverText(stack, lines::add, flag);
+    }
+    *///?} else {
+    /*@Override
+    public void appendHoverText(ItemStack stack,
+                                net.minecraft.world.level.@org.jspecify.annotations.Nullable Level level,
+                                java.util.List<Component> lines, TooltipFlag flag) {
+        appendSharedHoverText(stack, lines::add, flag);
     }
     *///?}
+    //?}
 
-    private void appendSharedHoverText(ItemStack stack, TooltipContext context,
+    private void appendSharedHoverText(ItemStack stack,
                                        Consumer<Component> adder, TooltipFlag flag) {
         switch (stateOf(stack)) {
             case IDLE -> adder.accept(Component.translatable("tooltip.chronoclones.recorder.idle")
                     .withStyle(ChatFormatting.DARK_GRAY));
             case RECORDING -> {
-                RecordingProgress progress = stack.getOrDefault(
-                        ModDataComponents.PROGRESS.get(), RecordingProgress.EMPTY);
+                RecordingProgress stamped = RecordingItemData.progress(stack);
+                RecordingProgress progress = stamped == null ? RecordingProgress.EMPTY : stamped;
                 adder.accept(Component.translatable("tooltip.chronoclones.recorder.recording",
                         progress.elapsedTicks() / 20, progress.actionCount())
                         .withStyle(ChatFormatting.RED));

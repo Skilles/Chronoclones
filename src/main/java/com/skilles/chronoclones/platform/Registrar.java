@@ -50,8 +50,16 @@ public final class Registrar<T> {
     public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
         R value = factory.get();
         Registry.register(registry,
-                net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, name), value);
-        return () -> value;
+*///?}
+    //? if fabric {
+    //? if >=1.21 {
+    /*            net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, name), value);
+    *///?} else {
+    /*            new net.minecraft.resources.Identifier(namespace, name), value);
+    *///?}
+    //?}
+    //? if fabric {
+    /*        return () -> value;
     }
     *///?}
 

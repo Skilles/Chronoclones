@@ -15,7 +15,9 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+//? if >=1.20.2 {
 import net.minecraft.world.item.crafting.RecipeHolder;
+//?}
 import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.FurnaceBlockEntity;
@@ -50,9 +52,18 @@ final class ExperienceGameTest {
         //? if >=26 {
         RecipeHolder<?> smelting = level.recipeAccess().getRecipes().stream()
         //?} else {
+        //? if >=1.20.2 {
         /*RecipeHolder<?> smelting = level.getRecipeManager().getRecipes().stream()
+        *///?} else {
+        /*net.minecraft.world.item.crafting.Recipe<?> smelting =
+                level.getRecipeManager().getRecipes().stream()
         *///?}
+        //?}
+                //? if >=1.20.2 {
                 .filter(holder -> holder.value() instanceof SmeltingRecipe recipe
+                //?} else {
+                /*.filter(holder -> holder instanceof SmeltingRecipe recipe
+                *///?}
                         //? if >=26 {
                         && recipe.experience() > 0.0f)
                         //?} else {

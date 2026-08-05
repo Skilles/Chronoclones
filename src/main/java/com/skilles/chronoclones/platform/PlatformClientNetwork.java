@@ -22,7 +22,23 @@ public final class PlatformClientNetwork {
     }
     //?} else {
     /*public static void sendToServer(CustomPacketPayload payload) {
-        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);
-    }
+*///?}
+    //? if fabric {
+    //? if >=1.20.5 {
+    /*        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);
+    *///?} else {
+    /*        net.minecraft.client.multiplayer.ClientLevel level =
+                net.minecraft.client.Minecraft.getInstance().level;
+        if (level == null) {
+            return;
+        }
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(
+                payload.type().id(),
+                com.skilles.chronoclones.compat.PayloadCodecs.encodeToServer(
+                        payload, level.registryAccess()));
+    *///?}
+    //?}
+    //? if fabric {
+    /*    }
     *///?}
 }

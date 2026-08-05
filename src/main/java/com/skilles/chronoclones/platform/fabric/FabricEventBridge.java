@@ -91,7 +91,17 @@ public final class FabricEventBridge {
             return InteractionResult.PASS;
         });
 
-        ServerPlayerEvents.LEAVE.register(RecordingCapture::loggedOut);
+*///?}
+//? if fabric {
+//? if >=1.20.5 {
+/*        ServerPlayerEvents.LEAVE.register(RecordingCapture::loggedOut);
+*///?} else {
+/*        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.DISCONNECT.register(
+                (handler, server) -> RecordingCapture.loggedOut(handler.player));
+*///?}
+//?}
+//? if fabric {
+/*
 
         ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register(
                 (player, origin, destination) -> RecordingCapture.changedDimension(player));

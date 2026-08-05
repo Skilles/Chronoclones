@@ -5,7 +5,11 @@ import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.network.GogglePayloads;
 
 import net.minecraft.ChatFormatting;
+//? if >=1.21 {
+//? if >=1.21 {
 import net.minecraft.client.DeltaTracker;
+//?}
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
@@ -14,7 +18,15 @@ public final class GoggleHud {
 
     private GoggleHud() {}
 
+    //? if >=1.21 {
+    //? if >=1.21 {
     public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
         Minecraft client = Minecraft.getInstance();
         //? if >=26 {
         if (client.player == null || client.gui.hud.isHidden() || !GoggleCache.isTruncated()) {

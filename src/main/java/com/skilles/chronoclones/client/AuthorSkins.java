@@ -41,7 +41,18 @@ public final class AuthorSkins {
         if (ASKED.add(author)) {
             PlatformClientNetwork.sendToServer(new SkinPayloads.Request(author));
         }
-        return DefaultPlayerSkin.get(author);
+        return defaultSkin(author);
+    }
+
+    /** The era's default skin for an id, in whatever shape the renderer's PlayerSkin has. */
+    public static PlayerSkin defaultSkin(UUID id) {
+        //? if >=1.20.2 {
+        return DefaultPlayerSkin.get(id);
+        //?} else {
+        /*return new PlayerSkin(DefaultPlayerSkin.getDefaultSkin(id),
+                "slim".equals(DefaultPlayerSkin.getSkinModelName(id))
+                        ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE);
+        *///?}
     }
 
     private static @Nullable Supplier<PlayerSkin> fromPlayerList(UUID author) {
@@ -50,7 +61,12 @@ public final class AuthorSkins {
             return null;
         }
         PlayerInfo info = connection.getPlayerInfo(author);
+        //? if >=1.20.2 {
         return info == null ? null : info::getSkin;
+        //?} else {
+        /*return info == null ? null : () -> new PlayerSkin(info.getSkinLocation(),
+                "slim".equals(info.getModelName()) ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE);
+        *///?}
     }
 
     public static void accept(SkinPayloads.Reply reply) {
@@ -65,12 +81,28 @@ public final class AuthorSkins {
         //? if >=26 {
         return Minecraft.getInstance().getSkinManager().createLookup(profile, false);
         //?} else {
+        //? if >=1.20.2 {
         /*return Minecraft.getInstance().getSkinManager().lookupInsecure(profile);
+        *///?} else {
+        /*return () -> {
+            var manager = Minecraft.getInstance().getSkinManager();
+            var texture = manager.getInsecureSkinInformation(profile)
+                    .get(com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.SKIN);
+            if (texture == null) {
+                return defaultSkin(profile.getId());
+            }
+            return new PlayerSkin(
+                    manager.registerTexture(texture,
+                            com.mojang.authlib.minecraft.MinecraftProfileTexture.Type.SKIN),
+                    "slim".equals(texture.getMetadata("model"))
+                            ? PlayerSkin.Model.SLIM : PlayerSkin.Model.WIDE);
+        };
         *///?}
+        //?}
     }
 
     private static Supplier<PlayerSkin> unresolved(UUID author) {
-        PlayerSkin fallback = DefaultPlayerSkin.get(author);
+        PlayerSkin fallback = defaultSkin(author);
         return () -> fallback;
     }
 

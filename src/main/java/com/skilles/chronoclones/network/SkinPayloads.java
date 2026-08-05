@@ -104,10 +104,16 @@ public final class SkinPayloads {
                 //? if >=26 {
                 found = server.services().profileResolver().fetchById(request.author());
                 //?} else {
+                //? if >=1.20.2 {
                 /*com.mojang.authlib.yggdrasil.ProfileResult fetched =
                         server.getSessionService().fetchProfile(request.author(), false);
                 found = fetched == null ? Optional.empty() : Optional.of(fetched.profile());
+                *///?} else {
+                /*GameProfile fetched = server.getSessionService().fillProfileProperties(
+                        new GameProfile(request.author(), null), false);
+                found = Optional.of(fetched);
                 *///?}
+                //?}
             } catch (RuntimeException failed) {
                 Chronoclones.LOGGER.debug("Could not look up the author {}", request.author(), failed);
                 found = Optional.empty();

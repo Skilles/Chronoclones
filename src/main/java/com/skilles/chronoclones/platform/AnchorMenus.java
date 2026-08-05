@@ -31,6 +31,7 @@ public final class AnchorMenus {
         });
     }
     //?} else {
+    //? if >=1.20.5 {
     /*// The extra data travels as raw bytes so the menu keeps one buffer-reading ctor on both loaders.
     public static MenuType<ChronoAnchorMenu> anchorMenuType() {
         return new net.fabricmc.fabric.api.menu.v1.ExtendedMenuType<ChronoAnchorMenu, byte[]>(
@@ -67,5 +68,37 @@ public final class AnchorMenus {
             }
         });
     }
+    *///?} else {
+    /*public static MenuType<ChronoAnchorMenu> anchorMenuType() {
+        return new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType<>(
+                (syncId, inventory, buf) -> new ChronoAnchorMenu(syncId, inventory,
+                        new RegistryFriendlyByteBuf(buf, inventory.player.level().registryAccess())));
+    }
+
+    public static void open(ServerPlayer player, ChronoAnchorBlockEntity anchor) {
+        player.openMenu(new net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory() {
+            @Override
+            public void writeScreenOpeningData(ServerPlayer receiver,
+                                               net.minecraft.network.FriendlyByteBuf buffer) {
+                RegistryFriendlyByteBuf wrapped =
+                        new RegistryFriendlyByteBuf(buffer, receiver.level().registryAccess());
+                wrapped.writeBlockPos(anchor.getBlockPos());
+                ChronoAnchorMenu.writeTimeline(wrapped, anchor.getRecording());
+            }
+
+            @Override
+            public net.minecraft.network.chat.Component getDisplayName() {
+                return anchor.getDisplayName();
+            }
+
+            @Override
+            public net.minecraft.world.inventory.AbstractContainerMenu createMenu(
+                    int syncId, net.minecraft.world.entity.player.Inventory inventory,
+                    net.minecraft.world.entity.player.Player opener) {
+                return anchor.createMenu(syncId, inventory, opener);
+            }
+        });
+    }
     *///?}
+    //?}
 }

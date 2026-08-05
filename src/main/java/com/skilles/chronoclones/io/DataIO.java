@@ -76,8 +76,9 @@ public final class DataIO {
     /*// Pre-26 versions save straight into NBT; codecs run through registry-aware ops.
     public static DataOut wrap(net.minecraft.nbt.CompoundTag tag,
                                net.minecraft.core.HolderLookup.Provider registries) {
-        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops =
-                net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
+        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops = registries == null
+                ? net.minecraft.nbt.NbtOps.INSTANCE
+                : net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
         return new DataOut() {
             @Override
             public DataOut child(String key) {
@@ -113,8 +114,9 @@ public final class DataIO {
                               // Overload-disambiguation marker; pre-26 CompoundTag is one type
                               // for both directions where ValueInput and ValueOutput are two.
                               boolean read) {
-        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops =
-                net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
+        com.mojang.serialization.DynamicOps<net.minecraft.nbt.Tag> ops = registries == null
+                ? net.minecraft.nbt.NbtOps.INSTANCE
+                : net.minecraft.resources.RegistryOps.create(net.minecraft.nbt.NbtOps.INSTANCE, registries);
         return new DataIn() {
             @Override
             public Optional<DataIn> child(String key) {

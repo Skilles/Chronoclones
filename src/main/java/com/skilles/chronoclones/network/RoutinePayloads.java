@@ -10,7 +10,7 @@ import com.skilles.chronoclones.recording.ActionSettings;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingLimits;
 import com.skilles.chronoclones.recording.RecordingCodecs;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -149,7 +149,11 @@ public final class RoutinePayloads {
 
     public static void handleRequest(Request request, ServerPlayer player) {
         Recording routine = read(player, request.source());
+        //? if >=1.20.5 {
         if (routine != null && RecordingLimits.accepts(routine, player.registryAccess())) {
+        //?} else {
+        /*if (routine != null && RecordingLimits.accepts(routine, player.level().registryAccess())) {
+        *///?}
             com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
                     new Open(request.source(), routine, revisionOf(player, request.source())));
         }
@@ -223,7 +227,11 @@ public final class RoutinePayloads {
             return false;
         }
         Recording routine = anchor.getRecording();
+        //? if >=1.20.5 {
         if (routine != null && RecordingLimits.accepts(routine, player.registryAccess())) {
+        //?} else {
+        /*if (routine != null && RecordingLimits.accepts(routine, player.level().registryAccess())) {
+        *///?}
             com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
                     new Open(source, routine, anchor.getRevision()));
         }
@@ -232,7 +240,7 @@ public final class RoutinePayloads {
 
     private static @Nullable Recording read(ServerPlayer player, Source source) {
         if (source.anchor().isEmpty()) {
-            return player.getItemInHand(source.hand()).get(ModDataComponents.RECORDING.get());
+            return RecordingItemData.recording(player.getItemInHand(source.hand()));
         }
 
         ChronoAnchorBlockEntity anchor = anchorFor(player, source.anchor().get());
@@ -240,13 +248,17 @@ public final class RoutinePayloads {
     }
 
     private static void write(ServerPlayer player, Source source, Recording routine) {
+        //? if >=1.20.5 {
         if (!RecordingLimits.accepts(routine, player.registryAccess())) {
+        //?} else {
+        /*if (!RecordingLimits.accepts(routine, player.level().registryAccess())) {
+        *///?}
             return;
         }
         if (source.anchor().isEmpty()) {
             ItemStack held = player.getItemInHand(source.hand());
-            if (held.has(ModDataComponents.RECORDING.get())) {
-                held.set(ModDataComponents.RECORDING.get(), routine);
+            if (RecordingItemData.hasRecording(held)) {
+                RecordingItemData.setRecording(held, routine);
             }
             return;
         }

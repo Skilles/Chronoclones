@@ -275,10 +275,25 @@ public final class PreviewRenderer {
         }
         normal.normalize();
 
-        buffer.addVertex(pose, (float) from.x, (float) from.y, (float) from.z)
+*///?}
+//? if <26 {
+//? if >=1.21 {
+/*        buffer.addVertex(pose, (float) from.x, (float) from.y, (float) from.z)
                 .setColor(colour).setNormal(pose, normal.x, normal.y, normal.z);
         buffer.addVertex(pose, (float) to.x, (float) to.y, (float) to.z)
                 .setColor(colour).setNormal(pose, normal.x, normal.y, normal.z);
-    }
+*///?} else {
+/*        int r = (colour >> 16) & 0xFF;
+        int g = (colour >> 8) & 0xFF;
+        int b = colour & 0xFF;
+        int a = (colour >>> 24) & 0xFF;
+        buffer.vertex(pose.pose(), (float) from.x, (float) from.y, (float) from.z)
+                .color(r, g, b, a).normal(pose.normal(), normal.x, normal.y, normal.z).endVertex();
+        buffer.vertex(pose.pose(), (float) to.x, (float) to.y, (float) to.z)
+                .color(r, g, b, a).normal(pose.normal(), normal.x, normal.y, normal.z).endVertex();
+*///?}
+//?}
+//? if <26 {
+/*    }
 }
 *///?}

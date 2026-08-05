@@ -193,9 +193,22 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity> {
         poseStack.scale(-1.0f, -1.0f, 1.0f);
         poseStack.translate(0.0f, -1.501f, 0.0f);
 
-        model.renderToBuffer(poseStack,
+*///?}
+//? if <26 {
+//? if >=1.20.5 {
+/*        model.renderToBuffer(poseStack,
                 buffers.getBuffer(RenderType.entityTranslucent(skin.texture())),
                 packedLight, OverlayTexture.NO_OVERLAY, TINT);
+*///?} else {
+/*        model.renderToBuffer(poseStack,
+                buffers.getBuffer(RenderType.entityTranslucent(skin.texture())),
+                packedLight, OverlayTexture.NO_OVERLAY,
+                ((TINT >> 16) & 0xFF) / 255.0f, ((TINT >> 8) & 0xFF) / 255.0f,
+                (TINT & 0xFF) / 255.0f, ((TINT >>> 24) & 0xFF) / 255.0f);
+*///?}
+//?}
+//? if <26 {
+/*
 
         renderHeldItem(entity.heldItem(), model, poseStack, buffers, packedLight, entity, HumanoidArm.RIGHT);
         renderHeldItem(entity.offhandItem(), model, poseStack, buffers, packedLight, entity, HumanoidArm.LEFT);
@@ -258,7 +271,7 @@ public class ChronoCloneRenderer extends EntityRenderer<ChronoCloneEntity> {
     private static PlayerSkin skinOf(ChronoCloneEntity entity) {
         UUID author = entity.authorId();
         return author == null
-                ? DefaultPlayerSkin.get(entity.getUUID())
+                ? AuthorSkins.defaultSkin(entity.getUUID())
                 : AuthorSkins.of(author);
     }
 }

@@ -42,17 +42,26 @@ public class ChronoGogglesItem extends Item
     @Override
     public void appendHoverText(@NonNull ItemStack stack, @NonNull TooltipContext context, @NonNull TooltipDisplay display,
                                 Consumer<Component> adder, @NonNull TooltipFlag flag) {
-        appendSharedHoverText(stack, context, adder, flag);
+        appendSharedHoverText(stack, adder, flag);
     }
     //?} else {
+    //? if >=1.20.5 {
     /*@Override
     public void appendHoverText(ItemStack stack, TooltipContext context,
                                 java.util.List<Component> lines, TooltipFlag flag) {
-        appendSharedHoverText(stack, context, lines::add, flag);
+        appendSharedHoverText(stack, lines::add, flag);
+    }
+    *///?} else {
+    /*@Override
+    public void appendHoverText(ItemStack stack,
+                                net.minecraft.world.level.@org.jspecify.annotations.Nullable Level level,
+                                java.util.List<Component> lines, TooltipFlag flag) {
+        appendSharedHoverText(stack, lines::add, flag);
     }
     *///?}
+    //?}
 
-    private void appendSharedHoverText(ItemStack stack, TooltipContext context,
+    private void appendSharedHoverText(ItemStack stack,
                                        Consumer<Component> adder, TooltipFlag flag) {
         adder.accept(Component.translatable("tooltip.chronoclones.chrono_goggles")
                 .withStyle(ChatFormatting.GRAY));

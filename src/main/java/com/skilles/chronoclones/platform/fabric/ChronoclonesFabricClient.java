@@ -99,8 +99,22 @@ public class ChronoclonesFabricClient implements ClientModInitializer {
 //? if fabric {
 /*    private static <T extends CustomPacketPayload> void registerToClient(
             ChronoclonesNetwork.ToClient<T> entry) {
-        ClientPlayNetworking.registerGlobalReceiver(entry.type(),
+*///?}
+//? if fabric {
+//? if >=1.20.5 {
+/*        ClientPlayNetworking.registerGlobalReceiver(entry.type(),
                 (payload, context) -> entry.handler().accept(payload));
-    }
+*///?} else {
+/*        ClientPlayNetworking.registerGlobalReceiver(entry.type().id(),
+                (client, handler, buf, sender) -> {
+                    T payload = entry.codec().decode(
+                            new com.skilles.chronoclones.compat.RegistryFriendlyByteBuf(
+                                    buf, handler.registryAccess()));
+                    client.execute(() -> entry.handler().accept(payload));
+                });
+*///?}
+//?}
+//? if fabric {
+/*    }
 }
 *///?}

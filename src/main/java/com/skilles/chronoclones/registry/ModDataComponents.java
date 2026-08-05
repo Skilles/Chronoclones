@@ -1,3 +1,4 @@
+//? if >=1.20.5 {
 package com.skilles.chronoclones.registry;
 
 import java.util.function.Supplier;
@@ -31,3 +32,4 @@ public final class ModDataComponents {
 
     private ModDataComponents() {}
 }
+//?}

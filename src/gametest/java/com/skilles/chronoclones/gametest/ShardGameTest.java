@@ -45,9 +45,15 @@ final class ShardGameTest {
         if (!ChronoShardItem.isInscribed(shard)) {
             helper.fail("inscribed shard does not report itself as inscribed");
         }
+        //? if >=1.20.5 {
         if (shard.getMaxStackSize() != 1) {
             helper.fail("inscribed shards must not stack: each carries distinct data");
         }
+        //?} else {
+        /*if (shard.getTag() == null || !shard.getTag().hasUUID("chronoclones:inscription")) {
+            helper.fail("inscribed shards must carry a unique inscription id so they never stack");
+        }
+        *///?}
         helper.succeed();
     }
 

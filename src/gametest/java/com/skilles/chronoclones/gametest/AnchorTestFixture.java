@@ -147,6 +147,10 @@ final class AnchorTestFixture {
     /** A structure that fails to load leaves a one-block plot and fails in baffling ways. */
     private static void requireRoom(GameTestHelper helper) {
         AABB plot = helper.getBounds();
+        //? if <1.20.2 {
+        /*// 1.20.1's structure bounds stop one block short of the far corner.
+        plot = plot.expandTowards(1.0, 1.0, 1.0);
+        *///?}
         if (plot.getXsize() < PLOT_SIZE || plot.getZsize() < PLOT_SIZE) {
             helper.fail("this plot is " + (int) plot.getXsize() + "x" + (int) plot.getZsize()
                     + " and the tests need " + PLOT_SIZE + "x" + PLOT_SIZE

@@ -10,8 +10,10 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.JsonOps;
 
 import net.minecraft.core.RegistryAccess;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Items;
 import org.junit.jupiter.api.BeforeAll;
@@ -64,17 +66,36 @@ class RecordedItemTest {
     }
 
     private static RecordedItem roundTrip(RecordedItem item) {
+        //? if >=1.20.5 {
         JsonElement written = RecordedItem.CODEC
                 .encodeStart(registries.createSerializationContext(JsonOps.INSTANCE), item)
                 .getOrThrow();
         return RecordedItem.CODEC
                 .parse(registries.createSerializationContext(JsonOps.INSTANCE), written)
                 .getOrThrow();
+        //?} else {
+        /*// JSON narrows NBT numbers on the way back; this era stores tags, so ride NBT ops.
+        net.minecraft.nbt.Tag written = RecordedItem.CODEC
+                .encodeStart(net.minecraft.resources.RegistryOps.create(
+                        net.minecraft.nbt.NbtOps.INSTANCE, registries), item)
+                .getOrThrow(false, error -> {});
+        return RecordedItem.CODEC
+                .parse(net.minecraft.resources.RegistryOps.create(
+                        net.minecraft.nbt.NbtOps.INSTANCE, registries), written)
+                .getOrThrow(false, error -> {});
+        *///?}
     }
 
     private static RecordedItem damaged(int damage) {
+        //? if >=1.20.5 {
         return new RecordedItem(
                 BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND_HOE),
                 DataComponentPatch.builder().set(DataComponents.DAMAGE, damage).build());
+        //?} else {
+        /*net.minecraft.nbt.CompoundTag components = new net.minecraft.nbt.CompoundTag();
+        components.putInt("Damage", damage);
+        return new RecordedItem(
+                BuiltInRegistries.ITEM.wrapAsHolder(Items.DIAMOND_HOE), components);
+        *///?}
     }
 }

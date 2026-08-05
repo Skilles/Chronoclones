@@ -9,7 +9,9 @@ import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -230,7 +232,11 @@ final class CarrierGameTest {
 
     private static void stackSurvivesAnImprint(GameTestHelper helper) {
         ItemStack recorded = new ItemStack(Items.DIAMOND, 5);
+        //? if >=1.20.5 {
         recorded.set(DataComponents.CUSTOM_NAME, Component.literal("Keystone"));
+        //?} else {
+        /*recorded.setHoverName(Component.literal("Keystone"));
+        *///?}
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(

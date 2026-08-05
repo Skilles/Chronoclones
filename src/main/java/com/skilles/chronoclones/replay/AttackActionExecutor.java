@@ -110,12 +110,21 @@ public final class AttackActionExecutor {
     /** Flat modifiers only: the multiplying ones scale a total this cannot know. */
     private static double meleeDamageOf(ItemStack stack) {
         double[] total = {0.0};
+        //? if >=1.20.5 {
         stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
             if (attribute.value() == Attributes.ATTACK_DAMAGE.value()
                     && modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
                 total[0] += modifier.amount();
             }
         });
+        //?} else {
+        /*stack.getAttributeModifiers(EquipmentSlot.MAINHAND).forEach((attribute, modifier) -> {
+            if (attribute == Attributes.ATTACK_DAMAGE
+                    && modifier.getOperation() == AttributeModifier.Operation.ADDITION) {
+                total[0] += modifier.getAmount();
+            }
+        });
+        *///?}
         return total[0];
     }
 

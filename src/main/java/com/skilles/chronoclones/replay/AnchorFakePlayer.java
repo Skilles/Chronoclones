@@ -215,17 +215,27 @@ public final class AnchorFakePlayer {
 
         ItemStack previous = actor.getItemInHand(hand);
         if (!previous.isEmpty()) {
+            //? if >=1.20.5 {
             previous.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
                     instance.removeModifier(modifier.id());
                 }
             });
+            //?} else {
+            /*previous.getAttributeModifiers(slot).forEach((attribute, modifier) -> {
+                AttributeInstance instance = actor.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.getId());
+                }
+            });
+            *///?}
         }
 
         actor.setItemInHand(hand, stack);
 
         if (!stack.isEmpty()) {
+            //? if >=1.20.5 {
             stack.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
@@ -233,6 +243,15 @@ public final class AnchorFakePlayer {
                     instance.addTransientModifier(modifier);
                 }
             });
+            //?} else {
+            /*stack.getAttributeModifiers(slot).forEach((attribute, modifier) -> {
+                AttributeInstance instance = actor.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.getId());
+                    instance.addTransientModifier(modifier);
+                }
+            });
+            *///?}
         }
     }
 }

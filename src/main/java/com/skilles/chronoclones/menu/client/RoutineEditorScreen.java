@@ -529,13 +529,23 @@ public class RoutineEditorScreen extends Screen {
         drawBackground(g, mouseX, mouseY, partialTick);
     }
     //?} else {
+    //? if >=1.20.2 {
     /*@Override
     public void renderBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                  float partialTick) {
         super.renderBackground(g, mouseX, mouseY, partialTick);
         drawBackground(g, mouseX, mouseY, partialTick);
     }
+    *///?} else {
+    /*// Nothing calls renderBackground for us yet, so the render pass draws it first.
+    @Override
+    public void render(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        renderBackground(g);
+        drawBackground(g, mouseX, mouseY, partialTick);
+        super.render(g, mouseX, mouseY, partialTick);
+    }
     *///?}
+    //?}
 
     /** The version-neutral half of the background pass; the override above is the 26.x shell. */
     private void drawBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
@@ -837,9 +847,15 @@ public class RoutineEditorScreen extends Screen {
     }
 
     @Override
+    //? if >=1.20.2 {
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
         return handleScroll(deltaY) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
     }
+    //?} else {
+    /*public boolean mouseScrolled(double mouseX, double mouseY, double deltaY) {
+        return handleScroll(deltaY) || super.mouseScrolled(mouseX, mouseY, deltaY);
+    }
+    *///?}
 
     /** The version-neutral half of the scroll pass; the override above is the 26.x shell. */
     private boolean handleScroll(double deltaY) {

@@ -21,6 +21,7 @@ stonecutter {
         replace("extractContents(", "renderWidget(")
         replace("extractLabels(", "renderLabels(")
         replace("getGameProfile().name()", "getGameProfile().getName()")
+        replace("stack.typeHolder(), stack.getComponentsPatch()", "stack.getItemHolder(), stack.getComponentsPatch()")
         replace("snapTo(", "moveTo(")
         replace("PayloadTypeRegistry.serverboundPlay()", "PayloadTypeRegistry.playC2S()")
         replace("PayloadTypeRegistry.clientboundPlay()", "PayloadTypeRegistry.playS2C()")
@@ -31,6 +32,30 @@ stonecutter {
         replace("AFTER_PLAYER_CHANGE_LEVEL", "AFTER_PLAYER_CHANGE_WORLD")
         replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuType", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerType")
         replace("net.fabricmc.fabric.api.menu.v1.ExtendedMenuProvider", "net.fabricmc.fabric.api.screenhandler.v1.ExtendedScreenHandlerFactory")
+    }
+
+    // Everything below 1.20.5 predates stream codecs, payload types and registry buffers;
+    // the mod-owned compat package stands in, wired by switching the imports.
+    replacements.string(current.parsed < "1.20.5") {
+        replace("net.minecraft.network.codec.StreamCodec", "com.skilles.chronoclones.compat.StreamCodec")
+        replace("net.minecraft.network.codec.ByteBufCodecs", "com.skilles.chronoclones.compat.ByteBufCodecs")
+        replace("net.minecraft.network.RegistryFriendlyByteBuf", "com.skilles.chronoclones.compat.RegistryFriendlyByteBuf")
+        replace("net.minecraft.network.protocol.common.custom.CustomPacketPayload", "com.skilles.chronoclones.compat.CustomPacketPayload")
+        replace("ItemStack.OPTIONAL_STREAM_CODEC", "com.skilles.chronoclones.compat.MojCodecs.OPTIONAL_ITEM_STACK")
+        replace("ItemStack.STREAM_CODEC", "com.skilles.chronoclones.compat.MojCodecs.ITEM_STACK")
+        replace("BlockPos.STREAM_CODEC", "com.skilles.chronoclones.compat.MojCodecs.BLOCK_POS")
+        replace("Direction.STREAM_CODEC", "com.skilles.chronoclones.compat.MojCodecs.DIRECTION")
+        replace("UUIDUtil.STREAM_CODEC", "com.skilles.chronoclones.compat.MojCodecs.UUID_STREAM")
+        replace("registries.createSerializationContext(JsonOps.INSTANCE)", "net.minecraft.resources.RegistryOps.create(JsonOps.INSTANCE, registries)")
+        replace("registries.createSerializationContext(NbtOps.INSTANCE)", "net.minecraft.resources.RegistryOps.create(NbtOps.INSTANCE, registries)")
+        replace(".getOrThrow()", ".getOrThrow(false, error -> {})")
+        replace(".getOrThrow(msg -> new AssertionError(msg))", ".getOrThrow(false, msg -> {})")
+        replace(".getOrThrow(msg -> new AssertionError(\"codec failed: \" + msg))", ".getOrThrow(false, msg -> new AssertionError(msg))")
+    }
+
+    // PlayerSkin arrived in 1.20.2; older nodes use the mod's lookalike record.
+    replacements.string(current.parsed < "1.20.2") {
+        replace("net.minecraft.client.resources.PlayerSkin", "com.skilles.chronoclones.compat.PlayerSkin")
     }
 }
 
@@ -166,6 +191,30 @@ tasks.withType<ProcessResources>().configureEach {
         exclude("assets/*/items/**")
         exclude("assets/*/equipment/**")
     }
+
+
+    // Pre-1.20.5 data packs use the plural folder names and item-keyed recipe results;
+    // the dropped anchor's loot function becomes its copy_nbt ancestor.
+    if (stonecutter.current.parsed < "1.20.5") {
+        filesMatching("data/**") {
+            path = path
+                .replace(Regex("data/([^/]+)/advancement/"), "data/$1/advancements/")
+                .replace(Regex("data/([^/]+)/loot_table/"), "data/$1/loot_tables/")
+                .replace(Regex("data/([^/]+)/recipe/"), "data/$1/recipes/")
+                .replace(Regex("data/([^/]+)/structure/"), "data/$1/structures/")
+                .replace(Regex("data/([^/]+)/tags/block/"), "data/$1/tags/blocks/")
+                .replace(Regex("data/([^/]+)/tags/item/"), "data/$1/tags/items/")
+        }
+        filesMatching("data/*/recipe/*.json") {
+            filter { line -> line.replace("\"id\": \"", "\"item\": \"") }
+        }
+        exclude("data/*/loot_table/blocks/chrono_anchor.json")
+        from(rootProject.file("src/main/resources/compat1201/chrono_anchor_loot.json")) {
+            into("data/chronoclones/loot_tables/blocks")
+            rename { "chrono_anchor.json" }
+        }
+    }
+    exclude("compat1201/**")
 
     // Plain-string ingredients arrived in 1.21.2; older parsers want the {"item": id} object.
     if (stonecutter.current.parsed < "1.21.2") {

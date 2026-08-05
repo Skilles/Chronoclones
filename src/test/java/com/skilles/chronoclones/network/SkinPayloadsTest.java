@@ -69,8 +69,16 @@ class SkinPayloadsTest {
         /*Property textures = arrived.getProperties().get("textures").iterator().next();
         *///?}
         assertNotNull(textures, "the textures property is what the client needs and it is missing");
+        //? if >=1.20.2 {
         assertEquals("aGVsbG8=", textures.value());
+        //?} else {
+        /*assertEquals("aGVsbG8=", textures.getValue());
+        *///?}
+        //? if >=1.20.2 {
         assertEquals("signed", textures.signature());
+        //?} else {
+        /*assertEquals("signed", textures.getSignature());
+        *///?}
     }
 
     @Test

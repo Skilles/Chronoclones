@@ -93,6 +93,7 @@ final class RedstoneGameTest {
                 helper.getLevel().registryAccess(), output.buildResult()));
         return fresh;
         //?} else {
+        //? if >=1.20.5 {
         /*net.minecraft.nbt.CompoundTag saved =
                 anchor.saveWithoutMetadata(helper.getLevel().registryAccess());
 
@@ -100,7 +101,16 @@ final class RedstoneGameTest {
                 anchor.getBlockPos(), anchor.getBlockState());
         fresh.loadWithComponents(saved, helper.getLevel().registryAccess());
         return fresh;
+        *///?} else {
+        /*net.minecraft.nbt.CompoundTag saved = anchor.saveWithoutMetadata();
+
+        ChronoAnchorBlockEntity fresh = new ChronoAnchorBlockEntity(
+                anchor.getBlockPos(), anchor.getBlockState());
+        fresh.setLevel(helper.getLevel());
+        fresh.load(saved);
+        return fresh;
         *///?}
+        //?}
     }
 
     private static void latchSurvivesAReload(GameTestHelper helper) {

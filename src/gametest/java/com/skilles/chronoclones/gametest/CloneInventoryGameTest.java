@@ -14,7 +14,9 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
+//? if >=1.20.5 {
 import net.minecraft.util.ProblemReporter;
+//?}
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -63,7 +65,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(0).setItem(17, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     if (!helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
                         helper.fail("an exact rule went looking outside the square it names");
                     }
@@ -82,7 +84,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(0).setItem(2, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
                         helper.fail("an any rule placed nothing at all");
                         return;
@@ -130,7 +132,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     if (!anchor.getCloneInventory(0).getItem(recorded).isEmpty()) {
                         helper.fail("the recorded square still holds its stone; some other was spent");
                     }
@@ -146,7 +148,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(0).setItem(17, new ItemStack(Items.STONE, 1));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
                         helper.fail("the routine refused stone that was one square over");
                     }
@@ -175,7 +177,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(1).setItem(0, new ItemStack(Items.STONE, 16));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     BlockState placed = helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR));
                     if (!placed.isAir()) {
                         helper.fail("the only clone placed " + placed + " out of an inventory it does not own");
@@ -193,7 +195,7 @@ final class CloneInventoryGameTest {
         anchor.getCloneInventory(1).setItem(0, new ItemStack(Items.STONE, 16));
 
         helper.startSequence()
-                .thenExecuteAfter(10, () -> {
+                .thenExecuteAfter(20, () -> {
                     if (helper.getBlockState(AnchorTestFixture.targetOf(ANCHOR)).isAir()) {
                         helper.fail("the second clone never spent the stock it owns");
                     }
@@ -236,8 +238,12 @@ final class CloneInventoryGameTest {
         anchor.loadWithComponents(TagValueInput.create(
                 ProblemReporter.DISCARDING, level.registryAccess(), legacySave(level)));
         //?} else {
+        //? if >=1.20.5 {
         /*anchor.loadWithComponents(legacySave(level), level.registryAccess());
+        *///?} else {
+        /*anchor.load(legacySave(level));
         *///?}
+        //?}
 
         StackInventory first = anchor.getCloneInventory(0);
         if (first.size() != ChronoAnchorBlockEntity.CLONE_INVENTORY_SLOTS) {

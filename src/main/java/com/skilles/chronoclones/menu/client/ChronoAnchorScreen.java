@@ -70,7 +70,12 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
     @Override
     public void render(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
-        super.render(extractor, mouseX, mouseY, partialTick);
+*///?}
+    //? if <1.20.2 {
+    /*        renderBackground(extractor);
+    *///?}
+    //? if <26 {
+    /*        super.render(extractor, mouseX, mouseY, partialTick);
         renderTooltip(extractor, mouseX, mouseY);
     }
     *///?}

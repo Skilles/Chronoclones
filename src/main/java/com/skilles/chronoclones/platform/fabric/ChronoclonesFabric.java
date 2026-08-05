@@ -10,8 +10,14 @@ import com.skilles.chronoclones.registry.ModBlockEntities;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+*///?}
+//? if fabric {
+//? if >=1.20.5 {
+/*import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+*///?}
+//?}
+//? if fabric {
+/*import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.fabricmc.fabric.api.transfer.v1.item.ContainerStorage;
 import net.fabricmc.fabric.api.transfer.v1.item.ItemStorage;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
@@ -44,14 +50,39 @@ public class ChronoclonesFabric implements ModInitializer {
 
     private static <T extends CustomPacketPayload> void registerToServer(
             ChronoclonesNetwork.ToServer<T> entry) {
-        PayloadTypeRegistry.serverboundPlay().register(entry.type(), entry.codec());
+*///?}
+//? if fabric {
+//? if >=1.20.5 {
+/*        PayloadTypeRegistry.serverboundPlay().register(entry.type(), entry.codec());
         ServerPlayNetworking.registerGlobalReceiver(entry.type(),
                 (payload, context) -> entry.handler().accept(payload, context.player()));
-    }
+*///?} else {
+/*        com.skilles.chronoclones.compat.PayloadCodecs.TO_SERVER.put(
+                entry.type().id(), entry.codec().cast());
+        ServerPlayNetworking.registerGlobalReceiver(entry.type().id(),
+                (server, player, handler, buf, sender) -> {
+                    T payload = entry.codec().decode(
+                            new com.skilles.chronoclones.compat.RegistryFriendlyByteBuf(
+                                    buf, server.registryAccess()));
+                    server.execute(() -> entry.handler().accept(payload, player));
+                });
+*///?}
+//?}
+//? if fabric {
+/*    }
 
     private static <T extends CustomPacketPayload> void registerToClient(
             ChronoclonesNetwork.ToClient<T> entry) {
-        PayloadTypeRegistry.clientboundPlay().register(entry.type(), entry.codec());
-    }
+*///?}
+//? if fabric {
+//? if >=1.20.5 {
+/*        PayloadTypeRegistry.clientboundPlay().register(entry.type(), entry.codec());
+*///?} else {
+/*        com.skilles.chronoclones.compat.PayloadCodecs.TO_CLIENT.put(
+                entry.type().id(), entry.codec().cast());
+*///?}
+//?}
+//? if fabric {
+/*    }
 }
 *///?}

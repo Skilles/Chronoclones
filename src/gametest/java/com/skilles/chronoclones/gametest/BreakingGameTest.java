@@ -140,8 +140,12 @@ final class BreakingGameTest {
         helper.setBlock(target, Blocks.STONE);
 
         ItemStack silked = new ItemStack(Items.DIAMOND_PICKAXE);
+        //? if >=1.20.5 {
         silked.enchant(helper.getLevel().registryAccess()
                 .lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SILK_TOUCH), 1);
+        //?} else {
+        /*silked.enchant(Enchantments.SILK_TOUCH, 1);
+        *///?}
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 breakWith(Blocks.STONE, silked));

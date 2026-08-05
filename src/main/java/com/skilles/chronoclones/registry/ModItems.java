@@ -11,7 +11,9 @@ import com.skilles.chronoclones.item.UpgradeItem;
 import com.skilles.chronoclones.platform.Registrar;
 
 import net.minecraft.world.item.BlockItem;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;

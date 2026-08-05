@@ -32,7 +32,9 @@ import net.minecraft.world.entity.npc.villager.Villager;
 *///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+//? if >=1.20.5 {
 import net.minecraft.world.item.trading.ItemCost;
+//?}
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.block.Blocks;
@@ -323,7 +325,12 @@ final class MenuStepGameTest {
 
     private static MerchantOffer offer(net.minecraft.world.item.Item cost, int costCount,
                                        net.minecraft.world.item.Item result, int resultCount) {
+        //? if >=1.20.5 {
         return new MerchantOffer(new ItemCost(cost, costCount),
                 new ItemStack(result, resultCount), 16, 0, 0.0f);
+        //?} else {
+        /*return new MerchantOffer(new ItemStack(cost, costCount),
+                new ItemStack(result, resultCount), 16, 0, 0.0f);
+        *///?}
     }
 }

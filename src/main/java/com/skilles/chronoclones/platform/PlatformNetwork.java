@@ -41,8 +41,19 @@ public final class PlatformNetwork {
     public static volatile net.minecraft.server.@org.jspecify.annotations.Nullable MinecraftServer currentServer;
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
-        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
-    }
+*///?}
+    //? if fabric {
+    //? if >=1.20.5 {
+    /*        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+    *///?} else {
+    /*        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player,
+                payload.type().id(),
+                com.skilles.chronoclones.compat.PayloadCodecs.encodeToClient(
+                        payload, player.server.registryAccess()));
+    *///?}
+    //?}
+    //? if fabric {
+    /*    }
 
     public static void sendToAllPlayers(CustomPacketPayload payload) {
         net.minecraft.server.MinecraftServer server = currentServer;
@@ -50,7 +61,7 @@ public final class PlatformNetwork {
             return;
         }
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);
+            sendToPlayer(player, payload);
         }
     }
     *///?}

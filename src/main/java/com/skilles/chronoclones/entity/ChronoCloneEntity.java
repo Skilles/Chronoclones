@@ -155,6 +155,7 @@ public class ChronoCloneEntity extends Entity {
         return false;
     }
 
+    //? if >=1.20.5 {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(AUTHOR_ID, "");
@@ -162,6 +163,15 @@ public class ChronoCloneEntity extends Entity {
         builder.define(HELD_ITEM, ItemStack.EMPTY);
         builder.define(OFFHAND_ITEM, ItemStack.EMPTY);
     }
+    //?} else {
+    /*@Override
+    protected void defineSynchedData() {
+        this.entityData.define(AUTHOR_ID, "");
+        this.entityData.define(AUTHOR_NAME, "");
+        this.entityData.define(HELD_ITEM, ItemStack.EMPTY);
+        this.entityData.define(OFFHAND_ITEM, ItemStack.EMPTY);
+    }
+    *///?}
 
     //? if >=26 {
     @Override

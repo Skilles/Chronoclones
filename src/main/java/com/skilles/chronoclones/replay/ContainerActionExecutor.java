@@ -153,8 +153,13 @@ public final class ContainerActionExecutor {
             return new Session(menu, () -> merchant.setTradingPlayer(null));
         }
         if (entity instanceof AbstractHorse horse) {
+            //? if >=1.20.5 {
             return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.inventory,
                     horse, horse.getInventoryColumns()));
+            //?} else {
+            /*return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.inventory,
+                    horse));
+            *///?}
         }
         if (entity instanceof MenuProvider provider) {
             AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
@@ -272,7 +277,11 @@ public final class ContainerActionExecutor {
     private static boolean matches(MerchantOffer offer, SessionStep.Trade trade) {
         return offer.getCostA().getItem() == trade.costA().getItem()
                 && offer.getCostB().getItem() == trade.costB().getItem()
+                //? if >=1.20.5 {
                 && ItemStack.isSameItemSameComponents(offer.getResult(), trade.result())
+                //?} else {
+                /*&& ItemStack.isSameItemSameTags(offer.getResult(), trade.result())
+                *///?}
                 && offer.getResult().getCount() == trade.result().getCount();
     }
 

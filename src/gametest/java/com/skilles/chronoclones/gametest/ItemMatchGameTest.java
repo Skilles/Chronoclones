@@ -4,7 +4,9 @@ import com.skilles.chronoclones.recording.ActionSettings.ItemRule;
 import com.skilles.chronoclones.recording.RecordedItem;
 import com.skilles.chronoclones.replay.ItemMatch;
 
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -49,7 +51,11 @@ final class ItemMatchGameTest {
 
     private static ItemStack damaged(Item item, int damage) {
         ItemStack stack = new ItemStack(item);
+        //? if >=1.20.5 {
         stack.set(DataComponents.DAMAGE, damage);
+        //?} else {
+        /*stack.setDamageValue(damage);
+        *///?}
         return stack;
     }
 }

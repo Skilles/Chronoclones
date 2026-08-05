@@ -14,7 +14,9 @@ import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
 import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+//? if >=1.20.5 {
 import com.skilles.chronoclones.registry.ModDataComponents;
+//?}
 import com.skilles.chronoclones.replay.ActionContext;
 import com.skilles.chronoclones.replay.AnchorFakePlayer;
 import com.skilles.chronoclones.replay.ActionResult;
@@ -725,6 +727,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    //? if >=1.20.5 {
     @Override
     protected void collectImplicitComponents(net.minecraft.core.component.DataComponentMap.@NonNull Builder builder) {
         super.collectImplicitComponents(builder);
@@ -732,6 +735,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             builder.set(ModDataComponents.RECORDING.get(), recording);
         }
     }
+    //?}
 
     //? if >=26 {
     @Override
@@ -740,12 +744,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
     }
     //?} else {
+    //? if >=1.20.5 {
     /*@Override
     protected void applyImplicitComponents(BlockEntity.DataComponentInput getter) {
         super.applyImplicitComponents(getter);
         adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
     }
     *///?}
+    //?}
 
     private void adoptCarried(@Nullable Recording carried) {
         if (carried != null) {
@@ -769,6 +775,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         saveData(DataIO.wrap(output));
     }
     //?} else {
+    //? if >=1.20.5 {
     /*@Override
     public void removeComponentsFromTag(net.minecraft.nbt.CompoundTag tag) {
         tag.remove("recording");
@@ -780,7 +787,14 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         super.saveAdditional(tag, registries);
         saveData(DataIO.wrap(tag, registries));
     }
+    *///?} else {
+    /*@Override
+    protected void saveAdditional(net.minecraft.nbt.CompoundTag tag) {
+        super.saveAdditional(tag);
+        saveData(DataIO.wrap(tag, level != null ? level.registryAccess() : null));
+    }
     *///?}
+    //?}
 
     private void saveData(DataOut output) {
         storage.save(output);
@@ -809,13 +823,21 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         loadData(DataIO.wrap(input));
     }
     //?} else {
+    //? if >=1.20.5 {
     /*@Override
     protected void loadAdditional(net.minecraft.nbt.CompoundTag tag,
                                   net.minecraft.core.HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
         loadData(DataIO.wrap(tag, registries, true));
     }
+    *///?} else {
+    /*@Override
+    public void load(net.minecraft.nbt.CompoundTag tag) {
+        super.load(tag);
+        loadData(DataIO.wrap(tag, level != null ? level.registryAccess() : null, true));
+    }
     *///?}
+    //?}
 
     private void loadData(DataIn input) {
         storage.load(input);
