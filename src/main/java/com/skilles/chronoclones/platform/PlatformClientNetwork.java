@@ -21,8 +21,15 @@ public final class PlatformClientNetwork {
         *///?}
     }
     //?} else {
+    //? if forge {
+    /*public static void sendToServer(CustomPacketPayload payload) {
+        com.skilles.chronoclones.platform.forge.ForgeNetwork.sendToServer(payload);
+    }
+    *///?}
+    //? if fabric {
     /*public static void sendToServer(CustomPacketPayload payload) {
 *///?}
+    //?}
     //? if fabric {
     //? if >=1.20.5 {
     /*        net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking.send(payload);

@@ -31,6 +31,35 @@ public final class AnchorMenus {
         });
     }
     //?} else {
+    //? if forge {
+    /*public static MenuType<ChronoAnchorMenu> anchorMenuType() {
+        return net.minecraftforge.common.extensions.IForgeMenuType.create(
+                (windowId, inventory, buf) -> new ChronoAnchorMenu(windowId, inventory,
+                        new RegistryFriendlyByteBuf(buf, inventory.player.level().registryAccess())));
+    }
+
+    public static void open(ServerPlayer player, ChronoAnchorBlockEntity anchor) {
+        net.minecraftforge.network.NetworkHooks.openScreen(player, new net.minecraft.world.MenuProvider() {
+            @Override
+            public net.minecraft.network.chat.Component getDisplayName() {
+                return anchor.getDisplayName();
+            }
+
+            @Override
+            public net.minecraft.world.inventory.AbstractContainerMenu createMenu(
+                    int syncId, net.minecraft.world.entity.player.Inventory inventory,
+                    net.minecraft.world.entity.player.Player opener) {
+                return anchor.createMenu(syncId, inventory, opener);
+            }
+        }, buffer -> {
+            RegistryFriendlyByteBuf wrapped =
+                    new RegistryFriendlyByteBuf(buffer, player.level().registryAccess());
+            wrapped.writeBlockPos(anchor.getBlockPos());
+            ChronoAnchorMenu.writeTimeline(wrapped, anchor.getRecording());
+        });
+    }
+    *///?}
+    //? if fabric {
     //? if >=1.20.5 {
     /*// The extra data travels as raw bytes so the menu keeps one buffer-reading ctor on both loaders.
     public static MenuType<ChronoAnchorMenu> anchorMenuType() {
@@ -100,5 +129,6 @@ public final class AnchorMenus {
         });
     }
     *///?}
+    //?}
     //?}
 }

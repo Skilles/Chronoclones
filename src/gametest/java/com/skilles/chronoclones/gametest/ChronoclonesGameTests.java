@@ -105,9 +105,8 @@ public final class ChronoclonesGameTests {
     //?}
     // Pre-26 has no test-function registry; the @GameTestHolder-annotated shims carry the tests.
     //?} else {
-    /*// Called from the gametest dev-mod entrypoint; Fabric registries accept writes during init.
-    // Pre-26 has no test-function registry; the fabric-gametest entrypoint registers the
-    // annotated shims in GeneratedGameTests instead, and this becomes a no-op.
+    /*// Called from the gametest dev-mod entrypoint on Fabric; below 26 the annotated shims
+    // carry the tests on every loader, so this only writes a registry on 26.x Fabric.
     public static void registerFunctions() {
 *///?}
     //? if fabric {
@@ -120,7 +119,7 @@ public final class ChronoclonesGameTests {
         }
     *///?}
     //?}
-    //? if fabric {
+    //? if !neoforge {
     /*}
     *///?}
 }

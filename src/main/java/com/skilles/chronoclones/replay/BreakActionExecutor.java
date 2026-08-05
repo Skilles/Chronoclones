@@ -148,6 +148,7 @@ public final class BreakActionExecutor {
                 return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
             }
             //?} else {
+            //? if fabric {
             /*boolean allowed = net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE
                     .invoker().beforeBlockBreak(level, owner, worldPos, state,
                             level.getBlockEntity(worldPos));
@@ -157,7 +158,13 @@ public final class BreakActionExecutor {
                                 level.getBlockEntity(worldPos));
                 return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
             }
+            *///?} else {
+            /*if (net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(
+                    level, GameType.SURVIVAL, owner, worldPos) == -1) {
+                return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
+            }
             *///?}
+            //?}
 
             List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, tool);
 

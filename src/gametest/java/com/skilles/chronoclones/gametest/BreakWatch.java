@@ -96,6 +96,23 @@ final class BreakWatch implements AutoCloseable {
                     }));
             *///?}
             //?} else {
+            //? if forge {
+            /*net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(
+                    net.minecraftforge.eventbus.api.EventPriority.HIGHEST, false,
+                    net.minecraftforge.event.level.BlockEvent.BreakEvent.class,
+                    event -> dispatch(event.getPos(), new Attempt() {
+                        @Override
+                        public UUID playerId() {
+                            return event.getPlayer().getUUID();
+                        }
+
+                        @Override
+                        public void cancel() {
+                            event.setCanceled(true);
+                        }
+                    }));
+            *///?}
+            //? if fabric {
             /*net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE.register(
                     (level, player, pos, state, blockEntity) -> {
                         boolean[] cancelled = {false};
@@ -113,6 +130,7 @@ final class BreakWatch implements AutoCloseable {
                         return !cancelled[0];
                     });
             *///?}
+            //?}
         }
 
         private Hook() {}

@@ -23,6 +23,12 @@ public final class Fuel {
         /*Integer ticks = net.fabricmc.fabric.api.registry.FuelRegistry.INSTANCE.get(stack.getItem());
         return ticks == null ? 0 : ticks;
         *///?}
+        //? if forge {
+        /*// The stack's own getBurnTime answers -1 for "ask vanilla"; the hook resolves that.
+        int ticks = net.minecraftforge.common.ForgeHooks.getBurnTime(
+                stack, net.minecraft.world.item.crafting.RecipeType.SMELTING);
+        return Math.max(ticks, 0);
+        *///?}
         //?}
     }
 }

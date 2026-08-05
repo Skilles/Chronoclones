@@ -37,11 +37,22 @@ public final class PlatformNetwork {
         *///?}
     }
     //?} else {
+    //? if forge {
+    /*public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
+        com.skilles.chronoclones.platform.forge.ForgeNetwork.sendToPlayer(player, payload);
+    }
+
+    public static void sendToAllPlayers(CustomPacketPayload payload) {
+        com.skilles.chronoclones.platform.forge.ForgeNetwork.sendToAllPlayers(payload);
+    }
+    *///?}
+    //? if fabric {
     /*// Held for broadcast sends; the Fabric entrypoint keeps it current across server lifecycles.
     public static volatile net.minecraft.server.@org.jspecify.annotations.Nullable MinecraftServer currentServer;
 
     public static void sendToPlayer(ServerPlayer player, CustomPacketPayload payload) {
 *///?}
+    //?}
     //? if fabric {
     //? if >=1.20.5 {
     /*        net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.send(player, payload);

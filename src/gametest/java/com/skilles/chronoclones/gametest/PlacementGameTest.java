@@ -97,7 +97,7 @@ final class PlacementGameTest {
         helper.setBlock(placedAt, Blocks.AIR);
 
         BlockPos absoluteAnchor = helper.absolutePos(ANCHOR);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         player.snapTo(absoluteAnchor.getX() + 0.5, absoluteAnchor.getY(), absoluteAnchor.getZ() + 0.5);
         player.setYRot(180.0f);
         player.setXRot(0.0f);

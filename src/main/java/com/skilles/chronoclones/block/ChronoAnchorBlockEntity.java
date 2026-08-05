@@ -720,6 +720,21 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
     //?}
 
+    //? if forge {
+    /*@Override
+    public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(
+            net.minecraftforge.common.capabilities.Capability<T> capability,
+            net.minecraft.core.@Nullable Direction side) {
+        if (capability == net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER) {
+            return net.minecraftforge.common.util.LazyOptional.of(() -> side == null
+                    ? new net.minecraftforge.items.wrapper.InvWrapper(getExternalInventory())
+                    : new net.minecraftforge.items.wrapper.SidedInvWrapper(
+                            getExternalInventory(), side)).cast();
+        }
+        return super.getCapability(capability, side);
+    }
+    *///?}
+
     /** Pre-26 versions reach this from the block's onRemove instead. */
     public void spillOnRemoval(BlockPos pos) {
         if (level != null) {

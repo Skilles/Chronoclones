@@ -69,3 +69,26 @@ The repository is a [Stonecutter](https://stonecutter.kikugie.dev/) tree: one br
 
 Data generation runs only from the NeoForge node (`:26.2-neoforge:runClientData`) into the
 shared `src/generated/resources`, which every node includes.
+
+## The 1.20.1 Forge node's quirks
+
+- `at/1.20.1.cfg` is written in **srg member names**: Forge 1.20.1 applies access
+  transformers before remapping to mojmap, so mojmap names silently miss. Regenerate srg ids
+  from `versions/1.20.1-forge/build/moddev/artifacts/namedToIntermediate.tsrg` when the AW
+  gains entries.
+- `build.forge.gradle.kts` rewrites the shared `neoforge.mods.toml` into a 1.20.1
+  `META-INF/mods.toml`: `loaderVersion "[47,)"`, a `forge` dependency, and — critically —
+  `mandatory=true` in place of `type="required"`, without which FML rejects the mod file with
+  a misleading "invalid mod file"/"Failed to find system mod: minecraft" pair.
+- Forge 1.20.1 drops a mod's data pack when `pack.mcmeta` is absent
+  ("Missing metadata in pack mod:chronoclones"); the build ships `compat1201/pack.mcmeta`.
+- The mixin compatibility level is rewritten to `JAVA_17` (Mixin 0.8.5), and the mixin
+  annotation processor is declared explicitly — the plugin only wires the refmap arguments.
+- Fuel burn times route through `ForgeHooks.getBurnTime`; the stack's own `getBurnTime`
+  answers `-1`, meaning "ask vanilla".
+- **Dev-only, Windows-only**: Forge 1.20.1 runs fail from a working copy whose absolute path
+  contains spaces. Map a drive letter (`subst X: <worktree>`) and run
+  `X:\gradlew.bat :1.20.1-forge:runGameTestServer` from there. CI's space-free paths are
+  unaffected.
+- `UpgradeStateTest` is guarded off this node: a plain-JVM test run cannot complete Forge's
+  registry event cycle, and the same test runs on the other three loaders.

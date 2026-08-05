@@ -17,14 +17,18 @@ public class ClonePlayer extends
         //? if neoforge {
         FakePlayer
         //?} else {
+        //? if fabric {
         /*net.fabricmc.fabric.api.entity.FakePlayer
+        *///?} else {
+        /*net.minecraftforge.common.util.FakePlayer
         *///?}
+        //?}
 {
 
     public ClonePlayer(ServerLevel level, GameProfile profile) {
         super(level, profile);
-        //? if fabric {
-        /*// The NeoForge superclass already does this; Fabric's leaves it to the subclass.
+        //? if !neoforge {
+        /*// The NeoForge superclass already does this; the others leave it to the subclass.
         this.setInvulnerable(true);
         *///?}
     }
@@ -34,7 +38,11 @@ public class ClonePlayer extends
         //? if neoforge {
         return player.isFakePlayer();
         //?} else {
+        //? if fabric {
         /*return player instanceof net.fabricmc.fabric.api.entity.FakePlayer;
+        *///?} else {
+        /*return player instanceof net.minecraftforge.common.util.FakePlayer;
         *///?}
+        //?}
     }
 }

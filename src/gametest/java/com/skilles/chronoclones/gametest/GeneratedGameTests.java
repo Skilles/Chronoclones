@@ -13,6 +13,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
 /*@net.neoforged.neoforge.gametest.GameTestHolder(com.skilles.chronoclones.Chronoclones.MODID)
 @net.neoforged.neoforge.gametest.PrefixGameTestTemplate(false)
 *///?}
+//? if forge {
+/*@net.minecraftforge.gametest.GameTestHolder(com.skilles.chronoclones.Chronoclones.MODID)
+@net.minecraftforge.gametest.PrefixGameTestTemplate(false)
+*///?}
 //?}
 //? if <26 {
 /*public class GeneratedGameTests {
@@ -20,10 +24,10 @@ import net.minecraft.gametest.framework.GameTestHelper;
     // NeoForge prefixes the holder namespace onto template ids; Fabric wants the full id.
 *///?}
 //? if <26 {
-//? if neoforge {
-/*    private static final String PLOT = "test_plot";
-*///?} else {
+//? if fabric {
 /*    private static final String PLOT = "chronoclones:test_plot";
+*///?} else {
+/*    private static final String PLOT = "test_plot";
 *///?}
 //?}
 //? if <26 {

@@ -163,13 +163,44 @@ final class AnchorTestFixture {
         return fakePlayer(level, new GameProfile(OWNER_ID, OWNER_NAME));
     }
 
+    /** The framework's mock player; Forge 1.20.1's login filters need a real channel behind it. */
+    static ServerPlayer mockServerPlayer(GameTestHelper helper) {
+        //? if forge {
+        /*ServerLevel level = helper.getLevel();
+        com.mojang.authlib.GameProfile profile =
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-mock-player");
+        ServerPlayer player = new ServerPlayer(level.getServer(), level, profile) {
+            @Override
+            public boolean isSpectator() {
+                return false;
+            }
+
+            @Override
+            public boolean isCreative() {
+                return true;
+            }
+        };
+        net.minecraft.network.Connection connection =
+                new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        level.getServer().getPlayerList().placeNewPlayer(connection, player);
+        return player;
+        *///?} else {
+        return helper.makeMockServerPlayerInLevel();
+        //?}
+    }
+
     /** The loader's own reusable fake player, so loader internals treat it as one. */
     static ServerPlayer fakePlayer(ServerLevel level, GameProfile profile) {
         //? if neoforge {
         return net.neoforged.neoforge.common.util.FakePlayerFactory.get(level, profile);
         //?} else {
+        //? if fabric {
         /*return net.fabricmc.fabric.api.entity.FakePlayer.get(level, profile);
+        *///?} else {
+        /*return net.minecraftforge.common.util.FakePlayerFactory.get(level, profile);
         *///?}
+        //?}
     }
 
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {

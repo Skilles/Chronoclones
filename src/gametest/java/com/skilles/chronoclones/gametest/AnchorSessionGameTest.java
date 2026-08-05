@@ -95,7 +95,7 @@ final class AnchorSessionGameTest {
     private static @org.jspecify.annotations.Nullable Recording recordStocking(
             GameTestHelper helper, ChronoAnchorBlockEntity target) {
         BlockPos absoluteRunner = helper.absolutePos(RUNNER);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         player.snapTo(absoluteRunner.getX() + 0.5, absoluteRunner.getY(), absoluteRunner.getZ() + 0.5);
         player.setYRot(180.0f);
 

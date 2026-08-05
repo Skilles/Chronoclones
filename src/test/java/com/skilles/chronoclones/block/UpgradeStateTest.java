@@ -1,3 +1,6 @@
+//? if !forge {
+// On Forge, mod registration needs the FML event cycle a plain-JVM test run cannot
+// provide; this logic is exercised by the other three loaders' runs of the same test.
 package com.skilles.chronoclones.block;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -105,3 +108,4 @@ class UpgradeStateTest {
         }
     }
 }
+//?}

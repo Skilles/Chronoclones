@@ -210,7 +210,7 @@ final class RoutineEditGameTest {
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         ChronoAnchorMenu menu = new ChronoAnchorMenu(1,
-                helper.makeMockServerPlayerInLevel().getInventory(), anchor,
+                AnchorTestFixture.mockServerPlayer(helper).getInventory(), anchor,
                 anchor.getContainerData());
         if (!menu.hasStorage()) {
             helper.fail("an imprinted anchor refused its own storage");

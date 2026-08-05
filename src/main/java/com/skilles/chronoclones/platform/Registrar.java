@@ -39,6 +39,25 @@ public final class Registrar<T> {
         }
     }
     //?} else {
+    //? if forge {
+    /*private final net.minecraftforge.registries.DeferredRegister<T> deferred;
+
+    private Registrar(Registry<T> registry, String namespace) {
+        this.deferred = net.minecraftforge.registries.DeferredRegister.create(registry.key(), namespace);
+    }
+
+    public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
+        return this.deferred.register(name, factory);
+    }
+
+    // Forge delivery: every registrar created so far joins the mod bus.
+    public static void registerAllTo(net.minecraftforge.eventbus.api.IEventBus modEventBus) {
+        synchronized (ALL) {
+            ALL.forEach(registrar -> registrar.deferred.register(modEventBus));
+        }
+    }
+    *///?}
+    //? if fabric {
     /*private final Registry<T> registry;
     private final String namespace;
 
@@ -51,6 +70,7 @@ public final class Registrar<T> {
         R value = factory.get();
         Registry.register(registry,
 *///?}
+    //?}
     //? if fabric {
     //? if >=1.21 {
     /*            net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, name), value);
