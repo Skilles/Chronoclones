@@ -169,7 +169,15 @@ final class AnchorTestFixture {
         /*ServerLevel level = helper.getLevel();
         com.mojang.authlib.GameProfile profile =
                 new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-mock-player");
-        ServerPlayer player = new ServerPlayer(level.getServer(), level, profile) {
+        // Named rather than anonymous: javac names a synthesized anonymous constructor after
+        // the superclass constructor's debug metadata, and recompiled Minecraft jars can
+        // carry duplicate names there.
+        final class MockPlayer extends ServerPlayer {
+
+            MockPlayer() {
+                super(level.getServer(), level, profile);
+            }
+
             @Override
             public boolean isSpectator() {
                 return false;
@@ -179,7 +187,8 @@ final class AnchorTestFixture {
             public boolean isCreative() {
                 return true;
             }
-        };
+        }
+        ServerPlayer player = new MockPlayer();
         net.minecraft.network.Connection connection =
                 new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
         new io.netty.channel.embedded.EmbeddedChannel(connection);

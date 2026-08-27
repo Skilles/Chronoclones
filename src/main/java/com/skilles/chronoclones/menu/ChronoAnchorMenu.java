@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.menu;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.item.ActionIcons;
@@ -102,26 +103,38 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         }
 
         StackInventory fuel = anchor.getFuelHandler();
-        addSlot(new Slot(fuel, 0, Layout.FUEL_X, Layout.MODULE_Y) {
-            @Override
-            public boolean mayPlace(@NonNull ItemStack stack) {
-                return isAnchorFuel(playerInventory.player.level(), stack) && super.mayPlace(stack);
-            }
-        });
+        addSlot(new FilteredSlot(fuel, 0, Layout.FUEL_X, Layout.MODULE_Y,
+                stack -> isAnchorFuel(playerInventory.player.level(), stack)));
 
         StackInventory upgrades = anchor.getUpgradeHandler();
         for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
-            addSlot(new Slot(upgrades, i,
-                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18) {
-                @Override
-                public boolean mayPlace(@NonNull ItemStack stack) {
-                    return UpgradeState.isUpgrade(stack.getItem()) && super.mayPlace(stack);
-                }
-            });
+            addSlot(new FilteredSlot(upgrades, i,
+                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18,
+                    stack -> UpgradeState.isUpgrade(stack.getItem())));
         }
 
         addPlayerInventory(playerInventory);
         addDataSlots(this.data);
+    }
+
+    /**
+     * Named rather than anonymous: javac names a synthesized anonymous constructor after the
+     * superclass constructor's debug metadata, and recompiled Minecraft jars can carry
+     * duplicate names there.
+     */
+    private static final class FilteredSlot extends Slot {
+
+        private final Predicate<ItemStack> filter;
+
+        FilteredSlot(StackInventory container, int index, int x, int y, Predicate<ItemStack> filter) {
+            super(container, index, x, y);
+            this.filter = filter;
+        }
+
+        @Override
+        public boolean mayPlace(@NonNull ItemStack stack) {
+            return filter.test(stack) && super.mayPlace(stack);
+        }
     }
 
     private static ChronoAnchorBlockEntity resolve(Inventory playerInventory, BlockPos pos) {
