@@ -79,7 +79,7 @@ public final class RecordingSession {
     }
 
     private int maxRadius() {
-        return ChronoclonesConfig.MAX_RADIUS.getAsInt();
+        return ChronoclonesConfig.maxRadius();
     }
 
     public StopReason tickAndSample(ServerPlayer player) {
@@ -91,7 +91,7 @@ public final class RecordingSession {
 
         tick++;
 
-        if (tick >= ChronoclonesConfig.MAX_RECORDING_TICKS.getAsInt()) {
+        if (tick >= ChronoclonesConfig.maxRecordingTicks()) {
             return StopReason.LENGTH_CAP;
         }
         return null;
@@ -108,7 +108,7 @@ public final class RecordingSession {
         }
         actions.add(new AttackIntent.Swing(new TimedAction(tick, action, heldSlot), target));
 
-        if (actions.size() >= ChronoclonesConfig.MAX_ACTIONS.getAsInt()) {
+        if (actions.size() >= ChronoclonesConfig.maxActions()) {
             return StopReason.ACTION_CAP;
         }
         return null;

@@ -34,7 +34,12 @@ public final class ActionIcons {
     }
 
     private static Optional<Holder<Item>> creature(Holder<EntityType<?>> type) {
+        //? if >=26 {
         return SpawnEggItem.byId(type.value());
+        //?} else {
+        /*SpawnEggItem egg = SpawnEggItem.byId(type.value());
+        return egg == null ? Optional.empty() : ofItem(egg);
+        *///?}
     }
 
     private static Optional<Holder<Item>> ofBlock(Block block) {

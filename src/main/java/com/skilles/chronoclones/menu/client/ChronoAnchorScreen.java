@@ -9,8 +9,10 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 import com.skilles.chronoclones.network.RoutinePayloads;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
+//? if >=26 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import net.minecraft.core.BlockPos;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
@@ -25,7 +27,13 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     private DrawerTab editorTab;
 
     public ChronoAnchorScreen(ChronoAnchorMenu menu, Inventory playerInventory, Component title) {
+        //? if >=26 {
         super(menu, playerInventory, title, Layout.WIDTH, Layout.HEIGHT);
+        //?} else {
+        /*super(menu, playerInventory, title);
+        this.imageWidth = Layout.WIDTH;
+        this.imageHeight = Layout.HEIGHT;
+        *///?}
     }
 
     @Override
@@ -34,7 +42,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
 
         editorTab = addRenderableWidget(new DrawerTab(
                 Component.translatable("gui.chronoclones.anchor.settings"),
-                () -> ClientPacketDistributor.sendToServer(new RoutinePayloads.Request(
+                () -> PlatformClientNetwork.sendToServer(new RoutinePayloads.Request(
                         RoutinePayloads.Source.ofAnchor(menu.getAnchorPos())))));
         editorTab.setPosition(DrawerTab.tabX(leftPos, imageWidth), topPos + EDITOR_TAB_Y);
         editorTab.setTooltip(net.minecraft.client.gui.components.Tooltip.create(
@@ -48,10 +56,32 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         editorTab.active = menu.getLengthTicks() > 0;
     }
 
+    //? if >=26 {
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         super.extractBackground(extractor, mouseX, mouseY, partialTick);
+        drawBackground(extractor, mouseX, mouseY, partialTick);
+    }
+    //?} else {
+    /*@Override
+    protected void renderBg(@NonNull GuiGraphicsExtractor extractor, float partialTick, int mouseX, int mouseY) {
+        drawBackground(extractor, mouseX, mouseY, partialTick);
+    }
 
+    @Override
+    public void render(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
+*///?}
+    //? if <1.20.2 {
+    /*        renderBackground(extractor);
+    *///?}
+    //? if <26 {
+    /*        super.render(extractor, mouseX, mouseY, partialTick);
+        renderTooltip(extractor, mouseX, mouseY);
+    }
+    *///?}
+
+    /** The version-neutral half of the background pass; the override above is the 26.x shell. */
+    private void drawBackground(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         int xo = leftPos;
         int yo = topPos;
 
@@ -324,15 +354,27 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
     }
 
+    //? if >=26 {
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
-        int control = transportAt((int) event.x(), (int) event.y());
+        return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
+    }
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double x, double y, int button) {
+        return handleClick(x, y) || super.mouseClicked(x, y, button);
+    }
+    *///?}
+
+    /** The version-neutral half of the click pass; the override above is the 26.x shell. */
+    private boolean handleClick(double x, double y) {
+        int control = transportAt((int) x, (int) y);
         if (control >= 0 && minecraft != null && minecraft.gameMode != null) {
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
                     ChronoAnchorMenu.RUN_STATE_BUTTON + control);
             return true;
         }
-        if (redstoneAt((int) event.x(), (int) event.y())
+        if (redstoneAt((int) x, (int) y)
                 && minecraft != null && minecraft.gameMode != null) {
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId,
                     ChronoAnchorMenu.REDSTONE_BUTTON);
@@ -340,7 +382,7 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
         }
 
         int tabs = CloneTabs.count(menu.getActiveClones());
-        int tab = CloneTabs.at((int) event.x() - leftPos, (int) event.y() - topPos, tabs,
+        int tab = CloneTabs.at((int) x - leftPos, (int) y - topPos, tabs,
                 Layout.TAB_RIGHT_EDGE, Layout.TAB_Y);
 
         if (tab >= 0 && tab != menu.getSelectedClone() && minecraft != null && minecraft.gameMode != null) {
@@ -348,12 +390,25 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
             minecraft.gameMode.handleInventoryButtonClick(menu.containerId, tab);
             return true;
         }
-        return super.mouseClicked(event, doubled);
+        return false;
     }
 
+    //? if >=26 {
     @Override
     protected void extractTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         super.extractTooltip(extractor, mouseX, mouseY);
+        drawTooltipExtras(extractor, mouseX, mouseY);
+    }
+    //?} else {
+    /*@Override
+    protected void renderTooltip(@NonNull GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
+        super.renderTooltip(extractor, mouseX, mouseY);
+        drawTooltipExtras(extractor, mouseX, mouseY);
+    }
+    *///?}
+
+    /** The version-neutral half of the tooltip pass; the override above is the 26.x shell. */
+    private void drawTooltipExtras(GuiGraphicsExtractor extractor, int mouseX, int mouseY) {
         if (hoveredSlot != null) {
             return;
         }
@@ -410,12 +465,20 @@ public class ChronoAnchorScreen extends AbstractContainerScreen<ChronoAnchorMenu
     }
 
     private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY, Component text) {
+        //? if >=26 {
         extractor.setTooltipForNextFrame(font, text, mouseX, mouseY);
+        //?} else {
+        /*extractor.renderTooltip(font, text, mouseX, mouseY);
+        *///?}
     }
 
     private void tooltip(GuiGraphicsExtractor extractor, int mouseX, int mouseY,
                          java.util.List<Component> lines) {
+        //? if >=26 {
         extractor.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+        //?} else {
+        /*extractor.renderComponentTooltip(font, lines, mouseX, mouseY);
+        *///?}
     }
 
     private boolean within(int mouseX, int mouseY, int x, int y, int width, int height) {

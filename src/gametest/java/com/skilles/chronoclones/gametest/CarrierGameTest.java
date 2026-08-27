@@ -9,7 +9,9 @@ import com.skilles.chronoclones.recording.MenuTarget;
 import com.skilles.chronoclones.recording.SessionStep;
 
 import net.minecraft.core.BlockPos;
+//? if >=1.20.5 {
 import net.minecraft.core.component.DataComponents;
+//?}
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -18,9 +20,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 import static com.skilles.chronoclones.gametest.AnchorTestFixture.countIn;
 
@@ -56,7 +55,7 @@ final class CarrierGameTest {
                 List.of(click(menuSlotOf(lent), LEFT, ContainerInput.QUICK_MOVE)),
                 ActionSettings.DEFAULT.withTransfer(ActionSettings.TransferRule.DEFAULT
                         .withQuantity(ActionSettings.QuantityRule.atMost(5))));
-        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+        anchor.getCloneInventory(0).setItem(lent, new ItemStack(Items.DIAMOND, 32));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -79,7 +78,7 @@ final class CarrierGameTest {
                 ActionSettings.DEFAULT.withTransfer(ActionSettings.TransferRule.DEFAULT
                         .withItems(List.of(net.minecraft.core.registries.BuiltInRegistries.ITEM
                                 .wrapAsHolder(Items.OAK_LOG)))));
-        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+        anchor.getCloneInventory(0).setItem(lent, new ItemStack(Items.DIAMOND, 32));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -102,8 +101,8 @@ final class CarrierGameTest {
                         click(menuSlotOf(withheld), LEFT, ContainerInput.QUICK_MOVE)),
                 ActionSettings.DEFAULT.withSlot(
                         new ActionSettings.SlotRule(ActionSettings.SlotRule.Mode.EXACT, allowed)));
-        anchor.getCloneInventory(0).set(allowed, ItemResource.of(Items.DIAMOND), 4);
-        anchor.getCloneInventory(0).set(withheld, ItemResource.of(Items.OAK_LOG), 4);
+        anchor.getCloneInventory(0).setItem(allowed, new ItemStack(Items.DIAMOND, 4));
+        anchor.getCloneInventory(0).setItem(withheld, new ItemStack(Items.OAK_LOG, 4));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -125,9 +124,15 @@ final class CarrierGameTest {
     private static final int RIGHT = 1;
 
     private static int menuSlotOf(int inventorySlot) {
+        //? if >=26 {
         return Inventory.isHotbarSlot(inventorySlot)
                 ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.SELECTION_SIZE) + inventorySlot
                 : CHEST_SLOTS + inventorySlot - Inventory.SELECTION_SIZE;
+        //?} else {
+        /*return Inventory.isHotbarSlot(inventorySlot)
+                ? CHEST_SLOTS + (Inventory.INVENTORY_SIZE - Inventory.getSelectionSize()) + inventorySlot
+                : CHEST_SLOTS + inventorySlot - Inventory.getSelectionSize();
+        *///?}
     }
 
     private static void lendsTheSquareTheClickNames(GameTestHelper helper) {
@@ -138,13 +143,13 @@ final class CarrierGameTest {
         int untouched = 20;
         ChronoAnchorBlockEntity anchor = deposit(helper,
                 List.of(click(menuSlotOf(lent), LEFT, ContainerInput.QUICK_MOVE)));
-        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
-        anchor.getCloneInventory(0).set(untouched, ItemResource.of(Items.OAK_LOG), 5);
+        anchor.getCloneInventory(0).setItem(lent, new ItemStack(Items.DIAMOND, 32));
+        anchor.getCloneInventory(0).setItem(untouched, new ItemStack(Items.OAK_LOG, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
                     assertBarrelHolds(helper, target, Items.DIAMOND, 32);
-                    if (!anchor.getCloneInventory(0).getResource(lent).isEmpty()) {
+                    if (!anchor.getCloneInventory(0).getItem(lent).isEmpty()) {
                         helper.fail("the lent square was refilled behind the session's back");
                     }
                     if (countIn(anchor.getCloneInventory(0), Items.OAK_LOG) != 5) {
@@ -161,7 +166,7 @@ final class CarrierGameTest {
         int hotbar = 3;
         ChronoAnchorBlockEntity anchor = deposit(helper,
                 List.of(click(menuSlotOf(hotbar), LEFT, ContainerInput.QUICK_MOVE)));
-        anchor.getCloneInventory(0).set(hotbar, ItemResource.of(Items.DIAMOND), 7);
+        anchor.getCloneInventory(0).setItem(hotbar, new ItemStack(Items.DIAMOND, 7));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> assertBarrelHolds(helper, target, Items.DIAMOND, 7))
@@ -176,12 +181,12 @@ final class CarrierGameTest {
         ChronoAnchorBlockEntity anchor = deposit(helper, List.of(
                 click(menuSlotOf(lent), RIGHT, ContainerInput.PICKUP),
                 click(0, LEFT, ContainerInput.PICKUP)));
-        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.DIAMOND), 32);
+        anchor.getCloneInventory(0).setItem(lent, new ItemStack(Items.DIAMOND, 32));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
                     assertBarrelHolds(helper, target, Items.DIAMOND, 16);
-                    int home = anchor.getCloneInventory(0).getAmountAsInt(lent);
+                    int home = anchor.getCloneInventory(0).getItem(lent).getCount();
                     if (home != 16) {
                         helper.fail("expected the other 16 back in square " + lent + ", found " + home);
                     }
@@ -198,26 +203,24 @@ final class CarrierGameTest {
         ChronoAnchorBlockEntity anchor = deposit(helper,
                 List.of(click(menuSlotOf(lent), LEFT, ContainerInput.PICKUP),
                         click(0, LEFT, ContainerInput.PICKUP)));
-        anchor.getCloneInventory(0).set(lent, ItemResource.of(Items.OAK_LOG), 1);
+        anchor.getCloneInventory(0).setItem(lent, new ItemStack(Items.OAK_LOG, 1));
 
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(target);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absolute, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absolute)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getResource(0).getItem() != Items.OAK_LOG) {
+                    if (TestItemPipes.slot(level, absolute, 0).getItem() != Items.OAK_LOG) {
                         helper.fail("the click did not land on the square it named: square 0 holds "
-                                + barrel.getResource(0).getItem());
+                                + TestItemPipes.slot(level, absolute, 0).getItem());
                     }
-                    if (!barrel.getResource(1).isEmpty()) {
+                    if (!TestItemPipes.slot(level, absolute, 1).isEmpty()) {
                         helper.fail("it moved along to the next square: square 1 holds "
-                                + barrel.getResource(1).getItem());
+                                + TestItemPipes.slot(level, absolute, 1).getItem());
                     }
                     if (countIn(anchor.getInventory(), Items.DIRT) != 64) {
                         helper.fail("the displaced dirt did not come home: anchor holds "
@@ -229,7 +232,11 @@ final class CarrierGameTest {
 
     private static void stackSurvivesAnImprint(GameTestHelper helper) {
         ItemStack recorded = new ItemStack(Items.DIAMOND, 5);
+        //? if >=1.20.5 {
         recorded.set(DataComponents.CUSTOM_NAME, Component.literal("Keystone"));
+        //?} else {
+        /*recorded.setHoverName(Component.literal("Keystone"));
+        *///?}
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
@@ -270,15 +277,15 @@ final class CarrierGameTest {
 
     private static void assertBarrelHolds(GameTestHelper helper, BlockPos target,
                                           net.minecraft.world.item.Item item, int count) {
-        ResourceHandler<ItemResource> barrel = helper.getLevel().getCapability(
-                Capabilities.Item.BLOCK, helper.absolutePos(target), null);
-        if (barrel == null) {
+        ServerLevel level = helper.getLevel();
+        BlockPos absolute = helper.absolutePos(target);
+        if (!TestItemPipes.present(level, absolute)) {
             helper.fail("the barrel exposes no item handler");
             return;
         }
-        if (countIn(barrel, item) != count) {
+        if (TestItemPipes.count(level, absolute, item) != count) {
             helper.fail("expected " + count + " " + item + " in the barrel, found "
-                    + countIn(barrel, item));
+                    + TestItemPipes.count(level, absolute, item));
         }
     }
 

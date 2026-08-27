@@ -26,7 +26,6 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
 
 final class CaptureGameTest {
 
@@ -163,7 +162,7 @@ final class CaptureGameTest {
     }
 
     private static ServerPlayer recordingPlayerAt(GameTestHelper helper, BlockPos absolute) {
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         player.snapTo(absolute.getX() + 0.5, absolute.getY() + 1.0, absolute.getZ() + 0.5);
         return player;
     }
@@ -174,7 +173,7 @@ final class CaptureGameTest {
         helper.setBlock(target.above(), Blocks.AIR);
 
         BlockPos absolute = helper.absolutePos(target);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         player.snapTo(absolute.getX() + 0.5, absolute.getY() + 1.0, absolute.getZ() + 0.5);
 
         RecordingSession session = RecordingSessions.start(player);
@@ -211,7 +210,7 @@ final class CaptureGameTest {
         BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
         helper.setBlock(target, Blocks.CHEST);
 
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         RecordingSession session = RecordingSessions.start(player);
         try {
             BlockPos absolute = helper.absolutePos(target);
@@ -255,7 +254,7 @@ final class CaptureGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        FakePlayer owner = AnchorTestFixture.owner(level);
+        ServerPlayer owner = AnchorTestFixture.owner(level);
         BlockPos anchorAbsolute = helper.absolutePos(ANCHOR);
         owner.setPos(anchorAbsolute.getX() + 0.5, anchorAbsolute.getY(), anchorAbsolute.getZ() + 0.5);
 

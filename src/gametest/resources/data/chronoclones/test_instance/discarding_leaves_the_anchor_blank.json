@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:discarding_leaves_the_anchor_blank",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

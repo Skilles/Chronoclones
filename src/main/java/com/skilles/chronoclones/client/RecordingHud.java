@@ -2,24 +2,22 @@ package com.skilles.chronoclones.client;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.ChronoclonesConfig;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 import com.skilles.chronoclones.registry.RecordingProgress;
 
 import net.minecraft.ChatFormatting;
+//? if >=1.21 {
+//? if >=1.21 {
 import net.minecraft.client.DeltaTracker;
+//?}
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 import org.jspecify.annotations.Nullable;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class RecordingHud {
 
     private RecordingHud() {}
@@ -31,15 +29,22 @@ public final class RecordingHud {
 
     private static final int BORDER = 18;
 
-    @SubscribeEvent
-    static void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.CHAT, Chronoclones.id("recording_overlay"), RecordingHud::render);
-    }
-
-    private static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //? if >=1.21 {
+    //? if >=1.21 {
+    public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
+        //? if >=26 {
         if (player == null || client.level == null || client.gui.hud.isHidden()) {
+        //?} else {
+        /*if (player == null || client.level == null || client.options.hideGui) {
+        *///?}
             return;
         }
 
@@ -56,7 +61,11 @@ public final class RecordingHud {
         }
 
         boolean warning = STATE.isWarning(now);
+        //? if >=1.21 {
         float phase = (now + delta.getGameTimeDeltaPartialTick(false)) / 9.0f;
+        //?} else {
+        /*float phase = (now + delta) / 9.0f;
+        *///?}
         float pulse = warning ? 1.0f : 0.62f + 0.38f * (float) ((Math.sin(phase) + 1.0) / 2.0);
 
         border(graphics, warning ? WARN : LIVE, pulse);
@@ -114,7 +123,7 @@ public final class RecordingHud {
     private static @Nullable RecordingProgress stampOf(LocalPlayer player) {
         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
             ItemStack stack = player.getInventory().getItem(slot);
-            RecordingProgress progress = stack.get(ModDataComponents.PROGRESS.get());
+            RecordingProgress progress = RecordingItemData.progress(stack);
             if (progress != null) {
                 return progress;
             }

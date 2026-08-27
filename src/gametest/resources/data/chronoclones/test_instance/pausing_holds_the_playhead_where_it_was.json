@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:pausing_holds_the_playhead_where_it_was",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

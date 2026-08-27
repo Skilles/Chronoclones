@@ -4,6 +4,10 @@
 # Note that there are a couple of TOML lists in this file.
 # Find more information on toml format here:  https://github.com/toml-lang/toml
 
+# The mod loader and its version range. Mandatory on FML 4.x (1.21.1); newer FML defaults these.
+modLoader="javafml" #mandatory
+loaderVersion="[4,)" #mandatory
+
 # The license for you mod. This is mandatory metadata and allows for easier comprehension of your redistributive properties.
 # Review your options at https://choosealicense.com/. All rights reserved is the default copyright stance, and is thus the default here.
 license="${mod_license}"
@@ -48,9 +52,8 @@ Record yourself moving items, killing mobs, breaking blocks, building a house...
 [[mixins]]
 config="${mod_id}.mixins.json"
 
-# The [[accessTransformers]] block allows you to declare where your AT file is.
-# If this block is omitted, a fallback attempt will be made to load an AT from META-INF/accesstransformer.cfg
-#[[accessTransformers]]
+# Where the AT file lives; without this header the file key above would merge into [[mixins]].
+[[accessTransformers]]
 file="META-INF/accesstransformer.cfg"
 
 # The coremods config file path is not configurable and is always loaded from META-INF/coremods.json

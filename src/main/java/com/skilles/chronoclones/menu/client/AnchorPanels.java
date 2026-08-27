@@ -5,7 +5,9 @@ import com.skilles.chronoclones.menu.ChronoAnchorMenu.Layout;
 
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+//? if >=26 {
 import net.minecraft.client.renderer.RenderPipelines;
+//?}
 import net.minecraft.resources.Identifier;
 
 final class AnchorPanels {
@@ -44,20 +46,102 @@ final class AnchorPanels {
     static final int TRACK = 0xFF15151A;
 
     static void panel(GuiGraphicsExtractor g, int x, int y, int width, int height) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, PANEL_SPRITE, x, y, width, height);
+        //?} else {
+        //? if >=1.20.2 {
+        /*g.blitSprite(PANEL_SPRITE, x, y, width, height);
+        *///?} else {
+        /*nineSlice(g, PANEL_SPRITE, x, y, width, height, 4, 16);
+        *///?}
+        //?}
     }
 
     static void outline(GuiGraphicsExtractor g, int x, int y, int width, int height, int tint) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, OUTLINE_SPRITE, x, y, width, height, tint);
+        //?} else {
+        //? if >=1.20.2 {
+        /*tinted(g, tint);
+        g.blitSprite(OUTLINE_SPRITE, x, y, width, height);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?} else {
+        /*tinted(g, tint);
+        nineSlice(g, OUTLINE_SPRITE, x, y, width, height, 2, 6);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?}
+        //?}
     }
 
     static void slot(GuiGraphicsExtractor g, int x, int y) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, SLOT_SPRITE, x - 1, y - 1, 18, 18);
+        //?} else {
+        //? if >=1.20.2 {
+        /*g.blitSprite(SLOT_SPRITE, x - 1, y - 1, 18, 18);
+        *///?} else {
+        /*part(g, SLOT_SPRITE, x - 1, y - 1, 18, 18, 0, 0, 18, 18, 18);
+        *///?}
+        //?}
     }
 
     static void icon(GuiGraphicsExtractor g, Identifier sprite, int x, int y, int tint) {
+        //? if >=26 {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, x, y, ICON_SIZE, ICON_SIZE, tint);
+        //?} else {
+        //? if >=1.20.2 {
+        /*tinted(g, tint);
+        g.blitSprite(sprite, x, y, ICON_SIZE, ICON_SIZE);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?} else {
+        /*tinted(g, tint);
+        part(g, sprite, x, y, ICON_SIZE, ICON_SIZE, 0, 0, ICON_SIZE, ICON_SIZE, ICON_SIZE);
+        g.setColor(1.0f, 1.0f, 1.0f, 1.0f);
+        *///?}
+        //?}
     }
+
+    //? if <26 {
+    /*// The pre-26 sprite blit has no tint parameter; the global colour modulator stands in.
+    private static void tinted(GuiGraphicsExtractor g, int tint) {
+        g.setColor(((tint >> 16) & 0xFF) / 255.0f, ((tint >> 8) & 0xFF) / 255.0f,
+                (tint & 0xFF) / 255.0f, ((tint >>> 24) & 0xFF) / 255.0f);
+    }
+    *///?}
+
+    //? if <1.20.2 {
+    /*// blitSprite and its atlas arrived in 1.20.2; these draw the sprite textures directly,
+    // including the nine-slice borders the .mcmeta files would otherwise describe.
+    private static void nineSlice(GuiGraphicsExtractor g, Identifier sprite, int x, int y,
+                                  int width, int height, int border, int texSize) {
+        int inner = texSize - 2 * border;
+        part(g, sprite, x, y, border, border, 0, 0, border, border, texSize);
+        part(g, sprite, x + width - border, y, border, border, texSize - border, 0, border, border, texSize);
+        part(g, sprite, x, y + height - border, border, border, 0, texSize - border, border, border, texSize);
+        part(g, sprite, x + width - border, y + height - border, border, border,
+                texSize - border, texSize - border, border, border, texSize);
+        part(g, sprite, x + border, y, width - 2 * border, border, border, 0, inner, border, texSize);
+        part(g, sprite, x + border, y + height - border, width - 2 * border, border,
+                border, texSize - border, inner, border, texSize);
+        part(g, sprite, x, y + border, border, height - 2 * border, 0, border, border, inner, texSize);
+        part(g, sprite, x + width - border, y + border, border, height - 2 * border,
+                texSize - border, border, border, inner, texSize);
+        part(g, sprite, x + border, y + border, width - 2 * border, height - 2 * border,
+                border, border, inner, inner, texSize);
+    }
+
+    private static void part(GuiGraphicsExtractor g, Identifier sprite, int x, int y, int w, int h,
+                             int u, int v, int uw, int vh, int texSize) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        g.blit(texture(sprite), x, y, w, h, (float) u, (float) v, uw, vh, texSize, texSize);
+    }
+
+    private static Identifier texture(Identifier sprite) {
+        return new Identifier(sprite.getNamespace(), "textures/gui/sprites/" + sprite.getPath() + ".png");
+    }
+    *///?}
 
     static void legend(GuiGraphicsExtractor g, Font font, String name, int x, int panelTop) {
         int top = panelTop - Layout.LEGEND_RISE;

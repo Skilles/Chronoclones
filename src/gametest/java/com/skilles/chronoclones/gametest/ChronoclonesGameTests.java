@@ -6,31 +6,27 @@ import java.util.function.Consumer;
 
 import com.skilles.chronoclones.Chronoclones;
 
-import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.gametest.framework.FunctionGameTestInstance;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraft.gametest.framework.TestData;
-import net.minecraft.gametest.framework.TestEnvironmentDefinition;
-import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.block.Rotation;
+//? if neoforge {
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.RegisterGameTestsEvent;
 import net.neoforged.neoforge.registries.RegisterEvent;
+//?}
 
+/**
+ * The mod's test functions. Each name here pairs with a generated
+ * {@code data/chronoclones/test_instance/<name>.json}, which carries the per-test settings
+ * (environment, structure, max ticks) on both loaders; adding a test means adding its JSON.
+ */
+//? if neoforge {
+//? if >=26 {
 @EventBusSubscriber(modid = Chronoclones.MODID)
+//?}
+//?}
 public final class ChronoclonesGameTests {
 
-    private static final Identifier PLOT_STRUCTURE = Chronoclones.id("test_plot");
-
-    private static final int DEFAULT_MAX_TICKS = 200;
-    private static final int DEFAULT_SETUP_TICKS = 0;
-
-    private static final int PLOT_PADDING = 2;
-
-    private record Entry(String name, int maxTicks, Consumer<GameTestHelper> function) {}
+    private record Entry(String name, Consumer<GameTestHelper> function) {}
 
     private static final List<Entry> ENTRIES = new ArrayList<>();
 
@@ -67,13 +63,33 @@ public final class ChronoclonesGameTests {
     }
 
     static void add(String name, Consumer<GameTestHelper> function) {
-        add(name, DEFAULT_MAX_TICKS, function);
+        ENTRIES.add(new Entry(name, function));
     }
 
+    /** Runs one declared test by name; the pre-26 annotated shims dispatch through here. */
+    public static void run(String name, GameTestHelper helper) {
+        declare();
+        for (Entry entry : ENTRIES) {
+            if (entry.name().equals(name)) {
+                try {
+                    entry.function().accept(helper);
+                } catch (RuntimeException | Error thrown) {
+                    Chronoclones.LOGGER.error("gametest {} threw", name, thrown);
+                    throw thrown;
+                }
+                return;
+            }
+        }
+        helper.fail("unknown test function " + name);
+    }
+
+    /** @param maxTicks documentation only; the runtime value lives in the test's JSON */
     static void add(String name, int maxTicks, Consumer<GameTestHelper> function) {
-        ENTRIES.add(new Entry(name, maxTicks, function));
+        add(name, function);
     }
 
+    //? if neoforge {
+    //? if >=26 {
     @SubscribeEvent
     public static void registerFunctions(RegisterEvent event) {
         if (!event.getRegistryKey().equals(Registries.TEST_FUNCTION)) {
@@ -86,19 +102,24 @@ public final class ChronoclonesGameTests {
             }
         });
     }
-
-    @SubscribeEvent
-    public static void registerTests(RegisterGameTestsEvent event) {
-        declare();
-        Holder<TestEnvironmentDefinition<?>> environment = event.registerEnvironment(Chronoclones.id("default"));
-
+    //?}
+    // Pre-26 has no test-function registry; the @GameTestHolder-annotated shims carry the tests.
+    //?} else {
+    /*// Called from the gametest dev-mod entrypoint on Fabric; below 26 the annotated shims
+    // carry the tests on every loader, so this only writes a registry on 26.x Fabric.
+    public static void registerFunctions() {
+*///?}
+    //? if fabric {
+    //? if >=26 {
+    /*        declare();
         for (Entry entry : ENTRIES) {
-            Identifier id = Chronoclones.id(entry.name());
-            event.registerTest(id, new FunctionGameTestInstance(
-                    ResourceKey.create(Registries.TEST_FUNCTION, id),
-                    new TestData<>(environment, PLOT_STRUCTURE,
-                            entry.maxTicks(), DEFAULT_SETUP_TICKS, true,
-                            Rotation.NONE, false, 1, 1, false, PLOT_PADDING)));
+            net.minecraft.core.Registry.register(
+                    net.minecraft.core.registries.BuiltInRegistries.TEST_FUNCTION,
+                    Chronoclones.id(entry.name()), entry.function());
         }
-    }
+    *///?}
+    //?}
+    //? if !neoforge {
+    /*}
+    *///?}
 }

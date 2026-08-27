@@ -14,7 +14,9 @@ import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.recording.RecordingCodecs;
 import com.skilles.chronoclones.recording.TimedAction;
 import com.skilles.chronoclones.registry.ModBlockEntities;
+//? if >=1.20.5 {
 import com.skilles.chronoclones.registry.ModDataComponents;
+//?}
 import com.skilles.chronoclones.replay.ActionContext;
 import com.skilles.chronoclones.replay.AnchorFakePlayer;
 import com.skilles.chronoclones.replay.ActionResult;
@@ -49,11 +51,17 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+//? if >=26 {
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
+//?}
+import com.skilles.chronoclones.io.DataIO;
+import com.skilles.chronoclones.io.DataIn;
+import com.skilles.chronoclones.io.DataOut;
+import com.skilles.chronoclones.inventory.GatedContainer;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+import net.minecraft.world.Container;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -135,19 +143,19 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         super(ModBlockEntities.CHRONO_ANCHOR.get(), pos, state);
     }
 
-    public ResourceHandler<ItemResource> getInventory() {
+    public Container getInventory() {
         return storage.combined();
     }
 
-    private final GatedInventory externalInventory =
-            new GatedInventory(storage.combined(), () -> recording != null);
+    private final GatedContainer externalInventory =
+            new GatedContainer(storage.combined(), () -> recording != null);
 
     /** What hoppers and pipes reach. */
-    public ResourceHandler<ItemResource> getExternalInventory() {
+    public GatedContainer getExternalInventory() {
         return externalInventory;
     }
 
-    public ItemStacksResourceHandler getCloneInventory(int clone) {
+    public StackInventory getCloneInventory(int clone) {
         return storage.cloneInventory(clone);
     }
 
@@ -163,11 +171,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return data;
     }
 
-    public ItemStacksResourceHandler getFuelHandler() {
+    public StackInventory getFuelHandler() {
         return storage.fuel();
     }
 
-    public ItemStacksResourceHandler getUpgradeHandler() {
+    public StackInventory getUpgradeHandler() {
         return storage.upgradeSlots();
     }
 
@@ -278,7 +286,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
     }
 
     public void nudgeOrigin(BlockPos delta) {
-        int limit = com.skilles.chronoclones.ChronoclonesConfig.MAX_RADIUS.getAsInt();
+        int limit = com.skilles.chronoclones.ChronoclonesConfig.maxRadius();
         originOffset = new BlockPos(
                 Math.clamp(originOffset.getX() + delta.getX(), -limit, limit),
                 Math.clamp(originOffset.getY() + delta.getY(), -limit, limit),
@@ -496,7 +504,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         boolean unfinished = rule.completion() == ActionSettings.TargetRule.Completion.UNTIL_DEAD
                 && attack.targetAlive();
-        if (unfinished && runtime.targetTicks() < ChronoclonesConfig.MAX_ACTION_TICKS.getAsInt()) {
+        if (unfinished && runtime.targetTicks() < ChronoclonesConfig.maxActionTicks()) {
             runtime.awaitTarget();
             return false;
         }
@@ -527,7 +535,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         UseItemActionExecutor.Progress progress = UseItemActionExecutor.tick(ctx, action, runtime);
         settle(runtime, ctx.operator());
 
-        boolean outOfPatience = runtime.usingTicks() >= ChronoclonesConfig.MAX_ACTION_TICKS.getAsInt();
+        boolean outOfPatience = runtime.usingTicks() >= ChronoclonesConfig.maxActionTicks();
         if (!progress.finished() && !outOfPatience) {
             return false;
         }
@@ -634,7 +642,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    private ItemStacksResourceHandler inventoryOf(CloneRuntime runtime) {
+    private StackInventory inventoryOf(CloneRuntime runtime) {
         return storage.cloneInventory(runtime.index());
     }
 
@@ -704,14 +712,37 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         actor.discard();
     }
 
+    //? if >=26 {
     @Override
     public void preRemoveSideEffects(@NonNull BlockPos pos, @NonNull BlockState state) {
         super.preRemoveSideEffects(pos, state);
+        spillOnRemoval(pos);
+    }
+    //?}
+
+    //? if forge {
+    /*@Override
+    public <T> net.minecraftforge.common.util.LazyOptional<T> getCapability(
+            net.minecraftforge.common.capabilities.Capability<T> capability,
+            net.minecraft.core.@Nullable Direction side) {
+        if (capability == net.minecraftforge.common.capabilities.ForgeCapabilities.ITEM_HANDLER) {
+            return net.minecraftforge.common.util.LazyOptional.of(() -> side == null
+                    ? new net.minecraftforge.items.wrapper.InvWrapper(getExternalInventory())
+                    : new net.minecraftforge.items.wrapper.SidedInvWrapper(
+                            getExternalInventory(), side)).cast();
+        }
+        return super.getCapability(capability, side);
+    }
+    *///?}
+
+    /** Pre-26 versions reach this from the block's onRemove instead. */
+    public void spillOnRemoval(BlockPos pos) {
         if (level != null) {
             storage.spillEverything(level, pos);
         }
     }
 
+    //? if >=1.20.5 {
     @Override
     protected void collectImplicitComponents(net.minecraft.core.component.DataComponentMap.@NonNull Builder builder) {
         super.collectImplicitComponents(builder);
@@ -719,11 +750,25 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
             builder.set(ModDataComponents.RECORDING.get(), recording);
         }
     }
+    //?}
 
+    //? if >=26 {
     @Override
     protected void applyImplicitComponents(net.minecraft.core.component.@NonNull DataComponentGetter getter) {
         super.applyImplicitComponents(getter);
-        Recording carried = getter.get(ModDataComponents.RECORDING.get());
+        adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
+    }
+    //?} else {
+    //? if >=1.20.5 {
+    /*@Override
+    protected void applyImplicitComponents(BlockEntity.DataComponentInput getter) {
+        super.applyImplicitComponents(getter);
+        adoptCarried(getter.get(ModDataComponents.RECORDING.get()));
+    }
+    *///?}
+    //?}
+
+    private void adoptCarried(@Nullable Recording carried) {
         if (carried != null) {
             this.recording = carried;
             this.motionTrack = new MotionTrack(carried.motion());
@@ -733,14 +778,40 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
+    //? if >=26 {
     @Override
     public void removeComponentsFromTag(ValueOutput output) {
-        output.discard("recording");
+        DataIO.wrap(output).discard("recording");
     }
 
     @Override
     protected void saveAdditional(@NonNull ValueOutput output) {
         super.saveAdditional(output);
+        saveData(DataIO.wrap(output));
+    }
+    //?} else {
+    //? if >=1.20.5 {
+    /*@Override
+    public void removeComponentsFromTag(net.minecraft.nbt.CompoundTag tag) {
+        tag.remove("recording");
+    }
+
+    @Override
+    protected void saveAdditional(net.minecraft.nbt.CompoundTag tag,
+                                  net.minecraft.core.HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        saveData(DataIO.wrap(tag, registries));
+    }
+    *///?} else {
+    /*@Override
+    protected void saveAdditional(net.minecraft.nbt.CompoundTag tag) {
+        super.saveAdditional(tag);
+        saveData(DataIO.wrap(tag, level != null ? level.registryAccess() : null));
+    }
+    *///?}
+    //?}
+
+    private void saveData(DataOut output) {
         storage.save(output);
 
         if (recording != null) {
@@ -760,9 +831,30 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         output.putBoolean("finishing", finishing);
     }
 
+    //? if >=26 {
     @Override
     protected void loadAdditional(@NonNull ValueInput input) {
         super.loadAdditional(input);
+        loadData(DataIO.wrap(input));
+    }
+    //?} else {
+    //? if >=1.20.5 {
+    /*@Override
+    protected void loadAdditional(net.minecraft.nbt.CompoundTag tag,
+                                  net.minecraft.core.HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        loadData(DataIO.wrap(tag, registries, true));
+    }
+    *///?} else {
+    /*@Override
+    public void load(net.minecraft.nbt.CompoundTag tag) {
+        super.load(tag);
+        loadData(DataIO.wrap(tag, level != null ? level.registryAccess() : null, true));
+    }
+    *///?}
+    //?}
+
+    private void loadData(DataIn input) {
         storage.load(input);
 
         recording = input.read("recording", RecordingCodecs.RECORDING).orElse(null);

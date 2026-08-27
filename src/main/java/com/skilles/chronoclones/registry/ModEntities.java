@@ -1,22 +1,23 @@
 package com.skilles.chronoclones.registry;
 
+import java.util.function.Supplier;
+
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.entity.ChronoCloneEntity;
+import com.skilles.chronoclones.platform.Registrar;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
 
 public final class ModEntities {
 
-    public static final DeferredRegister<EntityType<?>> ENTITY_TYPES =
-            DeferredRegister.create(BuiltInRegistries.ENTITY_TYPE, Chronoclones.MODID);
+    public static final Registrar<EntityType<?>> ENTITY_TYPES =
+            Registrar.create(BuiltInRegistries.ENTITY_TYPE, Chronoclones.MODID);
 
-    public static final DeferredHolder<EntityType<?>, EntityType<ChronoCloneEntity>> CHRONO_GHOST =
+    public static final Supplier<EntityType<ChronoCloneEntity>> CHRONO_GHOST =
             ENTITY_TYPES.register("chrono_clone", () -> EntityType.Builder
                     .<ChronoCloneEntity>of(ChronoCloneEntity::new, MobCategory.MISC)
                     .sized(0.6f, 1.8f)
@@ -24,7 +25,13 @@ public final class ModEntities {
                     .fireImmune()
                     .updateInterval(1)
                     .clientTrackingRange(8)
+                    //? if >=26 {
                     .build(ResourceKey.create(Registries.ENTITY_TYPE, Chronoclones.id("chrono_clone"))));
+                    //?} else {
+                    /*.build(Chronoclones.id("chrono_clone").toString()));
+                    *///?}
+
+    public static void init() {}
 
     private ModEntities() {}
 }

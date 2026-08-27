@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:attack_until_dead_gives_up_eventually",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 240,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

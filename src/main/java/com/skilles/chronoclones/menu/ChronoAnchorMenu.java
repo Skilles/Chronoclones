@@ -1,6 +1,7 @@
 package com.skilles.chronoclones.menu;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.item.ActionIcons;
@@ -21,8 +22,7 @@ import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
-import net.neoforged.neoforge.transfer.item.ResourceHandlerSlot;
+import com.skilles.chronoclones.inventory.StackInventory;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -92,37 +92,49 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
         this.actionMarks = actionMarks;
 
         for (int clone = 0; clone < CLONES; clone++) {
-            ItemStacksResourceHandler storage = anchor.getCloneInventory(clone);
+            StackInventory storage = anchor.getCloneInventory(clone);
             int page = clone;
             for (int index = 0; index < ANCHOR_SLOTS; index++) {
-                addSlot(new ClonePageSlot(storage, storage::set, index,
+                addSlot(new ClonePageSlot(storage, index,
                         Layout.STORAGE_X + Layout.storageColumn(index) * 18,
                         Layout.STORAGE_Y + Layout.storageRow(index) * 18,
                         page, this::getSelectedClone, this::hasStorage));
             }
         }
 
-        ItemStacksResourceHandler fuel = anchor.getFuelHandler();
-        addSlot(new ResourceHandlerSlot(fuel, fuel::set, 0, Layout.FUEL_X, Layout.MODULE_Y) {
-            @Override
-            public boolean mayPlace(@NonNull ItemStack stack) {
-                return isAnchorFuel(playerInventory.player.level(), stack) && super.mayPlace(stack);
-            }
-        });
+        StackInventory fuel = anchor.getFuelHandler();
+        addSlot(new FilteredSlot(fuel, 0, Layout.FUEL_X, Layout.MODULE_Y,
+                stack -> isAnchorFuel(playerInventory.player.level(), stack)));
 
-        ItemStacksResourceHandler upgrades = anchor.getUpgradeHandler();
+        StackInventory upgrades = anchor.getUpgradeHandler();
         for (int i = 0; i < ChronoAnchorBlockEntity.UPGRADE_SLOTS; i++) {
-            addSlot(new ResourceHandlerSlot(upgrades, upgrades::set, i,
-                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18) {
-                @Override
-                public boolean mayPlace(@NonNull ItemStack stack) {
-                    return UpgradeState.isUpgrade(stack.getItem()) && super.mayPlace(stack);
-                }
-            });
+            addSlot(new FilteredSlot(upgrades, i,
+                    Layout.UPGRADE_X, Layout.MODULE_Y + (i + 1) * 18,
+                    stack -> UpgradeState.isUpgrade(stack.getItem())));
         }
 
         addPlayerInventory(playerInventory);
         addDataSlots(this.data);
+    }
+
+    /**
+     * Named rather than anonymous: javac names a synthesized anonymous constructor after the
+     * superclass constructor's debug metadata, and recompiled Minecraft jars can carry
+     * duplicate names there.
+     */
+    private static final class FilteredSlot extends Slot {
+
+        private final Predicate<ItemStack> filter;
+
+        FilteredSlot(StackInventory container, int index, int x, int y, Predicate<ItemStack> filter) {
+            super(container, index, x, y);
+            this.filter = filter;
+        }
+
+        @Override
+        public boolean mayPlace(@NonNull ItemStack stack) {
+            return filter.test(stack) && super.mayPlace(stack);
+        }
     }
 
     private static ChronoAnchorBlockEntity resolve(Inventory playerInventory, BlockPos pos) {
@@ -157,7 +169,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     /** What consumeFuel will actually take: burnables, or the creative cell. */
     public static boolean isAnchorFuel(net.minecraft.world.level.Level level, ItemStack stack) {
         return stack.is(com.skilles.chronoclones.registry.ModItems.CREATIVE_CHARGE_CELL.get())
-                || stack.getBurnTime(null, level.fuelValues()) > 0;
+                || com.skilles.chronoclones.platform.Fuel.burnTicks(level, stack) > 0;
     }
 
     /** Clamped on read, so a clone going away takes its page with it. */
@@ -187,7 +199,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
     public static final int REDSTONE_BUTTON = RUN_STATE_BUTTON + 3;
 
     private boolean toggleRedstone(Player player) {
-        if (player.isFakePlayer()
+        if (com.skilles.chronoclones.platform.ClonePlayer.isFake(player)
                 || !AnchorAuthority.mayRetune(anchor.getOwnerId(), player.getUUID())) {
             return false;
         }
@@ -201,7 +213,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
 
     private boolean setRunState(Player player, int ordinal) {
         // A clone acts under its owner's name, so the ownership check below would pass it.
-        if (player.isFakePlayer()) {
+        if (com.skilles.chronoclones.platform.ClonePlayer.isFake(player)) {
             return false;
         }
         if (ordinal < 0 || ordinal >= RunState.values().length
@@ -380,7 +392,7 @@ public class ChronoAnchorMenu extends AbstractContainerMenu {
             boolean moved;
             if (UpgradeState.isUpgrade(stack.getItem())) {
                 moved = moveItemStackTo(stack, fuel + 1, TOTAL_ANCHOR_SLOTS, false);
-            } else if (player.level().fuelValues().burnDuration(stack) > 0) {
+            } else if (com.skilles.chronoclones.platform.Fuel.burnTicks(player.level(), stack) > 0) {
                 moved = moveItemStackTo(stack, fuel, fuel + 1, false)
                         || moveItemStackTo(stack, page, pageEnd, false);
             } else {

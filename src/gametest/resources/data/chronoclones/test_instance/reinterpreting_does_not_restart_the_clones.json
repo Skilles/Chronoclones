@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:reinterpreting_does_not_restart_the_clones",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

@@ -4,7 +4,7 @@ import java.util.List;
 
 import com.skilles.chronoclones.block.ChronoAnchorBlockEntity;
 import com.skilles.chronoclones.recording.Recording;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 import com.skilles.chronoclones.registry.ModItems;
 
 import net.minecraft.core.BlockPos;
@@ -15,7 +15,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class AnchorDropsGameTest {
 
@@ -48,7 +47,7 @@ final class AnchorDropsGameTest {
                         return;
                     }
 
-                    Recording carried = dropped.get(ModDataComponents.RECORDING.get());
+                    Recording carried = RecordingItemData.recording(dropped);
                     if (carried == null) {
                         helper.fail("the anchor dropped blank - its routine was destroyed with it");
                         return;
@@ -67,7 +66,7 @@ final class AnchorDropsGameTest {
     private static void spillsInventory(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 7));
 
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(ANCHOR);

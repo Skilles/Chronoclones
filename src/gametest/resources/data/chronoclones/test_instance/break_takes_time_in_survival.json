@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:break_takes_time_in_survival",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 400,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

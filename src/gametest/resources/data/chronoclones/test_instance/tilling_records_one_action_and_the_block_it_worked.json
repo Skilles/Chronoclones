@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:tilling_records_one_action_and_the_block_it_worked",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

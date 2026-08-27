@@ -22,14 +22,18 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+//? if >=26 {
 import net.minecraft.client.input.KeyEvent;
+//?}
+//? if >=26 {
 import net.minecraft.client.input.MouseButtonEvent;
+//?}
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import org.jspecify.annotations.NonNull;
 
 public class RoutineEditorScreen extends Screen {
@@ -261,10 +265,10 @@ public class RoutineEditorScreen extends Screen {
 
     private boolean carriesComponents() {
         return switch (action()) {
-            case ChronoAction.UseOnBlock a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.UseItem a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.InteractEntity a -> !a.itemTemplate().components().isEmpty();
-            case ChronoAction.PlaceBlock a -> !a.itemTemplate().components().isEmpty();
+            case ChronoAction.UseOnBlock a -> a.itemTemplate().hasComponents();
+            case ChronoAction.UseItem a -> a.itemTemplate().hasComponents();
+            case ChronoAction.InteractEntity a -> a.itemTemplate().hasComponents();
+            case ChronoAction.PlaceBlock a -> a.itemTemplate().hasComponents();
             default -> false;
         };
     }
@@ -439,7 +443,7 @@ public class RoutineEditorScreen extends Screen {
                 rebuildControls();
                 return;
             }
-            ClientPacketDistributor.sendToServer(new RoutinePayloads.Discard(source, revision));
+            PlatformClientNetwork.sendToServer(new RoutinePayloads.Discard(source, revision));
             onClose();
         }, true));
     }
@@ -449,7 +453,7 @@ public class RoutineEditorScreen extends Screen {
                 110, BAR_HEIGHT, Component.translatable("gui.chronoclones.editor.delete"), () -> {
             flushName();
             int index = selectedRow().action();
-            ClientPacketDistributor.sendToServer(
+            PlatformClientNetwork.sendToServer(
                     new RoutinePayloads.RemoveAction(source, index, revision));
             revision++;
             routine = routine.without(index);
@@ -485,7 +489,7 @@ public class RoutineEditorScreen extends Screen {
     private void apply(ActionSettings settings) {
         routine = routine.withSettings(selectedRow().action(), settings);
         nameDirty = false;
-        ClientPacketDistributor.sendToServer(
+        PlatformClientNetwork.sendToServer(
                 new RoutinePayloads.EditAction(source, selectedRow().action(), settings, revision));
         revision++;
     }
@@ -517,11 +521,34 @@ public class RoutineEditorScreen extends Screen {
         super.onClose();
     }
 
+    //? if >=26 {
     @Override
     public void extractBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                   float partialTick) {
         super.extractBackground(g, mouseX, mouseY, partialTick);
+        drawBackground(g, mouseX, mouseY, partialTick);
+    }
+    //?} else {
+    //? if >=1.20.2 {
+    /*@Override
+    public void renderBackground(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
+                                 float partialTick) {
+        super.renderBackground(g, mouseX, mouseY, partialTick);
+        drawBackground(g, mouseX, mouseY, partialTick);
+    }
+    *///?} else {
+    /*// Nothing calls renderBackground for us yet, so the render pass draws it first.
+    @Override
+    public void render(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        renderBackground(g);
+        drawBackground(g, mouseX, mouseY, partialTick);
+        super.render(g, mouseX, mouseY, partialTick);
+    }
+    *///?}
+    //?}
 
+    /** The version-neutral half of the background pass; the override above is the 26.x shell. */
+    private void drawBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         AnchorPanels.panel(g, left - 2, top - 2, WIDTH + 4, HEIGHT + 4);
         g.fill(left, top, left + WIDTH, top + HEIGHT, AnchorPanels.WINDOW);
 
@@ -546,11 +573,15 @@ public class RoutineEditorScreen extends Screen {
             return;
         }
         TimedAction timed = actions().get(index);
-        g.setComponentTooltipForNextFrame(font, List.of(
+        List<Component> lines = List.of(
                 Component.literal(rowTitle(timed)),
                 Component.literal(summaryOf(timed)),
-                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick()))),
-                mouseX, mouseY);
+                Component.translatable("gui.chronoclones.editor.at", seconds(timed.tick())));
+        //? if >=26 {
+        g.setComponentTooltipForNextFrame(font, lines, mouseX, mouseY);
+        //?} else {
+        /*g.renderComponentTooltip(font, lines, mouseX, mouseY);
+        *///?}
     }
 
     private static String seconds(int ticks) {
@@ -776,20 +807,32 @@ public class RoutineEditorScreen extends Screen {
         };
     }
 
+    //? if >=26 {
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubled) {
-        int mark = markAt((int) event.x(), (int) event.y());
+        return handleClick(event.x(), event.y()) || super.mouseClicked(event, doubled);
+    }
+    //?} else {
+    /*@Override
+    public boolean mouseClicked(double x, double y, int button) {
+        return handleClick(x, y) || super.mouseClicked(x, y, button);
+    }
+    *///?}
+
+    /** The version-neutral half of the click pass; the override above is the 26.x shell. */
+    private boolean handleClick(double x, double y) {
+        int mark = markAt((int) x, (int) y);
         if (mark >= 0) {
             select(new Row(mark, -1));
             return true;
         }
 
-        Row row = rowAt((int) event.x(), (int) event.y());
+        Row row = rowAt((int) x, (int) y);
         if (row != null && !row.equals(selectedRow())) {
             select(row);
             return true;
         }
-        return super.mouseClicked(event, doubled);
+        return false;
     }
 
     private void select(Row row) {
@@ -804,13 +847,24 @@ public class RoutineEditorScreen extends Screen {
     }
 
     @Override
+    //? if >=1.20.2 {
     public boolean mouseScrolled(double mouseX, double mouseY, double deltaX, double deltaY) {
+        return handleScroll(deltaY) || super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+    }
+    //?} else {
+    /*public boolean mouseScrolled(double mouseX, double mouseY, double deltaY) {
+        return handleScroll(deltaY) || super.mouseScrolled(mouseX, mouseY, deltaY);
+    }
+    *///?}
+
+    /** The version-neutral half of the scroll pass; the override above is the 26.x shell. */
+    private boolean handleScroll(double deltaY) {
         int overflow = rows().size() - rowsVisible();
         if (overflow > 0) {
             scroll = Math.clamp(scroll - (int) Math.signum(deltaY), 0, overflow);
             return true;
         }
-        return super.mouseScrolled(mouseX, mouseY, deltaX, deltaY);
+        return false;
     }
 
     private @org.jspecify.annotations.Nullable Row rowAt(int x, int y) {
@@ -823,18 +877,33 @@ public class RoutineEditorScreen extends Screen {
         return line < rowsVisible() && index < rows.size() ? rows.get(index) : null;
     }
 
+    //? if >=26 {
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (minecraft != null && minecraft.options.keyInventory.matches(event)
                 && !isTyping()
                 && source.anchor().isPresent()) {
             flushName();
-            ClientPacketDistributor.sendToServer(
+            PlatformClientNetwork.sendToServer(
                     new RoutinePayloads.Reopen(source.anchor().get()));
             return true;
         }
         return super.keyPressed(event);
     }
+    //?} else {
+    /*@Override
+    public boolean keyPressed(int key, int scan, int mods) {
+        if (minecraft != null && minecraft.options.keyInventory.matches(key, scan)
+                && !isTyping()
+                && source.anchor().isPresent()) {
+            flushName();
+            PlatformClientNetwork.sendToServer(
+                    new RoutinePayloads.Reopen(source.anchor().get()));
+            return true;
+        }
+        return super.keyPressed(key, scan, mods);
+    }
+    *///?}
 
     private boolean isTyping() {
         return getFocused() instanceof EditBox box && box.canConsumeInput();

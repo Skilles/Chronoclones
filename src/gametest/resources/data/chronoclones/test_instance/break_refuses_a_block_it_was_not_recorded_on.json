@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:function",
+  "function": "chronoclones:break_refuses_a_block_it_was_not_recorded_on",
+  "environment": "chronoclones:default",
+  "structure": "chronoclones:test_plot",
+  "max_ticks": 200,
+  "setup_ticks": 0,
+  "required": true,
+  "padding": 2
+}

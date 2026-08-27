@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.item.ChronoRecorderItem;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 import com.skilles.chronoclones.registry.ModItems;
 import com.skilles.chronoclones.registry.RecordingProgress;
 
@@ -21,31 +21,22 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.EventPriority;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.event.entity.living.LivingEntityUseItemEvent;
-import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.neoforge.event.level.BlockEvent;
-import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
-import net.neoforged.neoforge.event.server.ServerStoppedEvent;
-import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 import org.jspecify.annotations.Nullable;
 
-@EventBusSubscriber(modid = Chronoclones.MODID)
+/**
+ * What the recorder captures, as loader-neutral entry points. The per-loader event bridges
+ * translate their own gameplay events into these calls; each expects to run after cancellable
+ * interactions have survived cancellation (NeoForge LOWEST priority, Fabric AFTER-flavoured
+ * callbacks or mixin tails).
+ */
 public final class RecordingCapture {
 
     private RecordingCapture() {}
 
-    @SubscribeEvent
-    public static void onPlayerTick(PlayerTickEvent.Post event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void tickPlayer(ServerPlayer player) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
@@ -61,7 +52,7 @@ public final class RecordingCapture {
 
         RecordingSession.StopReason stop = session.tickAndSample(player);
 
-        recorder.set(ModDataComponents.PROGRESS.get(), new RecordingProgress(
+        RecordingItemData.setProgress(recorder, new RecordingProgress(
                 session.sessionId(), session.tick(), session.actionCount(), session.outOfRangeWarning()));
         session.clearOutOfRangeWarning();
 
@@ -72,18 +63,11 @@ public final class RecordingCapture {
         InteractionWatch.expire(player);
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onBlockBreak(BreakBlockEvent event) {
-        if (event.isCanceled() || !(event.getPlayer() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void blockBroken(ServerPlayer player, BlockPos pos, BlockState state) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
-
-        BlockPos pos = event.getPos();
-        BlockState state = event.getState();
 
         capture(player, session, new ChronoAction.BreakBlock(
                         session.toLocal(pos),
@@ -92,18 +76,12 @@ public final class RecordingCapture {
                 Vec3.atCenterOf(pos));
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void blockPlaced(ServerPlayer player, BlockPos pos, BlockState placed) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
 
-        BlockPos pos = event.getPos();
-        BlockState placed = event.getPlacedBlock();
         ItemStack held = player.getMainHandItem();
 
         // A BlockItem and only a BlockItem. Anything else that changes a block does so as the effect
@@ -133,59 +111,49 @@ public final class RecordingCapture {
                 Vec3.atCenterOf(pos));
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onAttackEntity(AttackEntityEvent event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void entityAttacked(ServerPlayer player, Entity target) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
 
-        Vec3 target = event.getTarget().position();
+        Vec3 targetPos = target.position();
 
         capture(player, session, new ChronoAction.AttackEntity(
-                        session.toLocal(target),
-                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
+                        session.toLocal(targetPos),
+                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(target.getType()),
                         player.getMainHandItem().copy()),
-                target, event.getTarget().getUUID());
+                targetPos, target.getUUID());
     }
 
-    @SubscribeEvent
-    public static void onDeath(net.neoforged.neoforge.event.entity.living.LivingDeathEvent event) {
-        if (event.getEntity().level().isClientSide()) {
+    public static void entityDied(LivingEntity entity) {
+        if (entity.level().isClientSide()) {
             return;
         }
-        RecordingSessions.forEach(session -> session.noteDeath(event.getEntity().getUUID()));
+        RecordingSessions.forEach(session -> session.noteDeath(entity.getUUID()));
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void rightClickBlock(ServerPlayer player, InteractionHand hand,
+                                       ItemStack stack, BlockHitResult hit) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
 
-        BlockPos pos = event.getPos();
-        ItemStack stack = event.getItemStack();
+        BlockPos pos = hit.getBlockPos();
 
         // A control item's own click is not part of the routine, but what the click opens is: the
         // chest does not care what the player was holding.
         if (!isControlInput(stack)) {
-            BlockHitResult hit = event.getHitVec();
             Vec3 offset = hit.getLocation().subtract(Vec3.atCenterOf(pos));
 
-            InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseOnBlock(
+            InteractionWatch.arm(player, hand, new ChronoAction.UseOnBlock(
                             session.toLocal(pos),
                             session.toLocal(hit.getDirection()),
                             LocalSpace.rotateY(offset,
                                     -LocalSpace.stepsFromNorth(session.originFacing())),
                             hit.isInside(),
-                            event.getHand(),
+                            hand,
                             RecordedItem.of(stack),
                             Optional.of(BuiltInRegistries.BLOCK.wrapAsHolder(
                                     player.level().getBlockState(pos).getBlock()))),
@@ -199,7 +167,11 @@ public final class RecordingCapture {
     private static int reachedInto(ServerPlayer player, ChronoAction action) {
         return action.heldHand() == InteractionHand.OFF_HAND
                 ? ActionSettings.SlotRule.NONE
+                //? if >=26 {
                 : player.getInventory().getSelectedSlot();
+                //?} else {
+                /*: player.getInventory().selected;
+                *///?}
     }
 
     private static ActionPose poseOf(ServerPlayer player, RecordingSession session) {
@@ -213,78 +185,54 @@ public final class RecordingCapture {
         return stack.is(ModItems.CHRONO_RECORDER.get()) || stack.is(ModItems.CHRONO_SHARD.get());
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void rightClickItem(ServerPlayer player, InteractionHand hand, ItemStack stack) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
 
-        ItemStack stack = event.getItemStack();
         if (stack.isEmpty() || isControlInput(stack)) {
             return;
         }
 
-        InteractionWatch.arm(player, event.getHand(), new ChronoAction.UseItem(
-                        event.getHand(),
+        InteractionWatch.arm(player, hand, new ChronoAction.UseItem(
+                        hand,
                         RecordedItem.of(stack),
                         0,
                         Optional.of(poseOf(player, session))),
                 player.position());
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (event.isCanceled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void entityInteracted(ServerPlayer player, InteractionHand hand,
+                                        ItemStack stack, Entity target) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
         }
 
-        ItemStack stack = event.getItemStack();
-        Vec3 target = event.getTarget().position();
+        Vec3 targetPos = target.position();
 
         if (!isControlInput(stack)) {
-            InteractionWatch.arm(player, event.getHand(), new ChronoAction.InteractEntity(
-                            session.toLocal(target),
-                            BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(event.getTarget().getType()),
-                            event.getHand(),
+            InteractionWatch.arm(player, hand, new ChronoAction.InteractEntity(
+                            session.toLocal(targetPos),
+                            BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(target.getType()),
+                            hand,
                             RecordedItem.of(stack)),
-                    target);
+                    targetPos);
         }
 
-        ContainerWatch.noteInteraction(player, event.getTarget(), session);
+        ContainerWatch.noteInteraction(player, target, session);
     }
 
     private static final java.util.Map<UUID, Integer> USE_STARTED_AT = new java.util.HashMap<>();
 
-    @SubscribeEvent
-    public static void onUseStart(LivingEntityUseItemEvent.Start event) {
-        if (event.getEntity() instanceof ServerPlayer player
-                && RecordingSessions.get(player) != null) {
-            USE_STARTED_AT.put(player.getUUID(), event.getDuration());
+    public static void useItemStarted(ServerPlayer player, int duration) {
+        if (RecordingSessions.get(player) != null) {
+            USE_STARTED_AT.put(player.getUUID(), duration);
         }
     }
 
-    @SubscribeEvent
-    public static void onUseStop(LivingEntityUseItemEvent.Stop event) {
-        noteHeld(event);
-    }
-
-    @SubscribeEvent
-    public static void onUseFinish(LivingEntityUseItemEvent.Finish event) {
-        noteHeld(event);
-    }
-
-    private static void noteHeld(LivingEntityUseItemEvent event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void useItemEnded(ServerPlayer player, int remainingDuration) {
         Integer startedAt = USE_STARTED_AT.remove(player.getUUID());
         RecordingSession session = RecordingSessions.get(player);
         if (startedAt == null || session == null) {
@@ -292,28 +240,20 @@ public final class RecordingCapture {
         }
         // What is left, subtracted from what there was: a bow drawn for twenty ticks reports 72000
         // at the start and 71980 at release.
-        int held = startedAt - event.getDuration();
+        int held = startedAt - remainingDuration;
         if (held > 0) {
             session.noteHeldFor(held);
         }
     }
 
-    @SubscribeEvent
-    public static void onContainerOpen(PlayerContainerEvent.Open event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void containerOpened(ServerPlayer player) {
         RecordingSession session = RecordingSessions.get(player);
         if (session != null) {
             ContainerWatch.onContainerOpened(player, session);
         }
     }
 
-    @SubscribeEvent
-    public static void onContainerClose(PlayerContainerEvent.Close event) {
-        if (!(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void containerClosed(ServerPlayer player) {
         RecordingSession session = RecordingSessions.get(player);
         if (session == null) {
             return;
@@ -326,32 +266,22 @@ public final class RecordingCapture {
         }
     }
 
-    @SubscribeEvent
-    public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            RecordingSessions.discard(player);
-            ContainerWatch.forget(player);
-            InteractionWatch.forget(player);
-            USE_STARTED_AT.remove(player.getUUID());
-        }
+    public static void loggedOut(ServerPlayer player) {
+        RecordingSessions.discard(player);
+        ContainerWatch.forget(player);
+        InteractionWatch.forget(player);
+        USE_STARTED_AT.remove(player.getUUID());
     }
 
-    @SubscribeEvent
-    public static void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            abandon(player);
-        }
+    public static void changedDimension(ServerPlayer player) {
+        abandon(player);
     }
 
-    @SubscribeEvent
-    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            abandon(player);
-        }
+    public static void respawned(ServerPlayer player) {
+        abandon(player);
     }
 
-    @SubscribeEvent
-    public static void onServerStopped(ServerStoppedEvent event) {
+    public static void serverStopped() {
         RecordingSessions.clear();
         ContainerWatch.clear();
         InteractionWatch.clear();
@@ -397,7 +327,7 @@ public final class RecordingCapture {
 
         ItemStack recorder = findSessionRecorder(player, session);
         if (recorder != null) {
-            recorder.remove(ModDataComponents.PROGRESS.get());
+            RecordingItemData.clearProgress(recorder);
         }
     }
 
@@ -423,7 +353,7 @@ public final class RecordingCapture {
         if (!stack.is(ModItems.CHRONO_RECORDER.get())) {
             return false;
         }
-        RecordingProgress progress = stack.get(ModDataComponents.PROGRESS.get());
+        RecordingProgress progress = RecordingItemData.progress(stack);
         return progress != null && progress.sessionId().equals(session.sessionId());
     }
 }

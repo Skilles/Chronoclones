@@ -14,11 +14,12 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+//? if neoforge {
 import net.neoforged.neoforge.common.CommonHooks;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
+//?}
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class BreakActionExecutor {
@@ -42,7 +43,11 @@ public final class BreakActionExecutor {
             return ActionResult.fail(FailureReason.NO_BLOCK, action.localPos());
         }
 
+        //? if >=26 {
         if (state.typeHolder().is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
+        //?} else {
+        /*if (state.is(ModTags.ANCHOR_UNBREAKABLE) || state.hasBlockEntity()) {
+        *///?}
             return ActionResult.fail(FailureReason.BLACKLISTED, action.localPos());
         }
 
@@ -62,7 +67,7 @@ public final class BreakActionExecutor {
 
     /** Read, not lent: see {@link HeldItemLoan#peek}. */
     private static @Nullable ItemStack toolFor(
-            ChronoAction.BreakBlock action, ResourceHandler<ItemResource> inventory,
+            ChronoAction.BreakBlock action, StackInventory inventory,
             ActionSettings.SlotRule slot, ActionSettings.ToolRule rule, BlockState state) {
         return switch (rule) {
             case EXACT -> HeldItemLoan.peek(inventory, ItemMatch.sameItem(
@@ -78,17 +83,17 @@ public final class BreakActionExecutor {
      * this rule is that the anchor chooses. Returns null rather than pulverising a block for nothing.
      */
     private static @Nullable ItemStack bestToolFor(
-            ResourceHandler<ItemResource> inventory, BlockState state) {
+            StackInventory inventory, BlockState state) {
         ItemStack best = ItemStack.EMPTY;
         boolean bestDrops = earnsDrops(ItemStack.EMPTY, state);
         float bestSpeed = ItemStack.EMPTY.getDestroySpeed(state);
 
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            if (resource.isEmpty() || inventory.getAmountAsInt(slot) <= 0) {
+            ItemStack held = inventory.getItem(slot);
+            if (held.isEmpty()) {
                 continue;
             }
-            ItemStack candidate = resource.toStack(1);
+            ItemStack candidate = held.copyWithCount(1);
             boolean drops = earnsDrops(candidate, state);
             float speed = candidate.getDestroySpeed(state);
 
@@ -112,7 +117,7 @@ public final class BreakActionExecutor {
         BlockPos worldPos = ctx.placement().toWorld(action.localPos());
         ItemStack tool = toolFor(action, ctx.items(), ctx.slot(), ctx.tool(),
                 level.getBlockState(worldPos));
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
+        ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 0.0f, 0.0f, tool == null ? ItemStack.EMPTY : tool);
         try {
             return level.getBlockState(worldPos).getDestroyProgress(owner, level, worldPos);
@@ -124,7 +129,7 @@ public final class BreakActionExecutor {
     /** Drops are stored before the block is removed, so a full anchor destroys nothing. */
     public static ActionResult finish(ActionContext ctx, ChronoAction.BreakBlock action) {
         ServerLevel level = ctx.level();
-        ResourceHandler<ItemResource> inventory = ctx.items();
+        StackInventory inventory = ctx.items();
         BlockPos worldPos = ctx.placement().toWorld(action.localPos());
         BlockState state = level.getBlockState(worldPos);
 
@@ -133,35 +138,52 @@ public final class BreakActionExecutor {
             return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
         }
 
-        FakePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
+        ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 0.0f, 0.0f, tool);
         try {
+            // The loader's pre-break check, so protection mods can veto a clone's dig.
+            //? if neoforge {
             var breakEvent = CommonHooks.fireBlockBreak(level, GameType.SURVIVAL, owner, worldPos, state);
             if (breakEvent.isCanceled()) {
                 return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
             }
+            //?} else {
+            //? if fabric {
+            /*boolean allowed = net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.BEFORE
+                    .invoker().beforeBlockBreak(level, owner, worldPos, state,
+                            level.getBlockEntity(worldPos));
+            if (!allowed) {
+                net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents.CANCELED
+                        .invoker().onBlockBreakCanceled(level, owner, worldPos, state,
+                                level.getBlockEntity(worldPos));
+                return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
+            }
+            *///?} else {
+            /*if (net.minecraftforge.common.ForgeHooks.onBlockBreakEvent(
+                    level, GameType.SURVIVAL, owner, worldPos) == -1) {
+                return ActionResult.fail(FailureReason.PROTECTED, action.localPos());
+            }
+            *///?}
+            //?}
 
             List<ItemStack> drops = Block.getDrops(state, level, worldPos, null, owner, tool);
 
-            try (Transaction tx = Transaction.openRoot()) {
-                for (ItemStack drop : drops) {
-                    if (drop.isEmpty()) {
-                        continue;
-                    }
-                    int inserted = inventory.insert(ItemResource.of(drop), drop.getCount(), tx);
-                    if (inserted < drop.getCount()) {
-                        return ActionResult.fail(FailureReason.INVENTORY_FULL, action.localPos());
-                    }
-                }
-                tx.commit();
+            if (!inventory.insertAllOrNothing(drops)) {
+                return ActionResult.fail(FailureReason.INVENTORY_FULL, action.localPos());
             }
 
             // destroyBlock never runs playerDestroy, so nothing else pays this.
+            //? if neoforge {
             int experience = state.getExpDrop(level, worldPos, level.getBlockEntity(worldPos),
                     owner, action.toolTemplate());
             if (experience > 0) {
                 owner.giveExperiencePoints(experience);
             }
+            //?} else {
+            /*// No NeoForge getExpDrop here: the vanilla after-break hook drops the orbs at the
+            // block, and releasing the actor sweeps them into the operator's bank.
+            state.spawnAfterBreak(level, worldPos, action.toolTemplate(), true);
+            *///?}
 
             level.destroyBlock(worldPos, false, owner);
             return ActionResult.OK;

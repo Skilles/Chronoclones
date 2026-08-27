@@ -3,7 +3,9 @@ package com.skilles.chronoclones.menu.client;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+//? if >=26 {
 import net.minecraft.client.input.InputWithModifiers;
+//?}
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 
@@ -25,10 +27,17 @@ final class DrawerTab extends AbstractButton {
         return leftPos + imageWidth - OVERLAP;
     }
 
+    //? if >=26 {
     @Override
     public void onPress(@NonNull InputWithModifiers input) {
         onPress.run();
     }
+    //?} else {
+    /*@Override
+    public void onPress() {
+        onPress.run();
+    }
+    *///?}
 
     @Override
     protected void extractContents(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {

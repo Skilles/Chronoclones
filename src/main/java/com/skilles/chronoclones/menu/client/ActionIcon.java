@@ -28,11 +28,19 @@ final class ActionIcon {
         }
 
         float scale = size / 16.0f;
+        //? if >=26 {
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(scale, scale);
         g.fakeItem(stack, 0, 0);
         g.pose().popMatrix();
+        //?} else {
+        /*g.pose().pushPose();
+        g.pose().translate(x, y, 0.0f);
+        g.pose().scale(scale, scale, 1.0f);
+        g.renderFakeItem(stack, 0, 0);
+        g.pose().popPose();
+        *///?}
         return true;
     }
 }

@@ -15,8 +15,10 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.WalkAnimationState;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+//? if >=26 {
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+//?}
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
@@ -102,7 +104,11 @@ public class ChronoCloneEntity extends Entity {
     @Override
     public void tick() {
         float travelled = (float) Mth.length(this.getX() - this.xo, 0.0, this.getZ() - this.zo);
+        //? if >=26 {
         this.walkAnimation.update(Math.min(travelled * 4.0f, 1.0f), 0.4f, 1.0f);
+        //?} else {
+        /*this.walkAnimation.update(Math.min(travelled * 4.0f, 1.0f), 0.4f);
+        *///?}
     }
 
     @Override
@@ -115,26 +121,41 @@ public class ChronoCloneEntity extends Entity {
         return false;
     }
 
+    //? if >=26 {
     @Override
     public boolean canBeCollidedWith(Entity entity) {
         return false;
     }
+    //?} else {
+    /*@Override
+    public boolean canBeCollidedWith() {
+        return false;
+    }
+    *///?}
 
     @Override
     public boolean isInvulnerable() {
         return true;
     }
 
+    //? if >=26 {
     @Override
     public boolean hurtServer(@NonNull ServerLevel level, @NonNull DamageSource source, float amount) {
         return false;
     }
+    //?} else {
+    /*@Override
+    public boolean hurt(@NonNull DamageSource source, float amount) {
+        return false;
+    }
+    *///?}
 
     @Override
     public boolean shouldBeSaved() {
         return false;
     }
 
+    //? if >=1.20.5 {
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
         builder.define(AUTHOR_ID, "");
@@ -142,10 +163,27 @@ public class ChronoCloneEntity extends Entity {
         builder.define(HELD_ITEM, ItemStack.EMPTY);
         builder.define(OFFHAND_ITEM, ItemStack.EMPTY);
     }
+    //?} else {
+    /*@Override
+    protected void defineSynchedData() {
+        this.entityData.define(AUTHOR_ID, "");
+        this.entityData.define(AUTHOR_NAME, "");
+        this.entityData.define(HELD_ITEM, ItemStack.EMPTY);
+        this.entityData.define(OFFHAND_ITEM, ItemStack.EMPTY);
+    }
+    *///?}
 
+    //? if >=26 {
     @Override
     protected void readAdditionalSaveData(@NonNull ValueInput input) {}
 
     @Override
     protected void addAdditionalSaveData(@NonNull ValueOutput output) {}
+    //?} else {
+    /*@Override
+    protected void readAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {}
+
+    @Override
+    protected void addAdditionalSaveData(net.minecraft.nbt.CompoundTag tag) {}
+    *///?}
 }

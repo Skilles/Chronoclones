@@ -43,7 +43,7 @@ public final class RecordingSessions {
     }
 
     private static boolean isReal(ServerPlayer player) {
-        return !player.isFakePlayer();
+        return !com.skilles.chronoclones.platform.ClonePlayer.isFake(player);
     }
 
     public static void clear() {

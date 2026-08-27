@@ -8,7 +8,6 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 
 public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements CustomPacketPayload {
@@ -27,10 +26,7 @@ public record AnchorNudgePayload(BlockPos anchorPos, BlockPos delta) implements 
         return TYPE;
     }
 
-    public static void handle(AnchorNudgePayload payload, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void handle(AnchorNudgePayload payload, ServerPlayer player) {
         BlockPos pos = payload.anchorPos();
         if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5)
                 > MAX_NUDGE_DISTANCE_SQR) {

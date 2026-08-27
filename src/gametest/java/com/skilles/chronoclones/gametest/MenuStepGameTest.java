@@ -15,17 +15,30 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
+//? if >=26 {
 import net.minecraft.world.entity.EntitySpawnReason;
+//?} else {
+/*import net.minecraft.world.entity.MobSpawnType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.npc.villager.Villager;
+//?} else {
+/*import net.minecraft.world.entity.npc.Villager;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+//? if >=1.20.5 {
 import net.minecraft.world.item.trading.ItemCost;
+//?}
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class MenuStepGameTest {
 
@@ -172,7 +185,7 @@ final class MenuStepGameTest {
 
     private static void anvilNamesWhatItIsGiven(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
         int banked = ExperienceStore.pointsForLevels(5);
         anchor.setCloneExperience(0, new ExperienceStore(banked));
 
@@ -198,7 +211,7 @@ final class MenuStepGameTest {
 
     private static void anvilWithoutExperienceSaysSo(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -216,8 +229,8 @@ final class MenuStepGameTest {
 
     private static void anvilDrinksABottle(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = renamingAnchor(helper);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.IRON_SWORD), 1);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.EXPERIENCE_BOTTLE), 4);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.IRON_SWORD, 1));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.EXPERIENCE_BOTTLE, 4));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -265,7 +278,11 @@ final class MenuStepGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(new ChronoAction.UseContainer(
                         new MenuTarget.Entity(local,
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                *///?}
                         MERCHANT_MENU_SIZE, List.of(),
                         List.of(
                                 new SessionStep.Trade(new ItemStack(Items.EMERALD, 1),
@@ -274,7 +291,7 @@ final class MenuStepGameTest {
                                         BuiltInRegistries.ITEM.wrapAsHolder(bought),
                                         SessionStep.Amount.ALL)))));
 
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.EMERALD), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.EMERALD, 1));
         return anchor;
     }
 
@@ -285,7 +302,11 @@ final class MenuStepGameTest {
 
     private static Villager merchant(GameTestHelper helper, BlockPos relative,
                                      MerchantOffer... offers) {
+        //? if >=26 {
         Villager villager = EntityTypes.VILLAGER.spawn(helper.getLevel(),
+        //?} else {
+        /*Villager villager = EntityType.VILLAGER.spawn(helper.getLevel(),
+        *///?}
                 helper.absolutePos(relative), EntitySpawnReason.TRIGGERED);
         if (villager == null) {
             helper.fail("could not spawn the villager this test is about");
@@ -304,7 +325,12 @@ final class MenuStepGameTest {
 
     private static MerchantOffer offer(net.minecraft.world.item.Item cost, int costCount,
                                        net.minecraft.world.item.Item result, int resultCount) {
+        //? if >=1.20.5 {
         return new MerchantOffer(new ItemCost(cost, costCount),
                 new ItemStack(result, resultCount), 16, 0, 0.0f);
+        //?} else {
+        /*return new MerchantOffer(new ItemStack(cost, costCount),
+                new ItemStack(result, resultCount), 16, 0, 0.0f);
+        *///?}
     }
 }

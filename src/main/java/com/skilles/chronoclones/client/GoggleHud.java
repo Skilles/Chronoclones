@@ -5,29 +5,34 @@ import com.skilles.chronoclones.client.preview.GoggleCache;
 import com.skilles.chronoclones.network.GogglePayloads;
 
 import net.minecraft.ChatFormatting;
+//? if >=1.21 {
+//? if >=1.21 {
 import net.minecraft.client.DeltaTracker;
+//?}
+//?}
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.gui.VanillaGuiLayers;
 
-@EventBusSubscriber(modid = Chronoclones.MODID, value = Dist.CLIENT)
 public final class GoggleHud {
 
     private GoggleHud() {}
 
-    @SubscribeEvent
-    static void register(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.CHAT, Chronoclones.id("goggle_truncated"), GoggleHud::render);
-    }
-
-    private static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //? if >=1.21 {
+    //? if >=1.21 {
+    public static void render(GuiGraphicsExtractor graphics, DeltaTracker delta) {
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
+    //?} else {
+    /*public static void render(GuiGraphicsExtractor graphics, float delta) {
+    *///?}
         Minecraft client = Minecraft.getInstance();
+        //? if >=26 {
         if (client.player == null || client.gui.hud.isHidden() || !GoggleCache.isTruncated()) {
+        //?} else {
+        /*if (client.player == null || client.options.hideGui || !GoggleCache.isTruncated()) {
+        *///?}
             return;
         }
         graphics.centeredText(client.font,

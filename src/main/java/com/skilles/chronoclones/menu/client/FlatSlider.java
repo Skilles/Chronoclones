@@ -15,9 +15,14 @@ abstract class FlatSlider extends AbstractSliderButton {
         this.font = font;
     }
 
+    //? if >=26 {
     @Override
     public void extractWidgetRenderState(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY,
                                          float partialTick) {
+    //?} else {
+    /*@Override
+    public void renderWidget(@NonNull GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+    *///?}
         AnchorPanels.panel(g, getX(), getY(), getWidth(), getHeight());
         if (isHoveredOrFocused()) {
             AnchorPanels.outline(g, getX(), getY(), getWidth(), getHeight(), AnchorPanels.ACCENT);

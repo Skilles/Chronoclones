@@ -21,7 +21,11 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.inventory.ContainerInput;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
@@ -57,7 +61,11 @@ class RecordingCodecTest {
                                 Blocks.OAK_PLANKS.defaultBlockState())),
                         new TimedAction(5, new ChronoAction.AttackEntity(
                                 new Vec3(1.5, 0.0, 1.5),
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.ZOMBIE),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.ZOMBIE),
+                                *///?}
                                 ItemStack.EMPTY)),
                         new TimedAction(7, new ChronoAction.UseOnBlock(
                                 new BlockPos(0, 0, 1),
@@ -72,7 +80,11 @@ class RecordingCodecTest {
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.ENDER_PEARL))),
                         new TimedAction(11, new ChronoAction.InteractEntity(
                                 new Vec3(-1.5, 0.0, 2.5),
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                                *///?}
                                 InteractionHand.MAIN_HAND,
                                 BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET))),
                         new TimedAction(13, new ChronoAction.UseContainer(
@@ -91,7 +103,11 @@ class RecordingCodecTest {
                                         new SessionStep.RawClick(-999, 0, ContainerInput.THROW)))),
                         new TimedAction(15, new ChronoAction.UseContainer(
                                 new MenuTarget.Entity(new Vec3(-1.5, 0.0, 2.5),
+                                        //? if >=26 {
                                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                        //?} else {
+                                        /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                        *///?}
                                 39,
                                 List.of(),
                                 List.of(

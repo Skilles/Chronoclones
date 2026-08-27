@@ -5,14 +5,14 @@ import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 
 /** The tail every right-click shares: give the borrowed item back, read the result. */
 final class Interactions {
 
     private Interactions() {}
 
-    static ActionResult finish(ActionContext ctx, FakePlayer owner, InteractionHand hand,
+    static ActionResult finish(ActionContext ctx, ClonePlayer owner, InteractionHand hand,
                                HeldItemLoan.Loan loan, InteractionResult result, BlockPos localPos) {
         HeldItemLoan.giveBack(ctx.level(), ctx.anchorPos(), ctx.items(), loan,
                 owner.getItemInHand(hand).copy());

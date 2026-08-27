@@ -56,7 +56,7 @@ If I find an interaction isn't supported, I'll probably add it!
 
 ***
 
-**Currently only NeoForge Minecraft 26.2**
+**Currently NeoForge and Fabric, Minecraft 26.2**
 
 **Warning**: Since these clones mimic real players, expect weird behavior or rejections when multiple clones are interacting with the same thing. Not yet tested on dedicated servers.
 
@@ -68,7 +68,15 @@ If I find an interaction isn't supported, I'll probably add it!
 *   Improved visuals (most are placeholders)
 *   More interactions and controls
 *   Backport to 26.1, 1.21.x, and 1.20.1 (maybe)
-*   Fabric support
+*   ~~Fabric support~~
 *   Third-party mod integrations
 
 > **Work in progress:** This is a powerful mod, and so the bugs can be powerful too. Make a backup of your world if you try to push the limits. Expect bugs and compatibility issues until they are found and fixed. If you find something that is not working as expected or you have a suggestion, please leave an [issue](https://curseforge.com/minecraft/mc-mods/chronoclones/issues).
+## **Development**
+
+The repository is a [Stonecutter](https://stonecutter.kikugie.dev/) tree: one branch, one shared
+source tree, one Gradle node per Minecraft-version-and-loader pair (currently `26.2-neoforge`
+and `26.2-fabric`). Switch the active target with
+`./gradlew "Set active project to <node>"`, run it with `./gradlew runActiveClient`, and build
+everything with `./gradlew chiseledBuild`. See [docs/PORTING.md](docs/PORTING.md) for the full
+workflow and what enabling the 1.21.1 / 1.20.1 targets involves.

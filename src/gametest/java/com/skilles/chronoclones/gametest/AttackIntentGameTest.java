@@ -15,13 +15,20 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26 {
 import net.minecraft.world.entity.EntitySpawnReason;
+//?} else {
+/*import net.minecraft.world.entity.MobSpawnType;
+*///?}
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class AttackIntentGameTest {
 
@@ -34,7 +41,7 @@ final class AttackIntentGameTest {
                 AttackIntentGameTest::missesBeyondItsRadius);
         ChronoclonesGameTests.add("attack_until_dead_finishes_the_kill",
                 AttackIntentGameTest::untilDeadFinishesTheKill);
-        ChronoclonesGameTests.add("attack_until_dead_gives_up_eventually",
+        ChronoclonesGameTests.add("attack_until_dead_gives_up_eventually", 240,
                 AttackIntentGameTest::untilDeadGivesUpEventually);
         ChronoclonesGameTests.add("attack_needs_a_weapon_it_owns",
                 AttackIntentGameTest::needsAWeaponItOwns);
@@ -149,7 +156,8 @@ final class AttackIntentGameTest {
                 untilDead(), 400);
 
         helper.startSequence()
-                .thenExecuteAfter(130, () -> {
+                // The give-up lands one tick after maxActionTicks (default 160) of waiting.
+                .thenExecuteAfter(190, () -> {
                     if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.UNFINISHED) {
                         helper.fail("expected the attack to give up and say so, got "
                                 + anchor.getLastFailure().reason());
@@ -200,8 +208,8 @@ final class AttackIntentGameTest {
         ChronoAnchorBlockEntity anchor = attackingAnchor(helper,
                 TargetRule.DEFAULT, 20, ActionSettings.ToolRule.SMART);
         takeEverythingBack(anchor);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.WOODEN_SHOVEL)), 1);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(new ItemStack(Items.DIAMOND_AXE)), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.WOODEN_SHOVEL, 1));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.DIAMOND_AXE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -249,7 +257,11 @@ final class AttackIntentGameTest {
     }
 
     private static Mob spawnPig(GameTestHelper helper, BlockPos relative) {
+        //? if >=26 {
         Mob pig = EntityTypes.PIG.spawn(helper.getLevel(), helper.absolutePos(relative),
+        //?} else {
+        /*Mob pig = EntityType.PIG.spawn(helper.getLevel(), helper.absolutePos(relative),
+        *///?}
                 EntitySpawnReason.TRIGGERED);
         if (pig == null) {
             helper.fail("could not spawn the pig this test is about");
@@ -263,7 +275,7 @@ final class AttackIntentGameTest {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
             for (int slot = 0; slot < inventory.size(); slot++) {
-                inventory.set(slot, ItemResource.EMPTY, 0);
+                inventory.setItem(slot, ItemStack.EMPTY);
             }
         }
     }
@@ -273,7 +285,11 @@ final class AttackIntentGameTest {
     }
 
     private static Mob spawn(GameTestHelper helper, BlockPos relative) {
+        //? if >=26 {
         Mob cow = EntityTypes.COW.spawn(helper.getLevel(), helper.absolutePos(relative),
+        //?} else {
+        /*Mob cow = EntityType.COW.spawn(helper.getLevel(), helper.absolutePos(relative),
+        *///?}
                 EntitySpawnReason.TRIGGERED);
         if (cow == null) {
             helper.fail("could not spawn the cow this test is about");
@@ -304,7 +320,11 @@ final class AttackIntentGameTest {
                                                            boolean recorded) {
         ChronoAction.AttackEntity swing = new ChronoAction.AttackEntity(
                 Vec3.atCenterOf(RECORDED),
+                //? if >=26 {
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                //?} else {
+                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                *///?}
                 new ItemStack(Items.NETHERITE_SWORD));
 
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR, new Recording(

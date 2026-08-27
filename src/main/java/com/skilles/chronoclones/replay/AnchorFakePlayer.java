@@ -20,13 +20,13 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 /** A fake player per clone of one anchor, reset between actions. */
 public final class AnchorFakePlayer {
 
-    private final Map<Integer, FakePlayer> players = new HashMap<>();
+    private final Map<Integer, ClonePlayer> players = new HashMap<>();
 
     private final BlockPos anchorPos;
 
@@ -34,10 +34,10 @@ public final class AnchorFakePlayer {
         this.anchorPos = anchorPos;
     }
 
-    public FakePlayer acquire(ServerLevel level, Operator operator, int clone,
+    public ClonePlayer acquire(ServerLevel level, Operator operator, int clone,
                               Vec3 position, float yaw, float pitch, InteractionHand hand,
                               ItemStack held) {
-        FakePlayer actor = playerIn(level, operator, clone);
+        ClonePlayer actor = playerIn(level, operator, clone);
         resetForAction(actor);
 
         // useItemOn branches on game mode: a spectator interacts with nothing, and a creative
@@ -63,15 +63,15 @@ public final class AnchorFakePlayer {
     }
 
     /** Rebuilt if the level differs: a player bound to the wrong one fires its events into it. */
-    private FakePlayer playerIn(ServerLevel level, Operator operator, int clone) {
-        FakePlayer existing = players.get(clone);
+    private ClonePlayer playerIn(ServerLevel level, Operator operator, int clone) {
+        ClonePlayer existing = players.get(clone);
         if (existing != null && existing.level() == level) {
             return existing;
         }
         if (existing != null) {
             existing.discard();
         }
-        FakePlayer made = new FakePlayer(level, new GameProfile(operator.id(), operator.name()));
+        ClonePlayer made = new ClonePlayer(level, new GameProfile(operator.id(), operator.name()));
         players.put(clone, made);
         return made;
     }
@@ -82,7 +82,7 @@ public final class AnchorFakePlayer {
      * <p>Read as a level and a fraction, not from {@code totalExperience}, which vanilla only ever
      * adds to: an anvil charging a level for its work was charging it to nobody.
      */
-    public void release(Operator operator, FakePlayer actor) {
+    public void release(Operator operator, ClonePlayer actor) {
         sweepOrbs(actor);
         operator.setExperience(
                 ExperienceStore.pointsFor(actor.experienceLevel, actor.experienceProgress));
@@ -90,19 +90,19 @@ public final class AnchorFakePlayer {
     }
 
     /** For tests and diagnostics. Nothing in the mod's own behaviour reads this. */
-    public @Nullable FakePlayer current(int clone) {
+    public @Nullable ClonePlayer current(int clone) {
         return players.get(clone);
     }
 
     public void discard() {
-        for (FakePlayer actor : players.values()) {
+        for (ClonePlayer actor : players.values()) {
             spillHeld(actor);
             actor.discard();
         }
         players.clear();
     }
 
-    private void spillHeld(FakePlayer actor) {
+    private void spillHeld(ClonePlayer actor) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack held = actor.getItemInHand(hand);
             if (held.isEmpty()) {
@@ -115,21 +115,25 @@ public final class AnchorFakePlayer {
     }
 
     /** A fake player never ticks, so its attack cooldown never refills on its own. */
-    public static void chargeAttack(FakePlayer actor) {
+    public static void chargeAttack(ClonePlayer actor) {
         actor.attackStrengthTicker = FULLY_CHARGED_TICKS;
     }
 
     private static final int FULLY_CHARGED_TICKS = 1000;
 
-    private void resetForAction(FakePlayer actor) {
+    private void resetForAction(ClonePlayer actor) {
         clearTransientState(actor);
     }
 
-    private void resetAfterAction(FakePlayer actor) {
+    private void resetAfterAction(ClonePlayer actor) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack lastHeld = actor.getItemInHand(hand);
             if (!lastHeld.isEmpty()) {
+                //? if >=26 {
                 actor.getCooldowns().removeCooldown(actor.getCooldowns().getCooldownGroup(lastHeld));
+                //?} else {
+                /*actor.getCooldowns().removeCooldown(lastHeld.getItem());
+                *///?}
             }
             hold(actor, hand, ItemStack.EMPTY);
         }
@@ -138,7 +142,7 @@ public final class AnchorFakePlayer {
         spillLeftovers(actor);
     }
 
-    private void clearTransientState(FakePlayer actor) {
+    private void clearTransientState(ClonePlayer actor) {
         actor.stopUsingItem();
         actor.removeAllEffects();
         actor.clearFire();
@@ -164,7 +168,7 @@ public final class AnchorFakePlayer {
      * <p>A container session loads and drains these itself, so reaching here means one of them
      * failed partway. Clearing it silently would eat a routine's stock for no findable reason.
      */
-    private void spillLeftovers(FakePlayer actor) {
+    private void spillLeftovers(ClonePlayer actor) {
         Inventory inventory = actor.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             ItemStack left = inventory.getItem(slot);
@@ -182,7 +186,7 @@ public final class AnchorFakePlayer {
     private static final double ORB_REACH = 1.0;
 
     /** Vanilla collects orbs while ticking, which a fake player never does. */
-    private static void sweepOrbs(FakePlayer actor) {
+    private static void sweepOrbs(ClonePlayer actor) {
         if (!(actor.level() instanceof ServerLevel level)) {
             return;
         }
@@ -194,7 +198,7 @@ public final class AnchorFakePlayer {
     }
 
     /** giveExperiencePoints only adds, and vanilla has no setter. */
-    private static void setExperience(FakePlayer actor, int points) {
+    private static void setExperience(ClonePlayer actor, int points) {
         actor.experienceLevel = 0;
         actor.experienceProgress = 0.0f;
         actor.totalExperience = 0;
@@ -204,24 +208,34 @@ public final class AnchorFakePlayer {
     }
 
     /** Vanilla applies equipment attribute modifiers while ticking, which this never does. */
-    private static void hold(FakePlayer actor, InteractionHand hand, ItemStack stack) {
+    private static void hold(ClonePlayer actor, InteractionHand hand, ItemStack stack) {
         EquipmentSlot slot = hand == InteractionHand.MAIN_HAND
                 ? EquipmentSlot.MAINHAND
                 : EquipmentSlot.OFFHAND;
 
         ItemStack previous = actor.getItemInHand(hand);
         if (!previous.isEmpty()) {
+            //? if >=1.20.5 {
             previous.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
                     instance.removeModifier(modifier.id());
                 }
             });
+            //?} else {
+            /*previous.getAttributeModifiers(slot).forEach((attribute, modifier) -> {
+                AttributeInstance instance = actor.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.getId());
+                }
+            });
+            *///?}
         }
 
         actor.setItemInHand(hand, stack);
 
         if (!stack.isEmpty()) {
+            //? if >=1.20.5 {
             stack.forEachModifier(slot, (attribute, modifier) -> {
                 AttributeInstance instance = actor.getAttributes().getInstance(attribute);
                 if (instance != null) {
@@ -229,6 +243,15 @@ public final class AnchorFakePlayer {
                     instance.addTransientModifier(modifier);
                 }
             });
+            //?} else {
+            /*stack.getAttributeModifiers(slot).forEach((attribute, modifier) -> {
+                AttributeInstance instance = actor.getAttributes().getInstance(attribute);
+                if (instance != null) {
+                    instance.removeModifier(modifier.getId());
+                    instance.addTransientModifier(modifier);
+                }
+            });
+            *///?}
         }
     }
 }

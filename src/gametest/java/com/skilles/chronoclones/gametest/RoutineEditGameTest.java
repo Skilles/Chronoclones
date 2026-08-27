@@ -22,22 +22,22 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.server.level.ServerLevel;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import net.minecraft.server.level.ServerPlayer;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 final class RoutineEditGameTest {
 
@@ -105,10 +105,10 @@ final class RoutineEditGameTest {
     private static void blankRecorderTakesTheRecordingBack(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 3);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 3));
 
         int actions = anchor.getRecording().actions().size();
-        FakePlayer player = AnchorTestFixture.owner(helper.getLevel());
+        ServerPlayer player = AnchorTestFixture.owner(helper.getLevel());
         crouchOnto(helper, player, new ItemStack(ModItems.CHRONO_RECORDER.get()), ANCHOR);
 
         try {
@@ -137,7 +137,7 @@ final class RoutineEditGameTest {
         }
     }
 
-    private static void crouchOnto(GameTestHelper helper, FakePlayer player, ItemStack held,
+    private static void crouchOnto(GameTestHelper helper, ServerPlayer player, ItemStack held,
                                    BlockPos relativePos) {
         ServerLevel level = helper.getLevel();
         BlockPos absolute = helper.absolutePos(relativePos);
@@ -153,8 +153,12 @@ final class RoutineEditGameTest {
         }
     }
 
-    private static @org.jspecify.annotations.Nullable Recording recordingCarriedBy(FakePlayer player) {
+    private static @org.jspecify.annotations.Nullable Recording recordingCarriedBy(ServerPlayer player) {
+        //? if >=26 {
         for (ItemStack stack : player.getInventory()) {
+        //?} else {
+        /*for (ItemStack stack : player.getInventory().items) {
+        *///?}
             Recording recording = ChronoRecorderItem.recordingOf(stack);
             if (recording != null) {
                 return recording;
@@ -166,7 +170,7 @@ final class RoutineEditGameTest {
     private static void discardingSpillsTheStorage(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 7));
         anchor.setCloneExperience(1, new com.skilles.chronoclones.block.ExperienceStore(40));
 
         anchor.clearRecording();
@@ -206,7 +210,7 @@ final class RoutineEditGameTest {
                 helper, ANCHOR, AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
         ChronoAnchorMenu menu = new ChronoAnchorMenu(1,
-                helper.makeMockServerPlayerInLevel().getInventory(), anchor,
+                AnchorTestFixture.mockServerPlayer(helper).getInventory(), anchor,
                 anchor.getContainerData());
         if (!menu.hasStorage()) {
             helper.fail("an imprinted anchor refused its own storage");
@@ -223,13 +227,21 @@ final class RoutineEditGameTest {
      * item components, which are only bound once the game is fully up. */
     private static void creatureActionsArePicturedAsCreatures(GameTestHelper helper) {
         assertIcon(helper, new ChronoAction.InteractEntity(
+                        //? if >=26 {
                         Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.COW),
+                        //?} else {
+                        /*Vec3.ZERO, BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.COW),
+                        *///?}
                         InteractionHand.MAIN_HAND, BuiltInRegistries.ITEM.wrapAsHolder(Items.BUCKET)),
                 Items.COW_SPAWN_EGG);
 
         assertIcon(helper, new ChronoAction.UseContainer(
                         new MenuTarget.Entity(Vec3.ZERO,
+                                //? if >=26 {
                                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.VILLAGER)),
+                                //?} else {
+                                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.VILLAGER)),
+                                *///?}
                         39, List.of(), List.of()),
                 Items.VILLAGER_SPAWN_EGG);
 
@@ -303,19 +315,18 @@ final class RoutineEditGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
-                    ResourceHandler<ItemResource> barrel = helper.getLevel().getCapability(
-                            Capabilities.Item.BLOCK, absolute, null);
-                    if (barrel == null) {
+                    ServerLevel level = helper.getLevel();
+                    if (!TestItemPipes.present(level, absolute)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getAmountAsInt(9) != 1) {
+                    if (TestItemPipes.slot(level, absolute, 9).getCount() != 1) {
                         helper.fail("expected one moved of a stack of twelve, slot 9 holds "
-                                + barrel.getAmountAsInt(9));
+                                + TestItemPipes.slot(level, absolute, 9).getCount());
                     }
-                    if (barrel.getAmountAsInt(0) != 11) {
+                    if (TestItemPipes.slot(level, absolute, 0).getCount() != 11) {
                         helper.fail("the rest was not put back, slot 0 holds "
-                                + barrel.getAmountAsInt(0));
+                                + TestItemPipes.slot(level, absolute, 0).getCount());
                     }
                     if (AnchorTestFixture.countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
                         helper.fail("the remainder came home with the clone");
@@ -383,15 +394,7 @@ final class RoutineEditGameTest {
 
     private static void stock(ServerLevel level, BlockPos absolutePos, int slot,
                               net.minecraft.world.item.Item item, int amount) {
-        ResourceHandler<ItemResource> handler =
-                level.getCapability(Capabilities.Item.BLOCK, absolutePos, null);
-        if (handler == null) {
-            return;
-        }
-        try (Transaction tx = Transaction.openRoot()) {
-            handler.insert(slot, ItemResource.of(item), amount, tx);
-            tx.commit();
-        }
+        TestItemPipes.insertIntoSlot(level, absolutePos, slot, item, amount);
     }
 
     private static void discardingLeavesTheAnchorBlank(GameTestHelper helper) {

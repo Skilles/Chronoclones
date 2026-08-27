@@ -8,7 +8,11 @@ import com.google.gson.JsonParser;
 
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
 import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
 import net.minecraft.world.item.Items;
 
 import com.skilles.chronoclones.recording.ActionSettings.SlotRule;
@@ -73,18 +77,38 @@ class ActionSettingsTest {
     @Test
     @DisplayName("an empty entity filter accepts anything, so an unedited attack behaves as before")
     void emptyFilterAcceptsAnything() {
+        //? if >=26 {
         assertTrue(TargetRule.DEFAULT.accepts(EntityTypes.ZOMBIE));
+        //?} else {
+        /*assertTrue(TargetRule.DEFAULT.accepts(EntityType.ZOMBIE));
+        *///?}
+        //? if >=26 {
         assertTrue(TargetRule.DEFAULT.accepts(EntityTypes.COW));
+        //?} else {
+        /*assertTrue(TargetRule.DEFAULT.accepts(EntityType.COW));
+        *///?}
     }
 
     @Test
     @DisplayName("a filter admits only what it names")
     void filterAdmitsOnlyWhatItNames() {
         TargetRule rule = TargetRule.DEFAULT.withFilter(List.of(
+                //? if >=26 {
                 BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.ZOMBIE)));
+                //?} else {
+                /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.ZOMBIE)));
+                *///?}
 
+        //? if >=26 {
         assertTrue(rule.accepts(EntityTypes.ZOMBIE));
+        //?} else {
+        /*assertTrue(rule.accepts(EntityType.ZOMBIE));
+        *///?}
+        //? if >=26 {
         assertFalse(rule.accepts(EntityTypes.COW));
+        //?} else {
+        /*assertFalse(rule.accepts(EntityType.COW));
+        *///?}
     }
 
     @Test

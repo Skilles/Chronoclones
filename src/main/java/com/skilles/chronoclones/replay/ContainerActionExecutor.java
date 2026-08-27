@@ -17,7 +17,11 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.Container;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.Entity;
+//? if >=26 {
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
+//?} else {
+/*import net.minecraft.world.entity.animal.horse.AbstractHorse;
+*///?}
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -34,7 +38,7 @@ import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class ContainerActionExecutor {
@@ -56,7 +60,7 @@ public final class ContainerActionExecutor {
             return ActionResult.fail(FailureReason.UNLOADED, localBlock);
         }
 
-        FakePlayer owner = ctx.acquire(worldPoint,
+        ClonePlayer owner = ctx.acquire(worldPoint,
                 ctx.placement().facing().toYRot(), 0.0f, ItemStack.EMPTY);
         try {
             Session session = openMenu(ctx, action, worldPoint, owner);
@@ -107,7 +111,7 @@ public final class ContainerActionExecutor {
 
     /** Built directly: a fake player's openMenu is a no-op, so nothing would be open to click. */
     private static @Nullable Session openMenu(ActionContext ctx, ChronoAction.UseContainer action,
-                                              Vec3 worldPoint, FakePlayer owner) {
+                                              Vec3 worldPoint, ClonePlayer owner) {
         ServerLevel level = ctx.level();
         if (action.target() instanceof MenuTarget.Entity target) {
             Entity entity = findEntity(ctx, target, worldPoint);
@@ -138,7 +142,7 @@ public final class ContainerActionExecutor {
                 ctx.recordedSubject());
     }
 
-    private static @Nullable Session openEntityMenu(Entity entity, FakePlayer owner) {
+    private static @Nullable Session openEntityMenu(Entity entity, ClonePlayer owner) {
         if (entity instanceof Merchant merchant) {
             if (merchant.getTradingPlayer() != null) {
                 return null;
@@ -149,8 +153,13 @@ public final class ContainerActionExecutor {
             return new Session(menu, () -> merchant.setTradingPlayer(null));
         }
         if (entity instanceof AbstractHorse horse) {
-            return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.getInventory(),
+            //? if >=1.20.5 {
+            return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.inventory,
                     horse, horse.getInventoryColumns()));
+            //?} else {
+            /*return Session.of(new HorseInventoryMenu(1, owner.getInventory(), horse.inventory,
+                    horse));
+            *///?}
         }
         if (entity instanceof MenuProvider provider) {
             AbstractContainerMenu menu = provider.createMenu(1, owner.getInventory(), owner);
@@ -159,7 +168,7 @@ public final class ContainerActionExecutor {
         return null;
     }
 
-    private static FailureReason runStep(AbstractContainerMenu menu, FakePlayer owner,
+    private static FailureReason runStep(AbstractContainerMenu menu, ClonePlayer owner,
                                          SessionStep step, ActionSettings.StepSettings rule) {
         int levels = experienceCost(menu, step);
         if (levels > 0 && owner.experienceLevel < levels && !drinkUpTo(owner, levels)) {
@@ -219,7 +228,7 @@ public final class ContainerActionExecutor {
     }
 
     /** Consumed rather than thrown: a bottle that has to land would take several ticks. */
-    private static boolean drinkUpTo(FakePlayer owner, int levels) {
+    private static boolean drinkUpTo(ClonePlayer owner, int levels) {
         while (owner.experienceLevel < levels) {
             int slot = findInInventory(owner, Items.EXPERIENCE_BOTTLE);
             if (slot < 0) {
@@ -232,7 +241,7 @@ public final class ContainerActionExecutor {
         return true;
     }
 
-    private static int findInInventory(FakePlayer owner, Item item) {
+    private static int findInInventory(ClonePlayer owner, Item item) {
         Inventory inventory = owner.getInventory();
         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
             if (inventory.getItem(slot).is(item)) {
@@ -268,7 +277,11 @@ public final class ContainerActionExecutor {
     private static boolean matches(MerchantOffer offer, SessionStep.Trade trade) {
         return offer.getCostA().getItem() == trade.costA().getItem()
                 && offer.getCostB().getItem() == trade.costB().getItem()
+                //? if >=1.20.5 {
                 && ItemStack.isSameItemSameComponents(offer.getResult(), trade.result())
+                //?} else {
+                /*&& ItemStack.isSameItemSameTags(offer.getResult(), trade.result())
+                *///?}
                 && offer.getResult().getCount() == trade.result().getCount();
     }
 
@@ -278,7 +291,7 @@ public final class ContainerActionExecutor {
      * <p>Through {@code clicked} rather than by writing slots, so a mod's own slot rules and
      * refusals apply exactly as they do to a player.
      */
-    private static boolean runMove(AbstractContainerMenu menu, FakePlayer owner, SessionStep.Move move,
+    private static boolean runMove(AbstractContainerMenu menu, ClonePlayer owner, SessionStep.Move move,
                                    ActionSettings.StepSettings rule) {
         if (move.from() < 0 || move.from() >= menu.slots.size()) {
             return false;

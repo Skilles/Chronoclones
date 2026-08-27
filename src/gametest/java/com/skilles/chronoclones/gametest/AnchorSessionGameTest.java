@@ -18,7 +18,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class AnchorSessionGameTest {
 
@@ -47,7 +46,7 @@ final class AnchorSessionGameTest {
 
         ChronoAnchorBlockEntity runner =
                 AnchorTestFixture.placeAndImprint(helper, RUNNER, recording);
-        runner.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.DIAMOND)), 5);
+        runner.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -76,7 +75,7 @@ final class AnchorSessionGameTest {
 
         ChronoAnchorBlockEntity runner =
                 AnchorTestFixture.placeAndImprint(helper, RUNNER, recording);
-        runner.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.DIAMOND)), 5);
+        runner.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND, 5));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -96,7 +95,7 @@ final class AnchorSessionGameTest {
     private static @org.jspecify.annotations.Nullable Recording recordStocking(
             GameTestHelper helper, ChronoAnchorBlockEntity target) {
         BlockPos absoluteRunner = helper.absolutePos(RUNNER);
-        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ServerPlayer player = AnchorTestFixture.mockServerPlayer(helper);
         player.snapTo(absoluteRunner.getX() + 0.5, absoluteRunner.getY(), absoluteRunner.getZ() + 0.5);
         player.setYRot(180.0f);
 
@@ -161,7 +160,7 @@ final class AnchorSessionGameTest {
         for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
             var inventory = anchor.getCloneInventory(clone);
             for (int slot = 0; slot < inventory.size(); slot++) {
-                inventory.set(slot, ItemResource.EMPTY, 0);
+                inventory.setItem(slot, ItemStack.EMPTY);
             }
         }
     }

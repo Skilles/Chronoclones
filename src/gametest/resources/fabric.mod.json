@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "chronoclones_gametest",
+  "version": "1.0.0",
+  "name": "Chronoclones GameTests",
+  "description": "Development-only game tests for Chronoclones.",
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.skilles.chronoclones.gametest.FabricGametestInit"
+    ]
+  },
+  "depends": {
+    "chronoclones": "*"
+  }
+}

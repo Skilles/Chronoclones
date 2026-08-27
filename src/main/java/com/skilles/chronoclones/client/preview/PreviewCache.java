@@ -5,7 +5,7 @@ import com.skilles.chronoclones.block.ChronoAnchorBlock;
 import com.skilles.chronoclones.network.AnchorPreviewPayloads;
 import com.skilles.chronoclones.recording.Recording;
 import com.skilles.chronoclones.replay.Placement;
-import com.skilles.chronoclones.registry.ModDataComponents;
+import com.skilles.chronoclones.item.RecordingItemData;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
@@ -15,7 +15,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
+import com.skilles.chronoclones.platform.PlatformClientNetwork;
 import org.jspecify.annotations.Nullable;
 
 public final class PreviewCache {
@@ -66,7 +66,7 @@ public final class PreviewCache {
                 && now >= cachedAtTick && now - cachedAtTick <= TTL_TICKS;
         if (!fresh && CLOCK.claim(now, REQUEST_INTERVAL_TICKS)) {
             LEDGER.asked();
-            ClientPacketDistributor.sendToServer(new AnchorPreviewPayloads.Request(pos));
+            PlatformClientNetwork.sendToServer(new AnchorPreviewPayloads.Request(pos));
         }
 
         // The last known offset, even gone stale, beats flashing back to the origin for the
@@ -116,7 +116,7 @@ public final class PreviewCache {
     private static @Nullable Recording heldRecording(net.minecraft.world.entity.player.Player player) {
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack stack = player.getItemInHand(hand);
-            Recording recording = stack.get(ModDataComponents.RECORDING.get());
+            Recording recording = RecordingItemData.recording(stack);
             if (recording != null) {
                 return recording;
             }

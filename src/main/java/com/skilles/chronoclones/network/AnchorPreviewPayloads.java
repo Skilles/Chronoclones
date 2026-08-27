@@ -14,7 +14,6 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import org.jspecify.annotations.NonNull;
 
 public final class AnchorPreviewPayloads {
@@ -54,10 +53,7 @@ public final class AnchorPreviewPayloads {
         }
     }
 
-    public static void handleRequest(Request request, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void handleRequest(Request request, ServerPlayer player) {
         BlockPos pos = request.pos();
         if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) > MAX_REQUEST_DISTANCE_SQR) {
             return;
@@ -67,8 +63,9 @@ public final class AnchorPreviewPayloads {
             return;
         }
 
-        context.reply(new Reply(pos, Optional.ofNullable(anchor.getRecording()),
-                anchor.getLastFailure(), anchor.getOriginOffset()));
+        com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
+                new Reply(pos, Optional.ofNullable(anchor.getRecording()),
+                        anchor.getLastFailure(), anchor.getOriginOffset()));
     }
 
     private static final double MAX_REQUEST_DISTANCE_SQR = 12.0 * 12.0;

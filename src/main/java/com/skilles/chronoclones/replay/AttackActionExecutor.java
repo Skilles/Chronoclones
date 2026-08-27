@@ -19,9 +19,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+import com.skilles.chronoclones.platform.ClonePlayer;
 import org.jspecify.annotations.Nullable;
 
 public final class AttackActionExecutor {
@@ -52,7 +52,7 @@ public final class AttackActionExecutor {
             return AttackOutcome.missed(FailureReason.NO_ITEM, localBlock);
         }
 
-        FakePlayer owner = ctx.acquire(worldPos, 0.0f, 0.0f,
+        ClonePlayer owner = ctx.acquire(worldPos, 0.0f, 0.0f,
                 loan.stack());
         try {
             AnchorFakePlayer.chargeAttack(owner);
@@ -85,16 +85,16 @@ public final class AttackActionExecutor {
     }
 
     /** The slot rule is ignored here for the same reason it is for a smart tool. */
-    private static HeldItemLoan.@Nullable Loan takeBestWeapon(ResourceHandler<ItemResource> inventory) {
+    private static HeldItemLoan.@Nullable Loan takeBestWeapon(StackInventory inventory) {
         int best = -1;
         double bestDamage = 0.0;
 
         for (int slot = 0; slot < inventory.size(); slot++) {
-            ItemResource resource = inventory.getResource(slot);
-            if (resource.isEmpty() || inventory.getAmountAsInt(slot) <= 0) {
+            ItemStack held = inventory.getItem(slot);
+            if (held.isEmpty()) {
                 continue;
             }
-            double damage = meleeDamageOf(resource.toStack(1));
+            double damage = meleeDamageOf(held.copyWithCount(1));
             if (damage > bestDamage) {
                 best = slot;
                 bestDamage = damage;
@@ -103,19 +103,28 @@ public final class AttackActionExecutor {
 
         return best < 0
                 ? HeldItemLoan.EMPTY_HANDED
-                : HeldItemLoan.take(inventory, inventory.getResource(best).getItem(),
+                : HeldItemLoan.take(inventory, inventory.getItem(best).getItem(),
                         SlotRule.prefer(best));
     }
 
     /** Flat modifiers only: the multiplying ones scale a total this cannot know. */
     private static double meleeDamageOf(ItemStack stack) {
         double[] total = {0.0};
+        //? if >=1.20.5 {
         stack.forEachModifier(EquipmentSlot.MAINHAND, (attribute, modifier) -> {
             if (attribute.value() == Attributes.ATTACK_DAMAGE.value()
                     && modifier.operation() == AttributeModifier.Operation.ADD_VALUE) {
                 total[0] += modifier.amount();
             }
         });
+        //?} else {
+        /*stack.getAttributeModifiers(EquipmentSlot.MAINHAND).forEach((attribute, modifier) -> {
+            if (attribute == Attributes.ATTACK_DAMAGE
+                    && modifier.getOperation() == AttributeModifier.Operation.ADDITION) {
+                total[0] += modifier.getAmount();
+            }
+        });
+        *///?}
         return total[0];
     }
 
@@ -123,7 +132,7 @@ public final class AttackActionExecutor {
                                                        ChronoAction.AttackEntity action,
                                                        Vec3 worldPos, @Nullable LivingEntity sticky) {
         TargetRule rule = ctx.target();
-        boolean allowPvp = ChronoclonesConfig.ALLOW_PVP.get();
+        boolean allowPvp = ChronoclonesConfig.allowPvp();
         AABB box = Targeting.boxAround(worldPos, rule);
 
         if (sticky != null && sticky.isAlive() && box.contains(sticky.position())) {

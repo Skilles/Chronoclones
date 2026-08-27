@@ -26,10 +26,10 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
-import net.neoforged.neoforge.common.util.FakePlayer;
-import net.neoforged.neoforge.common.util.FakePlayerFactory;
+import com.skilles.chronoclones.inventory.StackInventory;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 
 final class AnchorTestFixture {
 
@@ -133,11 +133,10 @@ final class AnchorTestFixture {
             if (swung.isEmpty()) {
                 continue;
             }
-            ItemResource tool = ItemResource.of(swung);
             for (int clone = 0; clone < ChronoAnchorBlockEntity.CLONE_INVENTORIES; clone++) {
-                ItemStacksResourceHandler inventory = anchor.getCloneInventory(clone);
+                StackInventory inventory = anchor.getCloneInventory(clone);
                 if (countIn(inventory, swung.getItem()) == 0) {
-                    inventory.set(inventory.size() - 1, tool, 1);
+                    inventory.setItem(inventory.size() - 1, swung.copyWithCount(1));
                 }
             }
         }
@@ -148,6 +147,10 @@ final class AnchorTestFixture {
     /** A structure that fails to load leaves a one-block plot and fails in baffling ways. */
     private static void requireRoom(GameTestHelper helper) {
         AABB plot = helper.getBounds();
+        //? if <1.20.2 {
+        /*// 1.20.1's structure bounds stop one block short of the far corner.
+        plot = plot.expandTowards(1.0, 1.0, 1.0);
+        *///?}
         if (plot.getXsize() < PLOT_SIZE || plot.getZsize() < PLOT_SIZE) {
             helper.fail("this plot is " + (int) plot.getXsize() + "x" + (int) plot.getZsize()
                     + " and the tests need " + PLOT_SIZE + "x" + PLOT_SIZE
@@ -156,14 +159,61 @@ final class AnchorTestFixture {
         }
     }
 
-    static FakePlayer owner(ServerLevel level) {
-        return FakePlayerFactory.get(level, new GameProfile(OWNER_ID, OWNER_NAME));
+    static ServerPlayer owner(ServerLevel level) {
+        return fakePlayer(level, new GameProfile(OWNER_ID, OWNER_NAME));
+    }
+
+    /** The framework's mock player; Forge 1.20.1's login filters need a real channel behind it. */
+    static ServerPlayer mockServerPlayer(GameTestHelper helper) {
+        //? if forge {
+        /*ServerLevel level = helper.getLevel();
+        com.mojang.authlib.GameProfile profile =
+                new com.mojang.authlib.GameProfile(java.util.UUID.randomUUID(), "test-mock-player");
+        // Named rather than anonymous: javac names a synthesized anonymous constructor after
+        // the superclass constructor's debug metadata, and recompiled Minecraft jars can
+        // carry duplicate names there.
+        final class MockPlayer extends ServerPlayer {
+
+            MockPlayer() {
+                super(level.getServer(), level, profile);
+            }
+
+            @Override
+            public boolean isSpectator() {
+                return false;
+            }
+
+            @Override
+            public boolean isCreative() {
+                return true;
+            }
+        }
+        ServerPlayer player = new MockPlayer();
+        net.minecraft.network.Connection connection =
+                new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+        new io.netty.channel.embedded.EmbeddedChannel(connection);
+        level.getServer().getPlayerList().placeNewPlayer(connection, player);
+        return player;
+        *///?} else {
+        return helper.makeMockServerPlayerInLevel();
+        //?}
+    }
+
+    /** The loader's own reusable fake player, so loader internals treat it as one. */
+    static ServerPlayer fakePlayer(ServerLevel level, GameProfile profile) {
+        //? if neoforge {
+        return net.neoforged.neoforge.common.util.FakePlayerFactory.get(level, profile);
+        //?} else {
+        //? if fabric {
+        /*return net.fabricmc.fabric.api.entity.FakePlayer.get(level, profile);
+        *///?} else {
+        /*return net.minecraftforge.common.util.FakePlayerFactory.get(level, profile);
+        *///?}
+        //?}
     }
 
     static void giveInfiniteCharge(ChronoAnchorBlockEntity anchor) {
-        anchor.getFuelHandler().set(0,
-                net.neoforged.neoforge.transfer.item.ItemResource.of(
-                        ModItems.CREATIVE_CHARGE_CELL.get()), 1);
+        anchor.getFuelHandler().setItem(0, new ItemStack(ModItems.CREATIVE_CHARGE_CELL.get()));
     }
 
     static BlockState stateAt(GameTestHelper helper, BlockPos relative) {
@@ -181,25 +231,22 @@ final class AnchorTestFixture {
     }
 
     static net.minecraft.world.item.ItemStack findStack(
-            net.neoforged.neoforge.transfer.ResourceHandler<
-                    net.neoforged.neoforge.transfer.item.ItemResource> handler,
-            net.minecraft.world.item.Item item) {
-        for (int slot = 0; slot < handler.size(); slot++) {
-            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                return resource.toStack(Math.max(1, handler.getAmountAsInt(slot)));
+            Container container, net.minecraft.world.item.Item item) {
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack held = container.getItem(slot);
+            if (!held.isEmpty() && held.getItem() == item) {
+                return held.copyWithCount(Math.max(1, held.getCount()));
             }
         }
         return null;
     }
 
-    static int countIn(net.neoforged.neoforge.transfer.ResourceHandler<
-            net.neoforged.neoforge.transfer.item.ItemResource> handler, net.minecraft.world.item.Item item) {
+    static int countIn(Container container, net.minecraft.world.item.Item item) {
         int total = 0;
-        for (int slot = 0; slot < handler.size(); slot++) {
-            net.neoforged.neoforge.transfer.item.ItemResource resource = handler.getResource(slot);
-            if (!resource.isEmpty() && resource.getItem() == item) {
-                total += handler.getAmountAsInt(slot);
+        for (int slot = 0; slot < container.getContainerSize(); slot++) {
+            ItemStack held = container.getItem(slot);
+            if (!held.isEmpty() && held.getItem() == item) {
+                total += held.getCount();
             }
         }
         return total;

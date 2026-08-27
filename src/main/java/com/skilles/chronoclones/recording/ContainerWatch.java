@@ -25,7 +25,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
-import net.neoforged.neoforge.network.PacketDistributor;
+import com.skilles.chronoclones.platform.PlatformNetwork;
 import org.jspecify.annotations.Nullable;
 
 /** Records what a player did inside a container, as the clicks they made. */
@@ -51,7 +51,11 @@ public final class ContainerWatch {
                                        RecordingSession session) {
         PENDING.put(player.getUUID(), new Pending(
                 new MenuTarget.Block(session.toLocal(pos), Optional.of(
+                        //? if >=26 {
                         player.level().getBlockState(pos).typeHolder())),
+                        //?} else {
+                        /*player.level().getBlockState(pos).getBlockHolder())),
+                        *///?}
                 pos, now(player)));
     }
 
@@ -252,9 +256,35 @@ public final class ContainerWatch {
     }
 
     private static void send(ServerPlayer player, RecordingHighlightPayload payload) {
-        if (player.connection != null && !player.hasDisconnected()
-                && player.connection.hasChannel(RecordingHighlightPayload.TYPE)) {
-            PacketDistributor.sendToPlayer(player, payload);
+        if (player.connection == null || player.hasDisconnected()) {
+            return;
+        }
+        //? if <26 {
+        /*// 21.1's hasChannel reads a channel attribute that mock and fake players lack.
+        if (!player.connection.isAcceptingMessages()) {
+            return;
+        }
+        *///?}
+        // Only if the client declared it understands this payload; a vanilla client would kick.
+        boolean listening =
+                //? if neoforge {
+                player.connection.hasChannel(RecordingHighlightPayload.TYPE);
+                //?} else {
+                //? if forge {
+                /*com.skilles.chronoclones.platform.forge.ForgeNetwork.canSend(player);
+                *///?}
+                //? if fabric {
+                //? if >=1.20.5 {
+                /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                        player, RecordingHighlightPayload.TYPE);
+                *///?} else {
+                /*net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking.canSend(
+                        player, RecordingHighlightPayload.TYPE.id());
+                *///?}
+                //?}
+                //?}
+        if (listening) {
+            PlatformNetwork.sendToPlayer(player, payload);
         }
     }
 

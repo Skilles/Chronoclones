@@ -1,0 +1,93 @@
+package com.skilles.chronoclones.platform;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
+
+import net.minecraft.core.Registry;
+//? if neoforge {
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredRegister;
+//?}
+
+/**
+ * Loader-neutral registration. Registry classes declare entries through this and stay free of
+ * loader imports; only this class knows how the active loader wants registrations delivered.
+ *
+ * <p>On NeoForge entries queue in a {@code DeferredRegister} until the mod entrypoint hands over
+ * the mod bus; a Fabric build registers directly, since its registries accept writes during init.
+ */
+public final class Registrar<T> {
+
+    private static final List<Registrar<?>> ALL = new ArrayList<>();
+
+    //? if neoforge {
+    private final DeferredRegister<T> deferred;
+
+    private Registrar(Registry<T> registry, String namespace) {
+        this.deferred = DeferredRegister.create(registry, namespace);
+    }
+
+    public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
+        return deferred.register(name, factory);
+    }
+
+    /** NeoForge delivery: every registrar created so far joins the mod bus. */
+    public static void registerAllTo(IEventBus modEventBus) {
+        synchronized (ALL) {
+            ALL.forEach(registrar -> registrar.deferred.register(modEventBus));
+        }
+    }
+    //?} else {
+    //? if forge {
+    /*private final net.minecraftforge.registries.DeferredRegister<T> deferred;
+
+    private Registrar(Registry<T> registry, String namespace) {
+        this.deferred = net.minecraftforge.registries.DeferredRegister.create(registry.key(), namespace);
+    }
+
+    public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
+        return this.deferred.register(name, factory);
+    }
+
+    // Forge delivery: every registrar created so far joins the mod bus.
+    public static void registerAllTo(net.minecraftforge.eventbus.api.IEventBus modEventBus) {
+        synchronized (ALL) {
+            ALL.forEach(registrar -> registrar.deferred.register(modEventBus));
+        }
+    }
+    *///?}
+    //? if fabric {
+    /*private final Registry<T> registry;
+    private final String namespace;
+
+    private Registrar(Registry<T> registry, String namespace) {
+        this.registry = registry;
+        this.namespace = namespace;
+    }
+
+    public <R extends T> Supplier<R> register(String name, Supplier<R> factory) {
+        R value = factory.get();
+        Registry.register(registry,
+*///?}
+    //?}
+    //? if fabric {
+    //? if >=1.21 {
+    /*            net.minecraft.resources.Identifier.fromNamespaceAndPath(namespace, name), value);
+    *///?} else {
+    /*            new net.minecraft.resources.Identifier(namespace, name), value);
+    *///?}
+    //?}
+    //? if fabric {
+    /*        return () -> value;
+    }
+    *///?}
+
+    public static <T> Registrar<T> create(Registry<T> registry, String namespace) {
+        Registrar<T> made = new Registrar<>(registry, namespace);
+        synchronized (ALL) {
+            ALL.add(made);
+        }
+        return made;
+    }
+}

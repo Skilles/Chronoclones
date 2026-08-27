@@ -68,7 +68,11 @@ class RecordingLimitsTest {
                 .encodeStart(registries.createSerializationContext(JsonOps.INSTANCE),
                         recordingWithSteps(cap + 1));
 
+        //? if >=1.20.5 {
         assertTrue(written.isError(), "an oversized recording should not encode");
+        //?} else {
+        /*assertTrue(written.error().isPresent(), "an oversized recording should not encode");
+        *///?}
     }
 
     @Test

@@ -4,7 +4,7 @@ import com.skilles.chronoclones.recording.ActionSettings.ItemRule;
 import com.skilles.chronoclones.recording.RecordedItem;
 
 import net.minecraft.world.item.Item;
-import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.minecraft.world.item.ItemStack;
 
 /** How closely the item an action reaches for has to match the one recorded. */
 public record ItemMatch(RecordedItem template, ItemRule rule) {
@@ -22,14 +22,13 @@ public record ItemMatch(RecordedItem template, ItemRule rule) {
         return template.isEmpty();
     }
 
-    public boolean accepts(ItemResource resource) {
-        if (resource.getItem() != template.item().value()) {
+    public boolean accepts(ItemStack stack) {
+        if (stack.getItem() != template.item().value()) {
             return false;
         }
         return switch (rule) {
             case SAME_ITEM -> true;
-            case EXACT -> RecordedItem.of(resource.toStack(1)).components()
-                    .equals(template.components());
+            case EXACT -> RecordedItem.of(stack.copyWithCount(1)).matchesComponentsOf(template);
         };
     }
 }

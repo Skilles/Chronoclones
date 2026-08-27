@@ -26,10 +26,6 @@ import net.minecraft.world.level.block.LeverBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.transfer.ResourceHandler;
-import net.neoforged.neoforge.transfer.item.ItemResource;
-import net.neoforged.neoforge.transfer.transaction.Transaction;
 
 final class InteractionGameTest {
 
@@ -110,11 +106,10 @@ final class InteractionGameTest {
                                 + ", reporting " + anchor.getLastFailure().reason());
                         return;
                     }
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel != null && barrel.getAmountAsInt(0) != 7) {
+                    if (TestItemPipes.present(level, absoluteTarget)
+                            && TestItemPipes.slot(level, absoluteTarget, 0).getCount() != 7) {
                         helper.fail("the rest of the stack was not put back, slot 0 holds "
-                                + barrel.getAmountAsInt(0));
+                                + TestItemPipes.slot(level, absoluteTarget, 0).getCount());
                     }
                 })
                 .thenSucceed();
@@ -165,7 +160,7 @@ final class InteractionGameTest {
 
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.FLINT_AND_STEEL)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.FLINT_AND_STEEL), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.FLINT_AND_STEEL, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -220,20 +215,18 @@ final class InteractionGameTest {
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_INPUT, RIGHT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, RIGHT, ContainerInput.PICKUP))));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.OAK_LOG), 2);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.OAK_LOG, 2));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> furnace =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (furnace == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the furnace exposes no item handler");
                         return;
                     }
-                    assertSlotHolds(helper, furnace, FURNACE_INPUT, Items.OAK_LOG, "input");
+                    assertSlotHolds(helper, level, absoluteTarget, FURNACE_INPUT, Items.OAK_LOG, "input");
 
                     if (!helper.getBlockState(target).getValue(BlockStateProperties.LIT)) {
                         helper.fail("the furnace never lit - the second log did not reach the fuel "
@@ -279,14 +272,12 @@ final class InteractionGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    assertSlotHolds(helper, barrel, 7, Items.COBBLESTONE, "destination");
-                    if (!barrel.getResource(3).isEmpty()) {
+                    assertSlotHolds(helper, level, absoluteTarget, 7, Items.COBBLESTONE, "destination");
+                    if (!TestItemPipes.slot(level, absoluteTarget, 3).isEmpty()) {
                         helper.fail("slot 3 still holds items - the move did not come out of it");
                     }
                     if (countIn(anchor.getInventory(), Items.COBBLESTONE) != 0) {
@@ -326,22 +317,20 @@ final class InteractionGameTest {
                 AnchorTestFixture.routine(session(CHEST_MENU_SIZE,
                         List.of(carrying(menuSlot, Items.DIAMOND, 5)),
                         click(menuSlot, LEFT, ContainerInput.QUICK_MOVE))));
-        anchor.getCloneInventory(0).set(inventorySlot, ItemResource.of(Items.DIAMOND), 5);
+        anchor.getCloneInventory(0).setItem(inventorySlot, new ItemStack(Items.DIAMOND, 5));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (countIn(barrel, Items.DIAMOND) != 5) {
+                    if (TestItemPipes.count(level, absoluteTarget, Items.DIAMOND) != 5) {
                         helper.fail("expected 5 diamonds deposited, barrel holds "
-                                + countIn(barrel, Items.DIAMOND)
+                                + TestItemPipes.count(level, absoluteTarget, Items.DIAMOND)
                                 + " - the anchor's stock was not staged into the slot the click names");
                     }
                     if (countIn(anchor.getInventory(), Items.DIAMOND) != 0) {
@@ -384,19 +373,17 @@ final class InteractionGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getAmountAsInt(7) != 12) {
+                    if (TestItemPipes.slot(level, absoluteTarget, 7).getCount() != 12) {
                         helper.fail("expected half of 24 moved, slot 7 holds "
-                                + barrel.getAmountAsInt(7));
+                                + TestItemPipes.slot(level, absoluteTarget, 7).getCount());
                     }
-                    if (barrel.getAmountAsInt(3) != 12) {
+                    if (TestItemPipes.slot(level, absoluteTarget, 3).getCount() != 12) {
                         helper.fail("the other half did not stay put, slot 3 holds "
-                                + barrel.getAmountAsInt(3));
+                                + TestItemPipes.slot(level, absoluteTarget, 3).getCount());
                     }
                 })
                 .thenSucceed();
@@ -416,19 +403,17 @@ final class InteractionGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> barrel =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (barrel == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the barrel exposes no item handler");
                         return;
                     }
-                    if (barrel.getAmountAsInt(7) != 1) {
+                    if (TestItemPipes.slot(level, absoluteTarget, 7).getCount() != 1) {
                         helper.fail("expected one item moved, slot 7 holds "
-                                + barrel.getAmountAsInt(7));
+                                + TestItemPipes.slot(level, absoluteTarget, 7).getCount());
                     }
-                    if (barrel.getAmountAsInt(3) != 23) {
+                    if (TestItemPipes.slot(level, absoluteTarget, 3).getCount() != 23) {
                         helper.fail("the remainder was not put back, slot 3 holds "
-                                + barrel.getAmountAsInt(3));
+                                + TestItemPipes.slot(level, absoluteTarget, 3).getCount());
                     }
                     if (countIn(anchor.getInventory(), Items.COBBLESTONE) != 0) {
                         helper.fail("the remainder came home with the clone instead of staying in "
@@ -509,23 +494,21 @@ final class InteractionGameTest {
                         List.of(carrying(FURNACE_CARRIER_SLOT, Items.COAL, 1)),
                         click(FURNACE_CARRIER_SLOT, LEFT, ContainerInput.PICKUP),
                         click(FURNACE_FUEL, LEFT, ContainerInput.PICKUP))));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.COAL), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.COAL, 1));
 
         ServerLevel level = helper.getLevel();
         BlockPos absoluteTarget = helper.absolutePos(target);
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
-                    ResourceHandler<ItemResource> furnace =
-                            level.getCapability(Capabilities.Item.BLOCK, absoluteTarget, null);
-                    if (furnace == null) {
+                    if (!TestItemPipes.present(level, absoluteTarget)) {
                         helper.fail("the furnace exposes no item handler");
                         return;
                     }
-                    if (!furnace.getResource(FURNACE_INPUT).isEmpty()) {
+                    if (!TestItemPipes.slot(level, absoluteTarget, FURNACE_INPUT).isEmpty()) {
                         helper.fail("coal reached the smelting slot: the click went somewhere other "
                                 + "than the square it named, got "
-                                + furnace.getResource(FURNACE_INPUT).getItem());
+                                + TestItemPipes.slot(level, absoluteTarget, FURNACE_INPUT).getItem());
                     }
                     if (countIn(anchor.getInventory(), Items.COAL) != 1) {
                         helper.fail("the coal went nowhere and was not returned to the anchor");
@@ -543,8 +526,8 @@ final class InteractionGameTest {
                         List.of(carrying(CHEST_MAIN_INVENTORY_START, Items.DIAMOND, 5)),
                         click(CHEST_MAIN_INVENTORY_START, LEFT, ContainerInput.QUICK_MOVE))));
 
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.GOLD_INGOT), 12);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(Items.IRON_INGOT), 7);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.GOLD_INGOT, 12));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.IRON_INGOT, 7));
 
         helper.startSequence()
                 .thenExecuteAfter(15, () -> {
@@ -599,7 +582,7 @@ final class InteractionGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.routine(
                         useOnBlock(new BlockPos(0, 0, -1), Items.DIAMOND_HOE, Blocks.DIRT), 0));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_HOE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
@@ -624,7 +607,7 @@ final class InteractionGameTest {
                         ActionSettings.DEFAULT
                                 .withSlot(ActionSettings.SlotRule.prefer(0))
                                 .withRecordedSubject(false)));
-        anchor.getCloneInventory(0).set(0, ItemResource.of(Items.DIAMOND_HOE), 1);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.DIAMOND_HOE, 1));
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> helper.assertBlockPresent(Blocks.DIRT, target))
@@ -632,27 +615,19 @@ final class InteractionGameTest {
     }
 
     private static void stock(ServerLevel level, BlockPos absolutePos, int slot, Item item, int amount) {
-        ResourceHandler<ItemResource> handler =
-                level.getCapability(Capabilities.Item.BLOCK, absolutePos, null);
-        if (handler == null) {
-            return;
-        }
-        try (Transaction tx = Transaction.openRoot()) {
-            handler.insert(slot, ItemResource.of(item), amount, tx);
-            tx.commit();
-        }
+        TestItemPipes.insertIntoSlot(level, absolutePos, slot, item, amount);
     }
 
-    private static void assertSlotHolds(GameTestHelper helper, ResourceHandler<ItemResource> handler,
+    private static void assertSlotHolds(GameTestHelper helper, ServerLevel level, BlockPos pos,
                                         int slot, Item expected, String label) {
-        ItemResource resource = handler.getResource(slot);
-        if (resource.isEmpty() || resource.getItem() != expected) {
+        ItemStack held = TestItemPipes.slot(level, pos, slot);
+        if (held.isEmpty() || held.getItem() != expected) {
             helper.fail("expected " + expected + " in the " + label + " slot (" + slot + "), found "
-                    + (resource.isEmpty() ? "nothing" : resource.getItem()));
+                    + (held.isEmpty() ? "nothing" : held.getItem()));
         }
     }
 
-    private static int countIn(ResourceHandler<ItemResource> handler, Item item) {
-        return AnchorTestFixture.countIn(handler, item);
+    private static int countIn(net.minecraft.world.Container container, Item item) {
+        return AnchorTestFixture.countIn(container, item);
     }
 }

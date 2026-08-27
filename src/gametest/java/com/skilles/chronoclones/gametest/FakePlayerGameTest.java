@@ -18,7 +18,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.common.util.FakePlayer;
+import com.skilles.chronoclones.platform.ClonePlayer;
 
 final class FakePlayerGameTest {
 
@@ -40,8 +40,8 @@ final class FakePlayerGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(20, () -> {
-                    FakePlayer one = first.getActor().current(0);
-                    FakePlayer two = second.getActor().current(0);
+                    ClonePlayer one = first.getActor().current(0);
+                    ClonePlayer two = second.getActor().current(0);
                     if (one == null || two == null) {
                         helper.fail("an anchor ran for twenty ticks without ever acting: "
                                 + (one == null ? "first" : "second") + " has no player");
@@ -60,7 +60,7 @@ final class FakePlayerGameTest {
 
         helper.startSequence()
                 .thenExecuteAfter(10, () -> {
-                    FakePlayer actor = current(helper, anchor);
+                    ClonePlayer actor = current(helper, anchor);
                     actor.addEffect(new MobEffectInstance(MobEffects.POISON, 600));
                     actor.setRemainingFireTicks(200);
                     actor.setTicksFrozen(200);
@@ -71,7 +71,7 @@ final class FakePlayerGameTest {
                     helper.setBlock(FIRST.above(), Blocks.STONE);
                 })
                 .thenExecuteAfter(30, () -> {
-                    FakePlayer actor = current(helper, anchor);
+                    ClonePlayer actor = current(helper, anchor);
                     if (!actor.getActiveEffects().isEmpty()) {
                         helper.fail("an effect outlived the action that applied it: "
                                 + actor.getActiveEffects());
@@ -93,8 +93,8 @@ final class FakePlayerGameTest {
                 .thenSucceed();
     }
 
-    private static FakePlayer current(GameTestHelper helper, ChronoAnchorBlockEntity anchor) {
-        FakePlayer actor = anchor.getActor().current(0);
+    private static ClonePlayer current(GameTestHelper helper, ChronoAnchorBlockEntity anchor) {
+        ClonePlayer actor = anchor.getActor().current(0);
         if (actor == null) {
             helper.fail("the anchor has not acted yet, so there is nothing to check");
             throw new IllegalStateException("unreachable");

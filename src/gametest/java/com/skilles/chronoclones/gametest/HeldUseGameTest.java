@@ -13,12 +13,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
+//?} else {
+/*import net.minecraft.world.entity.projectile.AbstractArrow;
+*///?}
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.transfer.item.ItemResource;
 
 final class HeldUseGameTest {
 
@@ -70,7 +73,7 @@ final class HeldUseGameTest {
 
     private static void needsTheItemItRecorded(GameTestHelper helper) {
         ChronoAnchorBlockEntity anchor = bowAnchor(helper, FULL_DRAW);
-        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.ARROW)), 4);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.ARROW, 4));
 
         helper.startSequence()
                 .thenExecuteAfter(40, () -> {
@@ -87,15 +90,19 @@ final class HeldUseGameTest {
     }
 
     private static void stock(ChronoAnchorBlockEntity anchor) {
-        anchor.getCloneInventory(0).set(0, ItemResource.of(new ItemStack(Items.BOW)), 1);
-        anchor.getCloneInventory(0).set(1, ItemResource.of(new ItemStack(Items.ARROW)), 4);
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.BOW, 1));
+        anchor.getCloneInventory(0).setItem(1, new ItemStack(Items.ARROW, 4));
     }
 
     private static ChronoAnchorBlockEntity bowAnchor(GameTestHelper helper, int holdTicks) {
+        // Aimed at the floor so the arrow lands inside the plot on every version's physics.
         ChronoAction.UseItem drawing = new ChronoAction.UseItem(
                 InteractionHand.MAIN_HAND,
-                BuiltInRegistries.ITEM.wrapAsHolder(Items.BOW),
-                holdTicks);
+                com.skilles.chronoclones.recording.RecordedItem.of(
+                        BuiltInRegistries.ITEM.wrapAsHolder(Items.BOW)),
+                holdTicks,
+                java.util.Optional.of(new com.skilles.chronoclones.recording.ActionPose(
+                        new Vec3(0.0, 1.0, 0.0), 0.0f, 89.0f)));
 
         return AnchorTestFixture.placeAndImprint(helper, ANCHOR, new Recording(
                 List.of(new MotionSample(0, new Vec3(0, 0, -1), 0f, 0f)),

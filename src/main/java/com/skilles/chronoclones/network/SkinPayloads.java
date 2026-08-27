@@ -16,9 +16,11 @@ import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+//? if >=26 {
 import net.minecraft.util.Util;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+//?} else {
+/*import net.minecraft.Util;
+*///?}
 import org.jspecify.annotations.NonNull;
 
 public final class SkinPayloads {
@@ -72,10 +74,7 @@ public final class SkinPayloads {
 
     private static final int MAX_REMEMBERED = 512;
 
-    public static void handleRequest(Request request, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
+    public static void handleRequest(Request request, ServerPlayer player) {
         MinecraftServer server = player.level().getServer();
         if (server == null) {
             return;
@@ -83,14 +82,16 @@ public final class SkinPayloads {
 
         Known known = KNOWN.get(request.author());
         if (known != null && !known.staleMiss(System.currentTimeMillis())) {
-            context.reply(new Reply(request.author(), known.profile()));
+            com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
+                    new Reply(request.author(), known.profile()));
             return;
         }
 
         ServerPlayer online = server.getPlayerList().getPlayer(request.author());
         if (online != null) {
             remember(request.author(), Optional.of(online.getGameProfile()));
-            context.reply(new Reply(request.author(), Optional.of(online.getGameProfile())));
+            com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
+                    new Reply(request.author(), Optional.of(online.getGameProfile())));
             return;
         }
 
@@ -100,7 +101,19 @@ public final class SkinPayloads {
         Util.backgroundExecutor().execute(() -> {
             Optional<GameProfile> found;
             try {
+                //? if >=26 {
                 found = server.services().profileResolver().fetchById(request.author());
+                //?} else {
+                //? if >=1.20.2 {
+                /*com.mojang.authlib.yggdrasil.ProfileResult fetched =
+                        server.getSessionService().fetchProfile(request.author(), false);
+                found = fetched == null ? Optional.empty() : Optional.of(fetched.profile());
+                *///?} else {
+                /*GameProfile fetched = server.getSessionService().fillProfileProperties(
+                        new GameProfile(request.author(), null), false);
+                found = Optional.of(fetched);
+                *///?}
+                //?}
             } catch (RuntimeException failed) {
                 Chronoclones.LOGGER.debug("Could not look up the author {}", request.author(), failed);
                 found = Optional.empty();
@@ -109,7 +122,8 @@ public final class SkinPayloads {
             server.execute(() -> {
                 LOOKING.remove(request.author());
                 remember(request.author(), resolved);
-                PacketDistributor.sendToAllPlayers(new Reply(request.author(), resolved));
+                com.skilles.chronoclones.platform.PlatformNetwork.sendToAllPlayers(
+                        new Reply(request.author(), resolved));
             });
         });
     }

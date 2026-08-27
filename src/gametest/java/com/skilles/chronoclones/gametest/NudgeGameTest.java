@@ -41,7 +41,7 @@ final class NudgeGameTest {
         ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
                 AnchorTestFixture.breakOneBlock(Blocks.STONE));
 
-        int beyond = ChronoclonesConfig.MAX_RADIUS.getAsInt() + 4;
+        int beyond = ChronoclonesConfig.maxRadius() + 4;
         anchor.nudgeOrigin(new BlockPos(0, 0, -beyond));
 
         helper.startSequence()

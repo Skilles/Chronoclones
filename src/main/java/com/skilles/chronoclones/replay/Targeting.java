@@ -19,7 +19,7 @@ final class Targeting {
 
     static AABB boxAround(Vec3 worldPos, TargetRule rule) {
         return new AABB(worldPos, worldPos)
-                .inflate(rule.radiusWithin(ChronoclonesConfig.MAX_RADIUS.getAsInt()));
+                .inflate(rule.radiusWithin(ChronoclonesConfig.maxRadius()));
     }
 
     static <T extends Entity> @Nullable T choose(List<T> candidates, Vec3 worldPos,
