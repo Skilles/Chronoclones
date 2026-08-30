@@ -85,6 +85,11 @@ ship Java 21 and 1.20.1 launchers ship Java 17, so a class-69 jar crashes them w
   intermediates from uploads.
 - `fabric.mod.json`'s `java` dependency is rewritten per era (`>=21`, `>=17`) to match.
 
+Packaging bugs like these are invisible to dev runs and gametests (they use compiled classes
+and dev-applied ATs, not the jar). `.github/scripts/verify_shipped_jar.sh <node>` asserts the shipped
+jar's invariants — class version, valid shade package names, AT/AW presence and namespaces,
+`fabric.mod.json` java gate — and CI runs it for every node after the build.
+
 ## Datagen
 
 Data generation runs only from the NeoForge node (`:26.2-neoforge:runClientData`) into the
@@ -95,7 +100,9 @@ shared `src/generated/resources`, which every node includes.
 - `at/1.20.1.cfg` is written in **srg member names**: Forge 1.20.1 applies access
   transformers before remapping to mojmap, so mojmap names silently miss. Regenerate srg ids
   from `versions/1.20.1-forge/build/moddev/artifacts/namedToIntermediate.tsrg` when the AW
-  gains entries.
+  gains entries. The same file also ships in the jar as `META-INF/accesstransformer.cfg` —
+  dev applies it via `accessTransformers.from()`, so forgetting the shipped copy only shows
+  up in production, as an `IllegalAccessError` on the first AT-widened member.
 - `build.forge.gradle.kts` rewrites the shared `neoforge.mods.toml` into a 1.20.1
   `META-INF/mods.toml`: `loaderVersion "[47,)"`, a `forge` dependency, and — critically —
   `mandatory=true` in place of `type="required"`, without which FML rejects the mod file with
