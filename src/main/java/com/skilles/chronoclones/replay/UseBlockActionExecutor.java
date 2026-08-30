@@ -54,9 +54,11 @@ public final class UseBlockActionExecutor {
         ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
                 face.getOpposite().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
+            PoppedDrops drops = PoppedDrops.watch(level, Vec3.atCenterOf(worldPos));
             InteractionResult result = owner.gameMode.useItemOn(owner, level,
                     owner.getItemInHand(action.hand()), action.hand(),
                     new BlockHitResult(hit, face, worldPos, action.inside()));
+            drops.gather(ctx);
 
             return Interactions.finish(ctx, owner, action.hand(), loan, result, action.localPos());
         } finally {

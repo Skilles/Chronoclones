@@ -15,7 +15,23 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
+//? if >=26 {
+import net.minecraft.world.entity.EntitySpawnReason;
+//?} else {
+/*import net.minecraft.world.entity.MobSpawnType;
+*///?}
+//? if >=26 {
+import net.minecraft.world.entity.EntityTypes;
+//?} else {
+/*import net.minecraft.world.entity.EntityType;
+*///?}
+//? if >=26 {
+import net.minecraft.world.entity.animal.sheep.Sheep;
+//?} else {
+/*import net.minecraft.world.entity.animal.Sheep;
+*///?}
 import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,6 +39,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FaceAttachedHorizontalDirectionalBlock;
 import net.minecraft.world.level.block.LeverBlock;
+import net.minecraft.world.level.block.SweetBerryBushBlock;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
@@ -37,6 +54,10 @@ final class InteractionGameTest {
                 InteractionGameTest::useOnRefusesAnotherBlock);
         ChronoclonesGameTests.add("use_on_block_widened_works_whatever_is_there",
                 InteractionGameTest::widenedUseOnWorksAnyway);
+        ChronoclonesGameTests.add("use_on_block_harvests_sweet_berries",
+                InteractionGameTest::harvestsBerries);
+        ChronoclonesGameTests.add("use_on_entity_shears_a_sheep",
+                InteractionGameTest::shearsASheep);
         ChronoclonesGameTests.add("use_needs_its_item_in_the_anchor", InteractionGameTest::needsItsItem);
         ChronoclonesGameTests.add("use_returns_what_it_borrowed", InteractionGameTest::returnsWhatItBorrowed);
         ChronoclonesGameTests.add("container_splits_a_stack_by_intent", InteractionGameTest::splitsByIntent);
@@ -132,6 +153,74 @@ final class InteractionGameTest {
                 .thenExecuteAfter(15, () -> {
                     if (!helper.getBlockState(target).getValue(LeverBlock.POWERED)) {
                         helper.fail("the routine right-clicked a lever and it did not flip");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void harvestsBerries(GameTestHelper helper) {
+        BlockPos target = AnchorTestFixture.targetOf(ANCHOR);
+        helper.setBlock(target.below(), Blocks.DIRT);
+        helper.setBlock(target, Blocks.SWEET_BERRY_BUSH.defaultBlockState()
+                .setValue(SweetBerryBushBlock.AGE, 3));
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(useOnBlock(new BlockPos(0, 0, -1), Items.AIR)));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (helper.getBlockState(target).getValue(SweetBerryBushBlock.AGE) != 1) {
+                        helper.fail("the routine right-clicked a ripe berry bush and it was not "
+                                + "harvested, reporting " + anchor.getLastFailure().reason());
+                        return;
+                    }
+                    if (countIn(anchor.getInventory(), Items.SWEET_BERRIES) == 0) {
+                        helper.fail("the bush was harvested but no berries reached the anchor");
+                    }
+                })
+                .thenSucceed();
+    }
+
+    private static void shearsASheep(GameTestHelper helper) {
+        //? if >=26 {
+        Sheep sheep = EntityTypes.SHEEP.spawn(helper.getLevel(),
+        //?} else {
+        /*Sheep sheep = EntityType.SHEEP.spawn(helper.getLevel(),
+        *///?}
+                helper.absolutePos(AnchorTestFixture.targetOf(ANCHOR)),
+                EntitySpawnReason.TRIGGERED);
+        if (sheep == null) {
+            helper.fail("could not spawn the sheep this test is about");
+            return;
+        }
+        sheep.setNoAi(true);
+        sheep.setColor(DyeColor.WHITE);
+
+        ChronoAnchorBlockEntity anchor = AnchorTestFixture.placeAndImprint(helper, ANCHOR,
+                AnchorTestFixture.routine(new ChronoAction.InteractEntity(
+                        Vec3.atCenterOf(new BlockPos(0, 0, -1)),
+                        //? if >=26 {
+                        BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityTypes.SHEEP),
+                        //?} else {
+                        /*BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(EntityType.SHEEP),
+                        *///?}
+                        InteractionHand.MAIN_HAND,
+                        BuiltInRegistries.ITEM.wrapAsHolder(Items.SHEARS))));
+        anchor.getCloneInventory(0).setItem(0, new ItemStack(Items.SHEARS, 1));
+
+        helper.startSequence()
+                .thenExecuteAfter(15, () -> {
+                    if (!sheep.isSheared()) {
+                        helper.fail("the routine right-clicked a woolly sheep with shears and it "
+                                + "was not sheared, reporting " + anchor.getLastFailure().reason());
+                        return;
+                    }
+                    //? if >=26 {
+                    if (countIn(anchor.getInventory(), Items.WOOL.pick(DyeColor.WHITE)) == 0) {
+                    //?} else {
+                    /*if (countIn(anchor.getInventory(), Items.WHITE_WOOL) == 0) {
+                    *///?}
+                        helper.fail("the sheep was sheared but no wool reached the anchor");
                     }
                 })
                 .thenSucceed();
