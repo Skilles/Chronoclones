@@ -46,13 +46,14 @@ public final class GogglePayloads {
         }
     }
 
-    public record Entry(BlockPos pos, Direction facing, BlockPos originOffset,
+    public record Entry(BlockPos pos, Direction facing, BlockPos originOffset, int rotationSteps,
                         Recording recording, DiagnosticState failure) {
         public static final StreamCodec<RegistryFriendlyByteBuf, Entry> STREAM_CODEC =
                 StreamCodec.composite(
                         BlockPos.STREAM_CODEC.cast(), Entry::pos,
                         Direction.STREAM_CODEC.cast(), Entry::facing,
                         BlockPos.STREAM_CODEC.cast(), Entry::originOffset,
+                        ByteBufCodecs.VAR_INT.cast(), Entry::rotationSteps,
                         RecordingCodecs.RECORDING_STREAM, Entry::recording,
                         ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Entry::failure,
                         Entry::new);
@@ -136,7 +137,8 @@ public final class GogglePayloads {
         return new Entry(blockEntity.getBlockPos(),
                 anchor.getBlockState().getValue(
                         com.skilles.chronoclones.block.ChronoAnchorBlock.FACING),
-                anchor.getOriginOffset(), recording, anchor.getLastFailure());
+                anchor.getOriginOffset(), anchor.getRotationSteps(), recording,
+                anchor.getLastFailure());
     }
 
     public static boolean visibleTo(@Nullable UUID ownerId, UUID viewer, boolean showOthers) {

@@ -35,7 +35,7 @@ public final class AnchorPreviewPayloads {
     }
 
     public record Reply(BlockPos pos, Optional<Recording> recording, DiagnosticState failure,
-                        BlockPos originOffset) implements CustomPacketPayload {
+                        BlockPos originOffset, int rotationSteps) implements CustomPacketPayload {
         public static final CustomPacketPayload.Type<Reply> TYPE =
                 new CustomPacketPayload.Type<>(Chronoclones.id("anchor_preview"));
 
@@ -45,6 +45,7 @@ public final class AnchorPreviewPayloads {
                         ByteBufCodecs.optional(RecordingCodecs.RECORDING_STREAM), Reply::recording,
                         ByteBufCodecs.fromCodec(DiagnosticState.CODEC).cast(), Reply::failure,
                         BlockPos.STREAM_CODEC.cast(), Reply::originOffset,
+                        ByteBufCodecs.VAR_INT.cast(), Reply::rotationSteps,
                         Reply::new);
 
         @Override
@@ -65,7 +66,8 @@ public final class AnchorPreviewPayloads {
 
         com.skilles.chronoclones.platform.PlatformNetwork.sendToPlayer(player,
                 new Reply(pos, Optional.ofNullable(anchor.getRecording()),
-                        anchor.getLastFailure(), anchor.getOriginOffset()));
+                        anchor.getLastFailure(), anchor.getOriginOffset(),
+                        anchor.getRotationSteps()));
     }
 
     private static final double MAX_REQUEST_DISTANCE_SQR = 12.0 * 12.0;

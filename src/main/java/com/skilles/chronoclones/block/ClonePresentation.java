@@ -12,7 +12,6 @@ import com.skilles.chronoclones.replay.Placement;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
@@ -27,7 +26,7 @@ final class ClonePresentation {
     private static final int IDLE_PARTICLE_INTERVAL_TICKS = 30;
 
     static void sync(ServerLevel level, CloneRuntime runtime, MotionTrack track, Placement placement,
-                     Direction facing, @Nullable Recording recording) {
+                     @Nullable Recording recording) {
         if (track.isEmpty()) {
             return;
         }
@@ -41,8 +40,8 @@ final class ClonePresentation {
             level.addFreshEntity(clone);
         }
 
-        Vec3 pos = track.worldPositionAt(runtime.playhead(), placement.origin(), facing);
-        float yaw = track.worldYawAt(runtime.playhead(), facing);
+        Vec3 pos = track.worldPositionAt(runtime.playhead(), placement.origin(), placement.facing());
+        float yaw = track.worldYawAt(runtime.playhead(), placement.facing());
         clone.driveTo(pos, yaw, track.pitchAt(runtime.playhead()));
         ChronoAction upcoming = upcomingAction(runtime, recording);
         boolean offhand = upcoming != null && upcoming.heldHand() == InteractionHand.OFF_HAND;

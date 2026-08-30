@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import com.mojang.serialization.Codec;
+
 import com.skilles.chronoclones.block.DiagnosticState.FailureReason;
 import com.skilles.chronoclones.menu.AnchorData;
 import com.skilles.chronoclones.menu.ChronoAnchorMenu;
@@ -85,6 +87,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
     private final List<CloneRuntime> runtimes = new ArrayList<>();
     private BlockPos originOffset = BlockPos.ZERO;
+    private int rotationSteps;
     private RunState runState = RunState.RUNNING;
     private DiagnosticState lastFailure = DiagnosticState.NONE;
 
@@ -280,9 +283,13 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         return originOffset;
     }
 
+    public int getRotationSteps() {
+        return rotationSteps;
+    }
+
     public Placement placement() {
         return Placement.of(worldPosition, getBlockState().getValue(ChronoAnchorBlock.FACING),
-                originOffset);
+                originOffset, rotationSteps);
     }
 
     public void nudgeOrigin(BlockPos delta) {
@@ -295,8 +302,15 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         setChanged();
     }
 
+    public void rotateOrigin(int quarterTurns) {
+        rotationSteps = Math.floorMod(rotationSteps + quarterTurns, 4);
+        bumpRevision();
+        setChanged();
+    }
+
     public void resetOrigin() {
         originOffset = BlockPos.ZERO;
+        rotationSteps = 0;
         bumpRevision();
         setChanged();
     }
@@ -387,7 +401,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
 
         if (runState == RunState.PAUSED) {
             for (CloneRuntime runtime : runtimes) {
-                syncClone(serverLevel, runtime, getBlockState().getValue(ChronoAnchorBlock.FACING));
+                syncClone(serverLevel, runtime);
             }
             setActive(false);
             return;
@@ -411,8 +425,6 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         setActive(true);
         ClonePresentation.idleParticles(serverLevel, worldPosition);
 
-        Direction facing = getBlockState().getValue(ChronoAnchorBlock.FACING);
-        Placement placement = placement();
         int length = Math.max(recording.lengthTicks(), 1);
 
         for (CloneRuntime runtime : runtimes) {
@@ -429,7 +441,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                 runtime.loop(length);
             }
 
-            syncClone(serverLevel, runtime, facing);
+            syncClone(serverLevel, runtime);
             runDueActions(serverLevel, runtime);
 
             if (lastFailure.halts()) {
@@ -687,11 +699,11 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         }
     }
 
-    private void syncClone(ServerLevel serverLevel, CloneRuntime runtime, Direction facing) {
+    private void syncClone(ServerLevel serverLevel, CloneRuntime runtime) {
         if (motionTrack == null) {
             return;
         }
-        ClonePresentation.sync(serverLevel, runtime, motionTrack, placement(), facing, recording);
+        ClonePresentation.sync(serverLevel, runtime, motionTrack, placement(), recording);
     }
 
     private void discardClones() {
@@ -825,6 +837,9 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
         if (!originOffset.equals(BlockPos.ZERO)) {
             output.store("origin_offset", BlockPos.CODEC, originOffset);
         }
+        if (rotationSteps != 0) {
+            output.store("rotation_steps", Codec.INT, rotationSteps);
+        }
         output.store("last_failure", DiagnosticState.CODEC, lastFailure);
         output.putBoolean("obeys_redstone", obeysRedstone);
         output.putBoolean("redstone_powered", redstonePowered);
@@ -869,6 +884,7 @@ public class ChronoAnchorBlockEntity extends BlockEntity implements MenuProvider
                         ? RunState.RUNNING
                         : RunState.STOPPED);
         originOffset = input.read("origin_offset", BlockPos.CODEC).orElse(BlockPos.ZERO);
+        rotationSteps = Math.floorMod(input.read("rotation_steps", Codec.INT).orElse(0), 4);
         lastFailure = input.read("last_failure", DiagnosticState.CODEC).orElse(DiagnosticState.NONE);
         obeysRedstone = input.getBooleanOr("obeys_redstone", false);
         redstonePowered = input.getBooleanOr("redstone_powered", false);

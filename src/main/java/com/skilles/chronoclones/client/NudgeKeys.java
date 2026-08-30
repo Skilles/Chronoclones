@@ -6,6 +6,7 @@ import java.util.Map;
 import com.skilles.chronoclones.Chronoclones;
 import com.skilles.chronoclones.client.preview.PreviewCache;
 import com.skilles.chronoclones.network.AnchorNudgePayload;
+import com.skilles.chronoclones.network.AnchorRotatePayload;
 import com.skilles.chronoclones.recording.LocalSpace;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -30,6 +31,8 @@ public final class NudgeKeys {
     private static final Map<NudgeDirection.Key, KeyMapping> KEYS =
             new EnumMap<>(NudgeDirection.Key.class);
     private static final KeyMapping reset;
+    private static final KeyMapping rotateClockwise;
+    private static final KeyMapping rotateCounterclockwise;
 
     static {
         bind(NudgeDirection.Key.FORWARD, "forward", InputConstants.KEY_UP);
@@ -41,6 +44,10 @@ public final class NudgeKeys {
 
         reset = new KeyMapping("key.chronoclones.nudge.reset", InputConstants.Type.KEYSYM,
                 InputConstants.KEY_END, CATEGORY);
+        rotateClockwise = new KeyMapping("key.chronoclones.nudge.rotate_cw",
+                InputConstants.Type.KEYSYM, InputConstants.KEY_HOME, CATEGORY);
+        rotateCounterclockwise = new KeyMapping("key.chronoclones.nudge.rotate_ccw",
+                InputConstants.Type.KEYSYM, InputConstants.KEY_INSERT, CATEGORY);
     }
 
     private static void bind(NudgeDirection.Key key, String name, int code) {
@@ -52,6 +59,8 @@ public final class NudgeKeys {
     public static void forEachMapping(java.util.function.Consumer<KeyMapping> registrar) {
         KEYS.values().forEach(registrar);
         registrar.accept(reset);
+        registrar.accept(rotateClockwise);
+        registrar.accept(rotateCounterclockwise);
     }
 
     /** Called at the end of every client tick. */
@@ -76,6 +85,12 @@ public final class NudgeKeys {
         while (reset.consumeClick()) {
             send(target.anchorPos(), BlockPos.ZERO);
         }
+        while (rotateClockwise.consumeClick()) {
+            sendRotation(target.anchorPos(), 1);
+        }
+        while (rotateCounterclockwise.consumeClick()) {
+            sendRotation(target.anchorPos(), -1);
+        }
     }
 
     private static void drain() {
@@ -87,10 +102,21 @@ public final class NudgeKeys {
         while (reset.consumeClick()) {
             // discarded
         }
+        while (rotateClockwise.consumeClick()) {
+            // discarded
+        }
+        while (rotateCounterclockwise.consumeClick()) {
+            // discarded
+        }
     }
 
     private static void send(BlockPos anchorPos, BlockPos delta) {
         PlatformClientNetwork.sendToServer(new AnchorNudgePayload(anchorPos, delta));
         PreviewCache.nudged(delta);
+    }
+
+    private static void sendRotation(BlockPos anchorPos, int quarterTurns) {
+        PlatformClientNetwork.sendToServer(new AnchorRotatePayload(anchorPos, quarterTurns));
+        PreviewCache.rotated(quarterTurns);
     }
 }

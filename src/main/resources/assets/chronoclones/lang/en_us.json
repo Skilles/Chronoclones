@@ -137,6 +137,8 @@
   "key.chronoclones.nudge.up": "Nudge up",
   "key.chronoclones.nudge.down": "Nudge down",
   "key.chronoclones.nudge.reset": "Reset origin",
+  "key.chronoclones.nudge.rotate_cw": "Rotate clockwise",
+  "key.chronoclones.nudge.rotate_ccw": "Rotate counterclockwise",
   "item.chronoclones.chrono_goggles": "Chrono Goggles",
   "tooltip.chronoclones.chrono_goggles": "Reveals nearby recordings",
   "chronoclones.configuration.goggleRadius": "Goggles Range",

@@ -38,7 +38,7 @@ public final class GoggleCache {
         List<PreviewCache.Target> targets = new ArrayList<>(anchors.size());
         for (GogglePayloads.Entry entry : anchors) {
             targets.add(new PreviewCache.Target(entry.pos(), entry.facing(), entry.recording(),
-                    false, entry.failure(), entry.originOffset()));
+                    false, entry.failure(), entry.originOffset(), entry.rotationSteps()));
         }
         return targets;
     }

@@ -55,7 +55,8 @@ public final class PreviewRenderer {
     private static void submit(SubmitNodeCollector collector, PoseStack poseStack,
                                PreviewCache.Target target, int alpha) {
         PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
-                target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
+                target.effectiveFacing(),
+                target.failure().isFailure() ? target.failure().localPos() : null);
         if (shape.isEmpty()) {
             return;
         }
@@ -199,7 +200,8 @@ public final class PreviewRenderer {
     private static void render(VertexConsumer buffer, PoseStack poseStack,
                                PreviewCache.Target target, int alpha) {
         PreviewShape shape = PreviewShape.of(target.recording(), target.placement().origin(),
-                target.facing(), target.failure().isFailure() ? target.failure().localPos() : null);
+                target.effectiveFacing(),
+                target.failure().isFailure() ? target.failure().localPos() : null);
         if (shape.isEmpty()) {
             return;
         }

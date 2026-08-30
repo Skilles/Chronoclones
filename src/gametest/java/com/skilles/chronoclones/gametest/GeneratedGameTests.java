@@ -635,106 +635,121 @@ import net.minecraft.gametest.framework.GameTestHelper;
     }
 
     @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
+    public void reset_clears_the_rotation(GameTestHelper helper) {
+        ChronoclonesGameTests.run("reset_clears_the_rotation", helper);
+    }
+
+    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    public void rotate_after_nudge_spins_in_place(GameTestHelper helper) {
+        ChronoclonesGameTests.run("rotate_after_nudge_spins_in_place", helper);
+    }
+
+    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
+    public void rotate_turns_where_the_routine_acts(GameTestHelper helper) {
+        ChronoclonesGameTests.run("rotate_turns_where_the_routine_acts", helper);
+    }
+
+    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
     public void session_finds_a_villager_that_wandered(GameTestHelper helper) {
         ChronoclonesGameTests.run("session_finds_a_villager_that_wandered", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
     public void shard_imprint_uses_new_owner(GameTestHelper helper) {
         ChronoclonesGameTests.run("shard_imprint_uses_new_owner", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
     public void shard_is_not_consumed_by_imprint(GameTestHelper helper) {
         ChronoclonesGameTests.run("shard_is_not_consumed_by_imprint", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
     public void shard_preserves_author(GameTestHelper helper) {
         ChronoclonesGameTests.run("shard_preserves_author", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
     public void shift_click_stays_on_the_visible_page(GameTestHelper helper) {
         ChronoclonesGameTests.run("shift_click_stays_on_the_visible_page", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
     public void smart_tool_falls_back_to_bare_hands(GameTestHelper helper) {
         ChronoclonesGameTests.run("smart_tool_falls_back_to_bare_hands", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
     public void smart_tool_picks_something_the_recording_never_held(GameTestHelper helper) {
         ChronoclonesGameTests.run("smart_tool_picks_something_the_recording_never_held", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
     public void smart_tool_refuses_to_break_for_nothing(GameTestHelper helper) {
         ChronoclonesGameTests.run("smart_tool_refuses_to_break_for_nothing", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
     public void smelted_result_banks_the_furnace_experience(GameTestHelper helper) {
         ChronoclonesGameTests.run("smelted_result_banks_the_furnace_experience", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
     public void standing_power_read_again_after_a_reload_is_not_an_edge(GameTestHelper helper) {
         ChronoclonesGameTests.run("standing_power_read_again_after_a_reload_is_not_an_edge", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
     public void stopping_takes_the_clones_away_and_starts_over(GameTestHelper helper) {
         ChronoclonesGameTests.run("stopping_takes_the_clones_away_and_starts_over", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
     public void the_fuel_slot_takes_only_what_will_burn(GameTestHelper helper) {
         ChronoclonesGameTests.run("the_fuel_slot_takes_only_what_will_burn", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
     public void the_redstone_mode_and_latch_survive_a_reload(GameTestHelper helper) {
         ChronoclonesGameTests.run("the_redstone_mode_and_latch_survive_a_reload", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
     public void the_report_names_the_clone_that_tried(GameTestHelper helper) {
         ChronoclonesGameTests.run("the_report_names_the_clone_that_tried", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
     public void the_upgrade_slots_take_only_upgrades(GameTestHelper helper) {
         ChronoclonesGameTests.run("the_upgrade_slots_take_only_upgrades", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
     public void tilling_records_one_action_and_the_block_it_worked(GameTestHelper helper) {
         ChronoclonesGameTests.run("tilling_records_one_action_and_the_block_it_worked", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
     public void trade_refuses_an_offer_that_is_gone(GameTestHelper helper) {
         ChronoclonesGameTests.run("trade_refuses_an_offer_that_is_gone", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
     public void trade_says_so_when_the_merchant_is_sold_out(GameTestHelper helper) {
         ChronoclonesGameTests.run("trade_says_so_when_the_merchant_is_sold_out", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
     public void trade_survives_its_offers_being_reordered(GameTestHelper helper) {
         ChronoclonesGameTests.run("trade_survives_its_offers_being_reordered", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
     public void use_needs_its_item_in_the_anchor(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_needs_its_item_in_the_anchor", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
     public void use_on_block_flips_a_lever(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_block_flips_a_lever", helper);
     }
@@ -744,22 +759,22 @@ import net.minecraft.gametest.framework.GameTestHelper;
         ChronoclonesGameTests.run("use_on_block_harvests_sweet_berries", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
     public void use_on_block_refuses_a_block_it_was_not_recorded_on(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_block_refuses_a_block_it_was_not_recorded_on", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones2", timeoutTicks = 200)
     public void use_on_block_widened_works_whatever_is_there(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_block_widened_works_whatever_is_there", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones3", timeoutTicks = 200)
     public void use_on_entity_shears_a_sheep(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_entity_shears_a_sheep", helper);
     }
 
-    @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)
+    @GameTest(template = PLOT, batch = "chronoclones4", timeoutTicks = 200)
     public void use_returns_what_it_borrowed(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_returns_what_it_borrowed", helper);
     }
