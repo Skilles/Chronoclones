@@ -103,8 +103,8 @@ final class BreakingGameTest {
         helper.startSequence()
                 .thenExecuteAfter(60, () -> {
                     helper.assertBlockPresent(Blocks.STONE, target);
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
-                        helper.fail("expected NO_ITEM with nothing that would earn the drops, got "
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_TOOL) {
+                        helper.fail("expected NO_TOOL with nothing that would earn the drops, got "
                                 + anchor.getLastFailure().reason());
                     }
                 })
@@ -127,8 +127,8 @@ final class BreakingGameTest {
         helper.startSequence()
                 .thenExecuteAfter(60, () -> {
                     helper.assertBlockPresent(Blocks.OBSIDIAN, target);
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
-                        helper.fail("expected NO_ITEM digging with a tool the anchor lacks, got "
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_TOOL) {
+                        helper.fail("expected NO_TOOL digging with a tool the anchor lacks, got "
                                 + anchor.getLastFailure().reason());
                     }
                 })

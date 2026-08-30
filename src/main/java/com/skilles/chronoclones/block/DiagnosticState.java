@@ -62,7 +62,12 @@ public record DiagnosticState(FailureReason reason, BlockPos localPos, int tick)
 
         NO_AMMO("no_ammo", false),
 
-        UNSUPPORTED("unsupported", false);
+        UNSUPPORTED("unsupported", false),
+
+        // Appended after the fact: the menu syncs this enum by ordinal.
+        NO_TOOL("no_tool", false),
+
+        NO_WEAPON("no_weapon", false);
 
         public static final Codec<FailureReason> CODEC = StringRepresentable.fromEnum(FailureReason::values);
 
