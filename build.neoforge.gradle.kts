@@ -157,6 +157,14 @@ neoForge {
             type = "gameTestServer"
             systemProperty("neoforge.enabledGameTestNamespaces", modId)
             gameDirectory = runsRoot.dir("run/gameTestServer")
+            // -PgameTestFilter=chronoclones:some_test_* runs a subset in isolation;
+            // -PgameTestRepeat=N reruns each selected test N times to shake out flakes.
+            if (project.hasProperty("gameTestFilter")) {
+                programArguments.addAll("--tests", project.property("gameTestFilter").toString())
+            }
+            if (project.hasProperty("gameTestRepeat")) {
+                programArguments.addAll("--repeatCount", project.property("gameTestRepeat").toString())
+            }
         }
 
         create("clientData") {

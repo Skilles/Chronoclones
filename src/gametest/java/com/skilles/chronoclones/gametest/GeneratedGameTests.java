@@ -739,6 +739,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
         ChronoclonesGameTests.run("use_on_block_flips_a_lever", helper);
     }
 
+    @GameTest(template = PLOT, batch = "chronoclones0", timeoutTicks = 200)
+    public void use_on_block_harvests_sweet_berries(GameTestHelper helper) {
+        ChronoclonesGameTests.run("use_on_block_harvests_sweet_berries", helper);
+    }
+
     @GameTest(template = PLOT, batch = "chronoclones5", timeoutTicks = 200)
     public void use_on_block_refuses_a_block_it_was_not_recorded_on(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_block_refuses_a_block_it_was_not_recorded_on", helper);
@@ -747,6 +752,11 @@ import net.minecraft.gametest.framework.GameTestHelper;
     @GameTest(template = PLOT, batch = "chronoclones6", timeoutTicks = 200)
     public void use_on_block_widened_works_whatever_is_there(GameTestHelper helper) {
         ChronoclonesGameTests.run("use_on_block_widened_works_whatever_is_there", helper);
+    }
+
+    @GameTest(template = PLOT, batch = "chronoclones1", timeoutTicks = 200)
+    public void use_on_entity_shears_a_sheep(GameTestHelper helper) {
+        ChronoclonesGameTests.run("use_on_entity_shears_a_sheep", helper);
     }
 
     @GameTest(template = PLOT, batch = "chronoclones7", timeoutTicks = 200)

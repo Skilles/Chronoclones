@@ -58,12 +58,14 @@ public final class InteractEntityActionExecutor {
         ClonePlayer owner = ctx.acquire(worldPos,
                 ctx.placement().facing().toYRot(), 0.0f, action.hand(), loan.stack());
         try {
+            PoppedDrops drops = PoppedDrops.watch(level, target.position());
             //? if >=26 {
             InteractionResult result = owner.interactOn(target, action.hand(),
                     worldPos.subtract(target.position()));
             //?} else {
             /*InteractionResult result = owner.interactOn(target, action.hand());
             *///?}
+            drops.gather(ctx);
             return Interactions.finish(ctx, owner, action.hand(), loan, result, localBlock);
         } finally {
             ctx.release(owner);
