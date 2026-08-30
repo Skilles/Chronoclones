@@ -3,6 +3,7 @@
 plugins {
     id("dev.kikugie.stonecutter")
     id("net.neoforged.moddev") version "2.0.143" apply false
+    id("xyz.wagyourtail.jvmdowngrader") version "2.0.1" apply false
 }
 
 stonecutter active file(".sc_active_version")

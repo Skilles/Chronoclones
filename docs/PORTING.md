@@ -65,6 +65,26 @@ The repository is a [Stonecutter](https://stonecutter.kikugie.dev/) tree: one br
   old annotation framework. Budget for substantial per-version fences or version-specific
   platform classes.
 
+## Shipping Java versions
+
+The source is written against the newest toolchain (25, or 21 on the Forge node, whose loader
+rejects newer class files even in dev), but older eras run on older stock Java: 1.21.1 launchers
+ship Java 21 and 1.20.1 launchers ship Java 17, so a class-69 jar crashes them with
+`UnsupportedClassVersionError`. On every pre-26 node,
+[JvmDowngrader](https://github.com/unimined/JvmDowngrader) closes the gap at the jar level:
+
+- `downgradeJar` lowers the built jar's bytecode to the era's class version (65 for ≥1.20.5,
+  61 below), desugaring newer constructs such as pattern-matching switches.
+- `shadeDowngradedApi` shades stubs for APIs the era's JVM lacks (`Math.clamp`,
+  `List.getFirst`, ...) and emits the jar under the canonical artifact name; the
+  un-downgraded jar keeps a `-dev` classifier. Remapping still happens in the usual place:
+  on Fabric the downgrade rides on `remapJar`'s intermediary output, on Forge the shaded jar
+  is reobfuscated to srg afterwards (`reobfShadeDowngradedApi`).
+- Dev runs and tests still use the un-downgraded classes — dev needs the toolchain's Java
+  either way. Only the shipped jar is downgraded; CI excludes the `-dev` and `-downgraded`
+  intermediates from uploads.
+- `fabric.mod.json`'s `java` dependency is rewritten per era (`>=21`, `>=17`) to match.
+
 ## Datagen
 
 Data generation runs only from the NeoForge node (`:26.2-neoforge:runClientData`) into the
