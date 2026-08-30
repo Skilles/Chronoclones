@@ -72,8 +72,17 @@ public final class RecordingCapture {
         capture(player, session, new ChronoAction.BreakBlock(
                         session.toLocal(pos),
                         BuiltInRegistries.BLOCK.wrapAsHolder(state.getBlock()),
-                        player.getMainHandItem().copy()),
+                        toolTemplateOf(player)),
                 Vec3.atCenterOf(pos));
+    }
+
+    /**
+     * The recorder in a creative fist breaks blocks like any other item would, but demanding one
+     * from the anchor at playback could only ever fail; a control item records as bare hands.
+     */
+    private static ItemStack toolTemplateOf(ServerPlayer player) {
+        ItemStack held = player.getMainHandItem();
+        return isControlInput(held) ? ItemStack.EMPTY : held.copy();
     }
 
     public static void blockPlaced(ServerPlayer player, BlockPos pos, BlockState placed) {
@@ -122,7 +131,7 @@ public final class RecordingCapture {
         capture(player, session, new ChronoAction.AttackEntity(
                         session.toLocal(targetPos),
                         BuiltInRegistries.ENTITY_TYPE.wrapAsHolder(target.getType()),
-                        player.getMainHandItem().copy()),
+                        toolTemplateOf(player)),
                 targetPos, target.getUUID());
     }
 

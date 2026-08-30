@@ -177,7 +177,7 @@ final class AttackIntentGameTest {
                         helper.fail("an anchor holding no sword swung one anyway, for "
                                 + (cow.getMaxHealth() - cow.getHealth()) + " damage");
                     }
-                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_ITEM) {
+                    if (anchor.getLastFailure().reason() != DiagnosticState.FailureReason.NO_WEAPON) {
                         helper.fail("expected the swing to report having no weapon, got "
                                 + anchor.getLastFailure().reason());
                     }

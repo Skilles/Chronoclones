@@ -24,7 +24,7 @@ public final class NudgeKeys {
     private static final KeyMapping.Category CATEGORY =
             KeyMapping.Category.register(Chronoclones.id("nudge"));
     //?} else {
-    /*private static final String CATEGORY = "key.categories.chronoclones.nudge";
+    /*private static final String CATEGORY = "key.category.chronoclones.nudge";
     *///?}
 
     private static final Map<NudgeDirection.Key, KeyMapping> KEYS =

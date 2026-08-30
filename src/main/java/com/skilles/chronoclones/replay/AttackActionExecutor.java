@@ -49,7 +49,7 @@ public final class AttackActionExecutor {
 
         HeldItemLoan.Loan loan = weaponFor(ctx, action);
         if (loan == null) {
-            return AttackOutcome.missed(FailureReason.NO_ITEM, localBlock);
+            return AttackOutcome.missed(FailureReason.NO_WEAPON, localBlock);
         }
 
         ClonePlayer owner = ctx.acquire(worldPos, 0.0f, 0.0f,

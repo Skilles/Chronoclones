@@ -60,7 +60,7 @@ public final class BreakActionExecutor {
         }
 
         if (toolFor(action, ctx.items(), ctx.slot(), ctx.tool(), state) == null) {
-            return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
+            return ActionResult.fail(FailureReason.NO_TOOL, action.localPos());
         }
         return null;
     }
@@ -135,7 +135,7 @@ public final class BreakActionExecutor {
 
         ItemStack tool = toolFor(action, inventory, ctx.slot(), ctx.tool(), state);
         if (tool == null) {
-            return ActionResult.fail(FailureReason.NO_ITEM, action.localPos());
+            return ActionResult.fail(FailureReason.NO_TOOL, action.localPos());
         }
 
         ClonePlayer owner = ctx.acquire(Vec3.atCenterOf(worldPos),
