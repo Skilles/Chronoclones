@@ -49,7 +49,7 @@ class GoggleSlotsTest {
                 20, "Author", UUID.randomUUID());
 
         return new PreviewCache.Target(pos, Direction.NORTH, recording, false,
-                DiagnosticState.NONE, nudge);
+                DiagnosticState.NONE, nudge, 0);
     }
 
     private static BlockPos anchorFor(BlockPos container) {

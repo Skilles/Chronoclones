@@ -15,7 +15,17 @@ public record Placement(BlockPos anchorPos, BlockPos origin, Direction facing) {
     }
 
     public static Placement of(BlockPos anchorPos, Direction facing, BlockPos localOffset) {
-        return new Placement(anchorPos, LocalSpace.toWorld(localOffset, anchorPos, facing), facing);
+        return of(anchorPos, facing, localOffset, 0);
+    }
+
+    /**
+     * The offset stays in the anchor block's own space, so rotating spins the routine in place
+     * around its current origin instead of swinging it around the anchor.
+     */
+    public static Placement of(BlockPos anchorPos, Direction facing, BlockPos localOffset,
+                               int rotationSteps) {
+        return new Placement(anchorPos, LocalSpace.toWorld(localOffset, anchorPos, facing),
+                LocalSpace.rotateY(facing, rotationSteps));
     }
 
     public BlockPos toWorld(BlockPos local) {

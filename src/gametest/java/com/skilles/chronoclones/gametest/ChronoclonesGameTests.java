@@ -44,6 +44,7 @@ public final class ChronoclonesGameTests {
         InteractionGameTest.register();
         BreakingGameTest.register();
         NudgeGameTest.register();
+        RotateGameTest.register();
         CarrierGameTest.register();
         CloneInventoryGameTest.register();
         MenuPagingGameTest.register();
