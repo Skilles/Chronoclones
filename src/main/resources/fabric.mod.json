@@ -12,7 +12,7 @@
     "sources": "https://github.com/Skilles/Chronoclones"
   },
   "license": "${mod_license}",
-  "icon": "logo.png",
+  "icon": "icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [
