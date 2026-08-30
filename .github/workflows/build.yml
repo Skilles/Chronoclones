@@ -79,4 +79,6 @@ jobs:
             versions/${{ matrix.node }}/build/libs/*.jar
             !versions/${{ matrix.node }}/build/libs/*-sources.jar
             !versions/${{ matrix.node }}/build/libs/*-javadoc.jar
+            !versions/${{ matrix.node }}/build/libs/*-dev.jar
+            !versions/${{ matrix.node }}/build/libs/*-downgraded.jar
           if-no-files-found: error

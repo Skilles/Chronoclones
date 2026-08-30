@@ -72,13 +72,44 @@ base {
     archivesName = "$modId-$minecraftVersion-fabric"
 }
 
-// No remapJar here: the unobfuscated era has nothing to remap, so the plain jar is the artifact.
+// On 26.x the unobfuscated era has nothing to remap, so the plain jar is the artifact.
+// On pre-26 nodes loom shunts the plain jar to devlibs and remapJar's output ships instead.
 tasks.named<Jar>("jar") {
-    archiveClassifier.set(releaseChannel)
+    archiveClassifier.set(if (stonecutter.current.parsed < "26") "dev" else releaseChannel)
 }
 
 // Mojang ships Java 25 to end users in 26.2, so mods should target Java 25.
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// Older eras ship on older stock Java (21 for 1.21.1, 17 for 1.20.1). The source stays on the
+// 25 toolchain; JvmDowngrader lowers the intermediary-remapped jar's bytecode (pattern
+// switches and all) and shades stubs for the newer APIs (Math.clamp, List.getFirst, ...).
+if (stonecutter.current.parsed < "26") {
+    apply(plugin = "xyz.wagyourtail.jvmdowngrader")
+
+    extensions.configure<xyz.wagyourtail.jvmdg.gradle.JVMDowngraderExtension> {
+        downgradeTo.set(if (stonecutter.current.parsed < "1.20.5") JavaVersion.VERSION_17 else JavaVersion.VERSION_21)
+    }
+
+    // The remapped-but-not-downgraded jar steps aside as "-dev".
+    val remapJar = tasks.named<org.gradle.jvm.tasks.Jar>("remapJar") {
+        archiveClassifier.set("dev")
+    }
+
+    tasks.named<xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar>("downgradeJar") {
+        inputFile.set(remapJar.flatMap { it.archiveFile })
+        classpath = sourceSets["main"].compileClasspath
+    }
+
+    // The shaded jar takes the canonical artifact name the remapped jar vacated.
+    tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
+        archiveClassifier.set(releaseChannel)
+    }
+
+    tasks.named("assemble") {
+        dependsOn("shadeDowngradedApi")
+    }
+}
 
 sourceSets {
     main {
@@ -235,6 +266,14 @@ tasks.withType<ProcessResources>().configureEach {
                 "\"com.skilles.chronoclones.gametest.FabricGametestInit\"",
                 "\"com.skilles.chronoclones.gametest.FabricGametestInit\" ], " +
                         "\"fabric-gametest\": [ \"com.skilles.chronoclones.gametest.GeneratedGameTests\"") }
+        }
+    }
+
+    // The shipped jar is downgraded to the era's stock Java; the dependency gate follows it.
+    if (stonecutter.current.parsed < "26") {
+        val javaRequirement = if (stonecutter.current.parsed < "1.20.5") ">=17" else ">=21"
+        filesMatching("fabric.mod.json") {
+            filter { line -> line.replace("\"java\": \">=25\"", "\"java\": \"$javaRequirement\"") }
         }
     }
 

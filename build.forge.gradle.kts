@@ -72,12 +72,31 @@ base {
     archivesName = "$modId-$minecraftVersion-forge"
 }
 
+// The plain jar steps aside as "-dev"; the downgraded, reobfuscated jar takes its name below.
 tasks.named<Jar>("jar") {
-    archiveClassifier.set(releaseChannel)
+    archiveClassifier.set("dev")
 }
 
 // Forge 47.x reads class files only up to Java 21's version 65.
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// Stock 1.20.1 launchers run Java 17. The source stays on the 21 toolchain; JvmDowngrader
+// lowers the built jar to class version 61 and shades stubs for the 21-era APIs (Math.clamp,
+// List.getFirst, ...); the shaded jar is then reobfuscated to srg below like any other jar.
+apply(plugin = "xyz.wagyourtail.jvmdowngrader")
+
+extensions.configure<xyz.wagyourtail.jvmdg.gradle.JVMDowngraderExtension> {
+    downgradeTo.set(JavaVersion.VERSION_17)
+}
+
+tasks.named<xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar>("downgradeJar") {
+    classpath = sourceSets["main"].compileClasspath
+}
+
+// The reobfuscated shaded jar takes the canonical artifact name the plain jar vacated.
+tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
+    archiveClassifier.set(releaseChannel)
+}
 
 sourceSets {
     main {
@@ -148,6 +167,15 @@ legacyForge {
 mixin {
     add(sourceSets["main"], "$modId.refmap.json")
     config("$modId.mixins.json")
+}
+
+// The shipped jar is the downgraded one in srg names; the auto-reobfuscated "-dev" jar and the
+// "-downgraded" intermediate stay out of releases (CI excludes them by classifier).
+val reobfShipJar = the<net.neoforged.moddevgradle.legacyforge.dsl.ObfuscationExtension>()
+    .reobfuscate(tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi"), sourceSets["main"])
+
+tasks.named("assemble") {
+    dependsOn(reobfShipJar)
 }
 
 dependencies {

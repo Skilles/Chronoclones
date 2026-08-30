@@ -72,12 +72,36 @@ base {
     archivesName = "$modId-$minecraftVersion-neoforge"
 }
 
+// On pre-26 nodes the plain jar steps aside as "-dev"; the downgraded jar takes its name below.
 tasks.named<Jar>("jar") {
-    archiveClassifier.set(releaseChannel)
+    archiveClassifier.set(if (stonecutter.current.parsed < "26") "dev" else releaseChannel)
 }
 
 // Mojang ships Java 25 to end users in 26.2, so mods should target Java 25.
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+// Older eras ship on older stock Java (21 for 1.21.1). The source stays on the 25 toolchain;
+// JvmDowngrader lowers the built jar's bytecode and shades stubs for the newer APIs.
+if (stonecutter.current.parsed < "26") {
+    apply(plugin = "xyz.wagyourtail.jvmdowngrader")
+
+    extensions.configure<xyz.wagyourtail.jvmdg.gradle.JVMDowngraderExtension> {
+        downgradeTo.set(if (stonecutter.current.parsed < "1.20.5") JavaVersion.VERSION_17 else JavaVersion.VERSION_21)
+    }
+
+    tasks.named<xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar>("downgradeJar") {
+        classpath = sourceSets["main"].compileClasspath
+    }
+
+    // The shaded jar takes the canonical artifact name the plain jar vacated.
+    tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
+        archiveClassifier.set(releaseChannel)
+    }
+
+    tasks.named("assemble") {
+        dependsOn("shadeDowngradedApi")
+    }
+}
 
 sourceSets {
     main {
