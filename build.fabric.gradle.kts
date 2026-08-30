@@ -101,9 +101,12 @@ if (stonecutter.current.parsed < "26") {
         classpath = sourceSets["main"].compileClasspath
     }
 
-    // The shaded jar takes the canonical artifact name the remapped jar vacated.
+    // The shaded jar takes the canonical artifact name the remapped jar vacated. The stub
+    // package must be an explicit valid Java package: the default derives it from the
+    // archive name, whose hyphens are not legal in package names.
     tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
         archiveClassifier.set(releaseChannel)
+        shadePath.set("com/skilles/chronoclones/jvmdg/")
     }
 
     tasks.named("assemble") {

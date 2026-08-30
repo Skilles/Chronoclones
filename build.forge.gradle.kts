@@ -94,8 +94,11 @@ tasks.named<xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar>("downgradeJar") {
 }
 
 // The reobfuscated shaded jar takes the canonical artifact name the plain jar vacated.
+// The stub package must be an explicit valid Java package: the default derives it from the
+// archive name, whose hyphens FML's module scanner rejects ("not a Java identifier").
 tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
     archiveClassifier.set(releaseChannel)
+    shadePath.set("com/skilles/chronoclones/jvmdg/")
 }
 
 sourceSets {
