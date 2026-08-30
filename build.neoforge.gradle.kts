@@ -93,9 +93,12 @@ if (stonecutter.current.parsed < "26") {
         classpath = sourceSets["main"].compileClasspath
     }
 
-    // The shaded jar takes the canonical artifact name the plain jar vacated.
+    // The shaded jar takes the canonical artifact name the plain jar vacated. The stub
+    // package must be an explicit valid Java package: the default derives it from the
+    // archive name, whose hyphens FML's module scanner rejects ("not a Java identifier").
     tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
         archiveClassifier.set(releaseChannel)
+        shadePath.set("com/skilles/chronoclones/jvmdg/")
     }
 
     tasks.named("assemble") {

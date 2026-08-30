@@ -94,8 +94,11 @@ tasks.named<xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar>("downgradeJar") {
 }
 
 // The reobfuscated shaded jar takes the canonical artifact name the plain jar vacated.
+// The stub package must be an explicit valid Java package: the default derives it from the
+// archive name, whose hyphens FML's module scanner rejects ("not a Java identifier").
 tasks.named<xyz.wagyourtail.jvmdg.gradle.task.ShadeJar>("shadeDowngradedApi") {
     archiveClassifier.set(releaseChannel)
+    shadePath.set("com/skilles/chronoclones/jvmdg/")
 }
 
 sourceSets {
@@ -265,6 +268,14 @@ tasks.withType<ProcessResources>().configureEach {
     exclude("chronoclones.fabric.mixins.json")
     exclude("at/**")
     exclude("aw/**")
+
+    // Production Forge applies the srg-named AT from the jar's default location; dev runs get
+    // it from accessTransformers.from() instead, so a missing copy only fails in production
+    // (IllegalAccessError on the first AT-widened member).
+    from(accessTransformerFile) {
+        into("META-INF")
+        rename { "accesstransformer.cfg" }
+    }
 }
 
 publishing {
