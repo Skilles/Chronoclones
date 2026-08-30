@@ -268,6 +268,14 @@ tasks.withType<ProcessResources>().configureEach {
     exclude("chronoclones.fabric.mixins.json")
     exclude("at/**")
     exclude("aw/**")
+
+    // Production Forge applies the srg-named AT from the jar's default location; dev runs get
+    // it from accessTransformers.from() instead, so a missing copy only fails in production
+    // (IllegalAccessError on the first AT-widened member).
+    from(accessTransformerFile) {
+        into("META-INF")
+        rename { "accesstransformer.cfg" }
+    }
 }
 
 publishing {
